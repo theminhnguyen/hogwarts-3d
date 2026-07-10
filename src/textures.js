@@ -153,12 +153,12 @@ export function makeGroundTexture() {
   const rng = mulberry32(57);
   ctx.fillStyle = '#d6d6cc';
   ctx.fillRect(0, 0, S, S);
-  // fleckige Helligkeit
+  // fleckige Helligkeit (dezent, sonst wirkt die Wiese gescheckt)
   for (let i = 0; i < 260; i++) {
-    const v = 195 + Math.floor(rng() * 55);
-    ctx.fillStyle = `rgba(${v},${v},${v - 10},0.25)`;
+    const v = 200 + Math.floor(rng() * 45);
+    ctx.fillStyle = `rgba(${v},${v},${v - 10},0.16)`;
     ctx.beginPath();
-    ctx.arc(rng() * S, rng() * S, 4 + rng() * 16, 0, 7);
+    ctx.arc(rng() * S, rng() * S, 4 + rng() * 13, 0, 7);
     ctx.fill();
   }
   // Gras-Striche

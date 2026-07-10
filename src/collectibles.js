@@ -81,6 +81,27 @@ export class Collectibles {
     return this.items.filter(i => i.collected).map(i => i.id);
   }
 
+  // Nächster nicht eingesammelter Schnatz (für den HUD-Kompass)
+  nearest(playerPos) {
+    let best = null, bestD2 = Infinity;
+    for (const item of this.items) {
+      if (item.collected) continue;
+      const dx = item.group.position.x - playerPos.x;
+      const dz = item.group.position.z - playerPos.z;
+      const d2 = dx * dx + dz * dz;
+      if (d2 < bestD2) { bestD2 = d2; best = item; }
+    }
+    if (!best) return null;
+    return {
+      dist: Math.sqrt(bestD2),
+      // Weltwinkel Richtung Ziel (0 = Norden/-z, im Uhrzeigersinn)
+      angle: Math.atan2(
+        best.group.position.x - playerPos.x,
+        -(best.group.position.z - playerPos.z)
+      ),
+    };
+  }
+
   update(dt, time, playerPos) {
     for (const item of this.items) {
       if (item.collected) continue;

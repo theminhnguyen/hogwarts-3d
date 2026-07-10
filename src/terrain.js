@@ -47,11 +47,12 @@ export function terrainHeight(x, z) {
   // Sanfte Grundhügel
   let h = (fbm(x * 0.0052, z * 0.0052, 4) - 0.38) * 15;
 
-  // Bergring am Weltrand
+  // Bergring am Weltrand (zerklüftete Grate statt glatter Wand)
   const d0 = Math.sqrt(x * x + z * z);
   if (d0 > 330) {
     const t = smoothstep(330, 470, d0);
-    h += t * t * 60 + fbm(x * 0.02, z * 0.02, 3) * t * 25;
+    const ridge = Math.abs(fbm(x * 0.013, z * 0.013, 4) - 0.5) * 2; // Grat-Noise
+    h += t * t * 46 + ridge * t * 52 + fbm(x * 0.05, z * 0.05, 2) * t * 10;
   }
 
   // Damm/Weg vom Tor nach Süden (Trasse für das Viadukt)
@@ -147,9 +148,9 @@ export function buildTerrain() {
     if (y < 1.4) c.lerp(COL_SAND, clamp((1.4 - y) / 1.6, 0, 1));
     // Fels an steilen Hängen und in der Höhe
     const steep = 1 - smoothstep(0.62, 0.85, ny);
-    c.lerp(COL_ROCK, Math.max(steep, smoothstep(26, 42, y)));
-    // Schnee auf den Bergen
-    c.lerp(COL_SNOW, smoothstep(52, 72, y));
+    c.lerp(COL_ROCK, Math.max(steep, smoothstep(24, 40, y)));
+    // Schnee bleibt nur auf flacheren Lagen liegen
+    c.lerp(COL_SNOW, smoothstep(44, 62, y) * smoothstep(0.5, 0.78, ny));
     // Wege
     const pd = distToPaths(x, z);
     if (pd < 5.5) c.lerp(COL_DIRT, (1 - smoothstep(2.6, 5.5, pd)) * 0.85);

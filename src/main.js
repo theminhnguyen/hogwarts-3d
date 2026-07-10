@@ -185,8 +185,16 @@ window.addEventListener('keydown', (e) => {
     persist();
   } else if (e.code === 'KeyF') {
     hud.toggleFps();
+  } else if (e.code === 'KeyL') {
+    lumosOn = !lumosOn;
+    hud.showToast(lumosOn ? '✨ Lumos!' : 'Nox.', 1.4);
   }
 });
+
+// ---------- Lumos (Lichtzauber am Spieler) ----------
+const lumos = new THREE.PointLight(0xcfe0ff, 0, 20, 1.5);
+scene.add(lumos);
+let lumosOn = false;
 
 // ---------- Spielschleife ----------
 const clock = new THREE.Clock();
@@ -202,7 +210,14 @@ function tick() {
   const rawFps = dt > 0 ? 1 / dt : 60;
   fpsEMA += (rawFps - fpsEMA) * 0.05;
 
-  if (playing) {
+  if (playing) frame(dt);
+
+  renderer.render(scene, camera);
+}
+
+// Ein Simulationsschritt (vom Render-Loop und von __game.step() genutzt)
+function frame(dt) {
+  {
     time += dt;
     const move = player.update(dt);
 
@@ -227,8 +242,13 @@ function tick() {
       audio.windGain.gain.value += (target - audio.windGain.gain.value) * 0.02;
     }
 
+    // Lumos folgt dem Spieler, wirkt vor allem im Dunkeln
+    lumos.intensity = lumosOn ? 10 + sky.state.nightGlow * 26 : 0;
+    if (lumosOn) lumos.position.set(player.pos.x, player.pos.y + 1.9, player.pos.z);
+
     hud.setClock(sky.clockText);
     hud.setHeading(player.heading);
+    hud.setTracker(collectibles.nearest(player.pos), player.heading);
     hud.setFps(fpsEMA, pixelRatio);
     if (player.swimming) hud.showHint('Du schwimmst im See 🏊 — zurück ans Ufer!');
     else hud.hideHint();
@@ -246,8 +266,6 @@ function tick() {
       }
     }
   }
-
-  renderer.render(scene, camera);
 }
 
 // Sammel-Callback (nach Weltaufbau verdrahtet)
@@ -263,6 +281,11 @@ buildWorld().then(() => {
     collectibles,
     start: () => { fallbackMode = true; player.dragLook = true; setPlaying(true); },
     teleport: (x, z, yaw = null) => player.teleport(x, z, yaw),
+    // Für automatisierte Tests: n Frames direkt simulieren (ohne rAF)
+    step: (n = 60, dt = 1 / 60) => {
+      for (let i = 0; i < n; i++) frame(dt);
+      renderer.render(scene, camera);
+    },
   };
   collectibles.onCollect = (item, n, total) => {
     const done = n === total;

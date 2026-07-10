@@ -11,6 +11,9 @@ export class Hud {
     this.clock = el('clock');
     this.compass = el('compass');
     this.fps = el('fps');
+    this.tracker = el('tracker');
+    this.trackerArrow = el('tracker-arrow');
+    this.trackerDist = el('tracker-dist');
     this.hint = el('hint');
     this.toast = el('toast');
     this._toastTimer = 0;
@@ -20,6 +23,15 @@ export class Hud {
   setActive(on) { this.hud.classList.toggle('active', on); }
 
   setCounter(n, total) { this.counter.textContent = `✦ ${n} / ${total}`; }
+
+  // Pfeil zeigt relativ zur Blickrichtung auf den nächsten Schnatz
+  setTracker(info, heading) {
+    if (!info) { this.tracker.style.display = 'none'; return; }
+    this.tracker.style.display = 'flex';
+    const rel = info.angle - heading;
+    this.trackerArrow.style.transform = `rotate(${rel - Math.PI / 2}rad)`;
+    this.trackerDist.textContent = `${Math.round(info.dist)} m`;
+  }
 
   setClock(text) { this.clock.textContent = text; }
 
