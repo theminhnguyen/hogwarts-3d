@@ -94,6 +94,15 @@ export function terrainHeight(x, z) {
     h = lerp(h, spot.h, m);
   }
 
+  // Wege nicht unter Wasser: Senken entlang der Pfade leicht anheben
+  {
+    const pd = distToPaths(x, z);
+    if (pd < 7 && h < 1.6) {
+      const m = 1 - smoothstep(2.5, 7, pd);
+      h = lerp(h, 1.6, m);
+    }
+  }
+
   // Hügel mit Steinkreis
   {
     const d = Math.sqrt((x - STONES.x) ** 2 + (z - STONES.z) ** 2);
@@ -201,10 +210,12 @@ export function buildWater() {
         vec3 viewDir = normalize(cameraPosition - vWorld);
         float shoreDist = length(vWorld.xz - uCenter);
         // Wellen-Normale pro Pixel (zwei überlagerte Frequenzen)
-        float nx = -0.14 * cos(vWorld.x * 0.11 + uTime * 1.1)
-                   - 0.06 * cos(vWorld.x * 0.53 + vWorld.z * 0.31 + uTime * 1.9);
-        float nz = -0.12 * cos(vWorld.z * 0.13 + uTime * 0.8)
-                   - 0.05 * cos(vWorld.z * 0.47 - vWorld.x * 0.27 + uTime * 1.6);
+        float nx = -0.09 * cos(vWorld.x * 0.11 + vWorld.z * 0.05 + uTime * 1.1)
+                   - 0.06 * cos(vWorld.x * 0.43 + vWorld.z * 0.31 + uTime * 1.9)
+                   - 0.045 * cos(vWorld.x * 0.83 - vWorld.z * 0.61 + uTime * 2.4);
+        float nz = -0.08 * cos(vWorld.z * 0.13 - vWorld.x * 0.06 + uTime * 0.8)
+                   - 0.055 * cos(vWorld.z * 0.47 - vWorld.x * 0.27 + uTime * 1.6)
+                   - 0.04 * cos(vWorld.z * 0.71 + vWorld.x * 0.53 + uTime * 2.1);
         vec3 n = normalize(vec3(nx, 1.0, nz));
         float fres = pow(1.0 - max(dot(viewDir, n), 0.0), 2.0);
         // Tiefe: Mitte dunkel, Rand heller

@@ -74,11 +74,12 @@ const menuMain = document.getElementById('menu-main');
 async function buildWorld() {
   for (let i = 0; i < buildSteps.length; i++) {
     const [, fn] = buildSteps[i];
-    await new Promise(requestAnimationFrame);
+    // setTimeout statt requestAnimationFrame: rAF friert in inaktiven Tabs ein
+    await new Promise(r => setTimeout(r, 0));
     fn();
     loadingBar.style.width = `${((i + 1) / buildSteps.length) * 100}%`;
   }
-  await new Promise(requestAnimationFrame);
+  await new Promise(r => setTimeout(r, 0));
   menuLoading.classList.add('hidden');
   menuMain.classList.remove('hidden');
 }

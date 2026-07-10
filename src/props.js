@@ -75,12 +75,16 @@ function rockGeo() {
 }
 
 function grassGeo() {
+  // Drei schlanke Halm-Spitzen — liest sich aus jeder Entfernung als Büschel
   const parts = [];
-  for (let k = 0; k < 2; k++) {
-    const p = new THREE.PlaneGeometry(0.55, 0.55);
-    p.translate(0, 0.26, 0);
-    p.rotateY(k * Math.PI / 2 + 0.4);
-    parts.push(tint(p, 0x5d8440));
+  const greens = [0x7a9e4e, 0x88ac58, 0x6f9447];
+  const offs = [[0, 0], [0.16, 0.10], [-0.13, 0.14]];
+  for (let k = 0; k < 3; k++) {
+    const h = 0.55 - k * 0.1;
+    const spike = new THREE.ConeGeometry(0.10, h, 4, 1, true);
+    spike.translate(offs[k][0], h / 2, offs[k][1]);
+    spike.rotateY(k * 2.1);
+    parts.push(tint(spike, greens[k]));
   }
   return mergeGeometries(parts, false);
 }
@@ -147,7 +151,7 @@ export function buildNature(scene) {
 
   // Bäume (Wald-Cluster über Noise-Maske)
   let tries = 0;
-  while ((conifers.length < 520 || broadleaf.length < 200) && tries < 30000) {
+  while ((conifers.length < 660 || broadleaf.length < 260) && tries < 40000) {
     tries++;
     const x = (rng() * 2 - 1) * 410;
     const z = (rng() * 2 - 1) * 410;
@@ -155,12 +159,12 @@ export function buildNature(scene) {
     if (!spotFree(x, z, h)) continue;
     const forest = fbm(x * 0.006 + 3.7, z * 0.006 - 1.2, 3);
     const dense = forest > 0.52;
-    if (!dense && rng() > 0.10) continue;
+    if (!dense && rng() > 0.14) continue;
     const s = 0.75 + rng() * 0.85;
     const p = { x, y: h - 0.15, z, ry: rng() * Math.PI * 2, s, sy: 0.9 + rng() * 0.35, tint: rng() };
     if (forest > 0.58 || h > 20) {
-      if (conifers.length < 520) { conifers.push(p); addCircleBlocker(x, z, 0.45 * s + 0.15, h - 1, h + 3); }
-    } else if (broadleaf.length < 200) {
+      if (conifers.length < 660) { conifers.push(p); addCircleBlocker(x, z, 0.45 * s + 0.15, h - 1, h + 3); }
+    } else if (broadleaf.length < 260) {
       broadleaf.push(p); addCircleBlocker(x, z, 0.5 * s + 0.15, h - 1, h + 3);
     }
   }
@@ -187,13 +191,13 @@ export function buildNature(scene) {
     if (h < 1.4 || h > 26) continue;
     if (distToPaths(x, z) < 3.2) continue;
     if (Math.hypot(x - PLATEAU.x, z - PLATEAU.z) < 92) continue;
-    grass.push({ x, y: h, z, ry: rng() * Math.PI, s: 0.8 + rng() * 1.0, tint: rng() });
+    grass.push({ x, y: h, z, ry: rng() * Math.PI, s: 0.7 + rng() * 0.7, tint: rng() });
   }
 
   buildChunkedInstances(scene, coniferGeo(), conifers);
   buildChunkedInstances(scene, broadleafGeo(), broadleaf);
   buildChunkedInstances(scene, rockGeo(), rocks);
-  buildChunkedInstances(scene, grassGeo(), grass, { castShadow: false, doubleSide: true });
+  buildChunkedInstances(scene, grassGeo(), grass, { castShadow: false });
 
   return { treeCount: conifers.length + broadleaf.length, rockCount: rocks.length, grassCount: grass.length };
 }

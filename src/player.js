@@ -59,7 +59,7 @@ export class Player {
   // An Position (x,z) auf den Boden setzen (Gelände oder Plattform)
   teleport(x, z, yaw = null) {
     const terr = terrainHeight(x, z);
-    const plat = platformGround(x, z, terr + 5);
+    const plat = platformGround(x, z, 10000);
     this.pos.set(x, Math.max(terr, plat), z);
     this.vel.set(0, 0, 0);
     if (yaw !== null) this.yaw = yaw;

@@ -278,9 +278,9 @@ export function buildCastle(scene) {
     for (const fz of [-6, 2, 10, 18, 26]) {
       flames.push([x0 + TH + 0.4, GY + 5.5, fz], [x1 - TH - 0.4, GY + 5.5, fz]);
     }
-    for (const lz of [-4, 16]) {
-      const l = new THREE.PointLight(0xffc274, 14, 34, 1.6);
-      l.position.set(-32, GY + 8, lz);
+    for (const lz of [-10, 4, 18]) {
+      const l = new THREE.PointLight(0xffc274, 26, 48, 1.6);
+      l.position.set(-32, GY + 7.5, lz);
       scene.add(l);
     }
   }

@@ -159,10 +159,10 @@ export class SkySystem {
     // Farb-Paletten (Nacht / Dämmerung / Tag)
     this.pal = {
       zenith: { night: new THREE.Color(0x070b1d), dusk: new THREE.Color(0x2a2a55), day: new THREE.Color(0x3272cf) },
-      horizon: { night: new THREE.Color(0x11172e), dusk: new THREE.Color(0xe08050), day: new THREE.Color(0xaad4ee) },
+      horizon: { night: new THREE.Color(0x18203a), dusk: new THREE.Color(0xe08050), day: new THREE.Color(0xaad4ee) },
       sun: { night: new THREE.Color(0x8899cc), dusk: new THREE.Color(0xffa060), day: new THREE.Color(0xfff2d0) },
-      fog: { night: new THREE.Color(0x0d1226), dusk: new THREE.Color(0x9a6a58), day: new THREE.Color(0xa8cde8) },
-      hemiSky: { night: new THREE.Color(0x1a2340), dusk: new THREE.Color(0x8a7a90), day: new THREE.Color(0xbdd8f0) },
+      fog: { night: new THREE.Color(0x141c33), dusk: new THREE.Color(0x9a6a58), day: new THREE.Color(0xa8cde8) },
+      hemiSky: { night: new THREE.Color(0x2a3550), dusk: new THREE.Color(0x8a7a90), day: new THREE.Color(0xbdd8f0) },
     };
     this._c1 = new THREE.Color();
   }
@@ -245,11 +245,11 @@ export class SkySystem {
       this.sun.color.copy(this._c1);
       this.sun.intensity = 0.5 + daylight * 1.9;
     } else {
-      this.sun.color.set(0x7f8fc0);
-      this.sun.intensity = 0.4;
+      this.sun.color.set(0x8fa0d8);
+      this.sun.intensity = 0.8;
     }
     this._mix(this.hemi.color, this.pal.hemiSky, daylight, duskAmount * 0.4);
-    this.hemi.intensity = 0.32 + daylight * 1.05;
+    this.hemi.intensity = 0.58 + daylight * 0.85;
 
     // Nebel
     this._mix(this.scene.fog.color, this.pal.fog, daylight, duskAmount);
