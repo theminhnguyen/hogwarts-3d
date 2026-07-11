@@ -101,6 +101,20 @@ export function platformGround(x, z, feetY) {
   return best;
 }
 
+// Reiner Punkt-Test gegen alle Blocker (für Projektile — kein Radius/Verdrängung)
+export function pointBlocked(x, y, z) {
+  for (const b of colliders.blockers) {
+    if (y < b.minY || y > b.maxY) continue;
+    if (b.kind === 'circle') {
+      const dx = x - b.x, dz = z - b.z;
+      if (dx * dx + dz * dz < b.r * b.r) return true;
+    } else if (x >= b.minX && x <= b.maxX && z >= b.minZ && z <= b.maxZ) {
+      return true;
+    }
+  }
+  return false;
+}
+
 // Schiebt einen Kreis (Spieler) aus allen Blockern heraus.
 // bodyLow/bodyHigh: vertikaler Bereich des Körpers (Füße+Step … Kopf)
 export function resolveBlockers(pos, radius, feetY) {

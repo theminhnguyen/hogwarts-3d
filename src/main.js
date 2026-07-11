@@ -12,6 +12,9 @@ import { Collectibles } from './collectibles.js';
 import { Player } from './player.js';
 import { SoundManager } from './audio.js';
 import { Hud } from './hud.js';
+import { FxSystem } from './fx.js';
+import { WandSystem, SPELLS, SPELL_ORDER } from './wand.js';
+import { SpellSystem } from './spells.js';
 
 const SAVE_KEY = 'hogwarts3d-save-v1';
 
@@ -37,11 +40,15 @@ renderer.setSize(window.innerWidth, window.innerHeight);
 
 const scene = new THREE.Scene();
 const camera = new THREE.PerspectiveCamera(74, window.innerWidth / window.innerHeight, 0.1, 2600);
+// Die Kamera muss Teil des Szenegraphs sein, sonst rendert three.js ihre
+// Kinder (den Zauberstab) nicht mit (renderer.render traversiert nur scene).
+scene.add(camera);
 
 window.addEventListener('resize', () => {
   camera.aspect = window.innerWidth / window.innerHeight;
   camera.updateProjectionMatrix();
   renderer.setSize(window.innerWidth, window.innerHeight);
+  if (fx) fx.onResize();
 });
 
 // ---------- Welt schrittweise aufbauen ----------
@@ -50,6 +57,7 @@ const audio = new SoundManager();
 const save = loadSave();
 
 let sky, water, castle, structures, life, collectibles, player;
+let fx, wand, spells;
 const glowTex = makeGlowTexture();
 
 const buildSteps = [
@@ -65,6 +73,12 @@ const buildSteps = [
     hud.setCounter(collectibles.count, collectibles.total);
   }],
   ['Spieler', () => { player = new Player(camera); }],
+  ['Zauberstab', () => {
+    fx = new FxSystem(scene, renderer);
+    wand = new WandSystem(camera, glowTex);
+    spells = new SpellSystem(scene, wand, fx, audio);
+    hud.buildSpellbar(SPELL_ORDER.map(id => ({ id, ...SPELLS[id] })));
+  }],
 ];
 
 const loadingBar = document.getElementById('loading-bar');
@@ -171,6 +185,7 @@ document.addEventListener('pointerlockerror', () => {
 });
 
 // Nicht-Bewegungs-Tasten
+const DIGIT_SPELLS = { Digit1: 'stupor', Digit2: 'incendio', Digit3: 'leviosa', Digit4: 'lumos' };
 window.addEventListener('keydown', (e) => {
   if (!playing) return;
   if (e.code === 'Escape' && fallbackMode) {
@@ -187,9 +202,27 @@ window.addEventListener('keydown', (e) => {
     hud.toggleFps();
   } else if (e.code === 'KeyL') {
     lumosOn = !lumosOn;
+    wand.selectSpell('lumos');
     hud.showToast(lumosOn ? '✨ Lumos!' : 'Nox.', 1.4);
+  } else if (DIGIT_SPELLS[e.code]) {
+    wand.selectSpell(DIGIT_SPELLS[e.code]);
   }
 });
+
+// Zaubern: Maustaste (nur wenn Klick auf dem Canvas landet — HUD/Menü sind
+// entweder pointer-events:none oder unsichtbar solange playing===true).
+window.addEventListener('mousedown', (e) => {
+  if (!playing || e.button !== 0 || e.target !== canvas) return;
+  spells.cast(camera);
+});
+window.addEventListener('mouseup', (e) => {
+  if (e.button !== 0) return;
+  spells?.release();
+});
+window.addEventListener('wheel', (e) => {
+  if (!playing) return;
+  wand.cycleSpell(e.deltaY > 0 ? 1 : -1);
+}, { passive: true });
 
 // ---------- Lumos (Lichtzauber am Spieler) ----------
 const lumos = new THREE.PointLight(0xcfe0ff, 0, 20, 1.5);
@@ -221,6 +254,11 @@ function frame(dt) {
     time += dt;
     const move = player.update(dt);
 
+    wand.update(dt, player, move);
+    spells.update(dt, camera, null /* Kreaturen kommen in Phase 2 */);
+    fx.update(dt);
+    camera.position.add(fx.shakeOffset);
+
     sky.update(dt, player.pos);
     castle.update(dt, time, sky.state.nightGlow);
     structures.update(sky.state.nightGlow);
@@ -249,6 +287,7 @@ function frame(dt) {
     hud.setClock(sky.clockText);
     hud.setHeading(player.heading);
     hud.setTracker(collectibles.nearest(player.pos), player.heading);
+    hud.setSpell(wand.activeSpell, spells.cooldowns);
     hud.setFps(fpsEMA, pixelRatio);
     if (player.swimming) hud.showHint('Du schwimmst im See 🏊 — zurück ans Ufer!');
     else hud.hideHint();
@@ -276,6 +315,7 @@ buildWorld().then(() => {
   // Debug-/Test-Zugriff (bewusst öffentlich, hilft bei Fehlersuche)
   window.__game = {
     player, sky, camera, renderer, scene,
+    wand, spells, fx,
     get fps() { return fpsEMA; },
     get pixelRatio() { return pixelRatio; },
     collectibles,
@@ -285,6 +325,15 @@ buildWorld().then(() => {
     step: (n = 60, dt = 1 / 60) => {
       for (let i = 0; i < n; i++) frame(dt);
       renderer.render(scene, camera);
+    },
+    // Sofort in eine Richtung schauen und zaubern (Kamera-Rotation synchron
+    // vor dem Cast aktualisieren, sonst nutzt getWorldDirection() die
+    // Rotation vom letzten Frame)
+    castAt: (yaw, pitch = 0) => {
+      player.yaw = yaw;
+      player.pitch = pitch;
+      player.update(0);
+      spells.cast(camera);
     },
   };
   collectibles.onCollect = (item, n, total) => {

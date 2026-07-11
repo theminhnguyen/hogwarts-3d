@@ -16,6 +16,9 @@ export class Hud {
     this.trackerDist = el('tracker-dist');
     this.hint = el('hint');
     this.toast = el('toast');
+    this.spellbar = el('spellbar');
+    this.spellChips = {};
+    this._spellMax = {};
     this._toastTimer = 0;
     this._fpsVisible = false;
   }
@@ -23,6 +26,32 @@ export class Hud {
   setActive(on) { this.hud.classList.toggle('active', on); }
 
   setCounter(n, total) { this.counter.textContent = `✦ ${n} / ${total}`; }
+
+  // Baut die 4 Spruch-Chips einmalig auf (Reihenfolge = Anzeigereihenfolge)
+  buildSpellbar(spells) {
+    this.spellbar.innerHTML = spells.map((s, i) => {
+      const hex = '#' + s.color.toString(16).padStart(6, '0');
+      return `<div class="spell-chip" id="spell-${s.id}" style="--spell-color:${hex}">
+        <span class="spell-key">${i + 1}</span>
+        <span class="spell-emoji">${s.emoji}</span>
+      </div>`;
+    }).join('');
+    for (const s of spells) {
+      this.spellChips[s.id] = el(`spell-${s.id}`);
+      this._spellMax[s.id] = s.cooldown || 1;
+    }
+  }
+
+  // Hebt den aktiven Spruch hervor und zeichnet den Cooldown-Sweep
+  setSpell(activeId, cooldowns) {
+    for (const id in this.spellChips) {
+      const chip = this.spellChips[id];
+      chip.classList.toggle('active', id === activeId);
+      const cd = cooldowns ? cooldowns[id] : 0;
+      const frac = Math.max(0, Math.min(1, cd / (this._spellMax[id] || 1)));
+      chip.style.setProperty('--cd', frac.toFixed(3));
+    }
+  }
 
   // Pfeil zeigt relativ zur Blickrichtung auf den nächsten Schnatz
   setTracker(info, heading) {

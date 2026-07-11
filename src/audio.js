@@ -90,6 +90,47 @@ export class SoundManager {
     o.start(t); o.stop(t + 0.2);
   }
 
+  // Stupor-Cast: Saw-Osc 220→90 Hz + zackiger Noise-Burst (highpass)
+  castStupor() {
+    if (!this.ctx || this.muted) return;
+    const ctx = this.ctx, t = ctx.currentTime;
+    const o = ctx.createOscillator();
+    o.type = 'sawtooth';
+    o.frequency.setValueAtTime(220, t);
+    o.frequency.exponentialRampToValueAtTime(90, t + 0.12);
+    const g = ctx.createGain();
+    this._env(g, t, 0.005, 0.16, 0.14);
+    o.connect(g).connect(this.master);
+    o.start(t); o.stop(t + 0.2);
+
+    const src = ctx.createBufferSource();
+    src.buffer = this.noiseBuf;
+    const f = ctx.createBiquadFilter();
+    f.type = 'highpass';
+    f.frequency.value = 2200;
+    const ng = ctx.createGain();
+    this._env(ng, t, 0.003, 0.08, 0.05);
+    src.connect(f).connect(ng).connect(this.master);
+    src.start(t, Math.random() * 1.5, 0.08);
+  }
+
+  // Bolzen-Einschlag: kurzer Bandpass-Noise-Knall, Tonhöhe je Zauber
+  spellImpact(spellId = 'stupor') {
+    if (!this.ctx || this.muted) return;
+    const ctx = this.ctx, t = ctx.currentTime;
+    const freqMap = { stupor: 900, incendio: 500, leviosa: 700, lumos: 1200 };
+    const src = ctx.createBufferSource();
+    src.buffer = this.noiseBuf;
+    const f = ctx.createBiquadFilter();
+    f.type = 'bandpass';
+    f.frequency.value = freqMap[spellId] || 800;
+    f.Q.value = 2.2;
+    const g = ctx.createGain();
+    this._env(g, t, 0.002, 0.14, 0.10);
+    src.connect(f).connect(g).connect(this.master);
+    src.start(t, Math.random() * 1.5, 0.1);
+  }
+
   chime(final = false) {
     if (!this.ctx || this.muted) return;
     const ctx = this.ctx, t = ctx.currentTime;
