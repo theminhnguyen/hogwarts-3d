@@ -19,11 +19,43 @@ export class Hud {
     this.spellbar = el('spellbar');
     this.spellChips = {};
     this._spellMax = {};
+    this.heartsEl = el('hearts');
+    this._heartEls = [];
+    this._heartsMax = 0;
+    this.vignette = el('vignette');
+    this.whiteout = el('whiteout');
     this._toastTimer = 0;
+    this._hurtTimer = 0;
     this._fpsVisible = false;
   }
 
   setActive(on) { this.hud.classList.toggle('active', on); }
+
+  // Baut die Herz-Reihe neu, wenn sich maxHearts ändert (z.B. Herz-Upgrade)
+  setHearts(current, max) {
+    if (this._heartsMax !== max) {
+      this._heartsMax = max;
+      this.heartsEl.innerHTML = Array.from({ length: max },
+        () => '<span class="heart"><span class="heart-fill"></span></span>').join('');
+      this._heartEls = [...this.heartsEl.querySelectorAll('.heart-fill')];
+    }
+    this._heartEls.forEach((h, i) => {
+      const frac = Math.max(0, Math.min(1, current - i));
+      h.style.setProperty('--fill', frac.toFixed(2));
+    });
+  }
+
+  // Roter Vignette-Blitz bei Schaden
+  flashHurt() {
+    this.vignette.classList.remove('hurt');
+    void this.vignette.offsetWidth; // Reflow erzwingen, damit schnelle Treffer neu animieren
+    this.vignette.classList.add('hurt');
+    clearTimeout(this._hurtTimer);
+    this._hurtTimer = setTimeout(() => this.vignette.classList.remove('hurt'), 340);
+  }
+
+  // Weißblende beim Tod (0 = unsichtbar, 1 = voll deckend)
+  setWhiteout(frac) { this.whiteout.style.opacity = frac; }
 
   setCounter(n, total) { this.counter.textContent = `✦ ${n} / ${total}`; }
 

@@ -23,6 +23,20 @@ export const TUNING = {
 
 const _dir = new THREE.Vector3();
 
+// Kürzester Abstand ein Punkt P zur Strecke A→B (quadriert). Nötig, weil
+// Stupor bei 46 m/s / 60fps ~0.77m pro Frame zurücklegt — mehr als der
+// Trefferradius (~0.63m) — reine Punktprüfung würde kleine/schnelle Ziele
+// zuverlässig verfehlen ("Tunneling").
+function segPointDistSq(ax, ay, az, bx, by, bz, px, py, pz) {
+  const abx = bx - ax, aby = by - ay, abz = bz - az;
+  const abLenSq = abx * abx + aby * aby + abz * abz;
+  let t = abLenSq > 1e-9 ? ((px - ax) * abx + (py - ay) * aby + (pz - az) * abz) / abLenSq : 0;
+  t = t < 0 ? 0 : t > 1 ? 1 : t;
+  const cx = ax + abx * t, cy = ay + aby * t, cz = az + abz * t;
+  const dx = px - cx, dy = py - cy, dz = pz - cz;
+  return dx * dx + dy * dy + dz * dz;
+}
+
 export class SpellSystem {
   constructor(scene, wand, fx, audio) {
     this.scene = scene;
@@ -46,7 +60,7 @@ export class SpellSystem {
       scene.add(sprite);
       this.bolts.push({
         sprite, active: false, spellId: null,
-        pos: new THREE.Vector3(), vel: new THREE.Vector3(),
+        pos: new THREE.Vector3(), prevPos: new THREE.Vector3(), vel: new THREE.Vector3(),
         ttl: 0, light: null,
       });
     }
@@ -138,6 +152,7 @@ export class SpellSystem {
 
       const tuning = TUNING[bolt.spellId];
       if (tuning.gravity) bolt.vel.y += tuning.gravity * dt;
+      bolt.prevPos.copy(bolt.pos);
       bolt.pos.addScaledVector(bolt.vel, dt);
       bolt.sprite.position.copy(bolt.pos);
       if (bolt.light) bolt.light.light.position.copy(bolt.pos);
@@ -160,13 +175,18 @@ export class SpellSystem {
         this._despawnBolt(bolt, true, bolt.pos);
         continue;
       }
-      // Kreaturen (Phase 2+)
+      // Kreaturen (Phase 2+) — Strecken- statt Punktprüfung gegen Tunneling
       if (creatures) {
         let hitCreature = false;
         for (const c of creatures) {
           if (!c.alive) continue;
           const r = c.radius + BOLT_RADIUS;
-          if (bolt.pos.distanceToSquared(c.pos) < r * r) {
+          const d2 = segPointDistSq(
+            bolt.prevPos.x, bolt.prevPos.y, bolt.prevPos.z,
+            bolt.pos.x, bolt.pos.y, bolt.pos.z,
+            c.pos.x, c.pos.y, c.pos.z
+          );
+          if (d2 < r * r) {
             c.applyHit(bolt.spellId, bolt.vel);
             this._despawnBolt(bolt, true, bolt.pos);
             hitCreature = true;
@@ -179,8 +199,12 @@ export class SpellSystem {
       for (const target of this.targets) {
         const p = target.getPos();
         const r = (target.radius || 0.9) + BOLT_RADIUS;
-        if (bolt.pos.distanceToSquared(p) < r * r
-          && (!target.accepts || target.accepts.includes(bolt.spellId))) {
+        const d2 = segPointDistSq(
+          bolt.prevPos.x, bolt.prevPos.y, bolt.prevPos.z,
+          bolt.pos.x, bolt.pos.y, bolt.pos.z,
+          p.x, p.y, p.z
+        );
+        if (d2 < r * r && (!target.accepts || target.accepts.includes(bolt.spellId))) {
           target.onSpell?.(bolt.spellId, bolt.pos);
           this._despawnBolt(bolt, true, bolt.pos);
           break;

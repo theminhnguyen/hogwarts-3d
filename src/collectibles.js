@@ -67,6 +67,7 @@ export class Collectibles {
         id: spot.id, name: spot.name, group, wingL, wingR,
         baseY: y, phase: Math.random() * Math.PI * 2,
         collected: collectedIds.includes(spot.id),
+        carriedBy: null, // von einem Wichtel geklaut? (siehe creatures.js)
       };
       if (item.collected) {
         group.visible = false;
@@ -104,7 +105,9 @@ export class Collectibles {
 
   update(dt, time, playerPos) {
     for (const item of this.items) {
-      if (item.collected) continue;
+      // Geklaute Schnätze werden von creatures.js positioniert (hängen unterm
+      // Wichtel) — Bobbing/Pickup-Check pausiert, bis der Wichtel ihn fallenlässt.
+      if (item.collected || item.carriedBy) continue;
       const g = item.group;
       g.position.y = item.baseY + Math.sin(time * 1.4 + item.phase) * 0.22;
       g.rotation.y = time * 1.8 + item.phase;

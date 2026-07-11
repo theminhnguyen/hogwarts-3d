@@ -146,6 +146,39 @@ export class SoundManager {
     });
   }
 
+  // Wichtel-Kichern: 3-5 schnelle Sinus-Blips in zufälliger Reihenfolge
+  pixieGiggle() {
+    if (!this.ctx || this.muted) return;
+    const ctx = this.ctx, t = ctx.currentTime;
+    const n = 3 + Math.floor(Math.random() * 3);
+    for (let i = 0; i < n; i++) {
+      const t0 = t + i * (0.06 + Math.random() * 0.03);
+      const o = ctx.createOscillator();
+      o.type = 'sine';
+      o.frequency.value = 1800 + Math.random() * 800;
+      const g = ctx.createGain();
+      this._env(g, t0, 0.005, 0.05, 0.05);
+      o.connect(g).connect(this.master);
+      o.start(t0); o.stop(t0 + 0.09);
+    }
+  }
+
+  // Schaden am Spieler: Thud + kurzer Hochpass-Zisch
+  hurt() {
+    if (!this.ctx || this.muted) return;
+    this._thump(140, 0.18);
+    const ctx = this.ctx, t = ctx.currentTime;
+    const src = ctx.createBufferSource();
+    src.buffer = this.noiseBuf;
+    const f = ctx.createBiquadFilter();
+    f.type = 'highpass';
+    f.frequency.value = 3000;
+    const g = ctx.createGain();
+    this._env(g, t, 0.002, 0.10, 0.08);
+    src.connect(f).connect(g).connect(this.master);
+    src.start(t, Math.random() * 1.5, 0.1);
+  }
+
   _bird() {
     const ctx = this.ctx, t = ctx.currentTime;
     const n = 2 + Math.floor(Math.random() * 3);

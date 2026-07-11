@@ -15,6 +15,8 @@ import { Hud } from './hud.js';
 import { FxSystem } from './fx.js';
 import { WandSystem, SPELLS, SPELL_ORDER } from './wand.js';
 import { SpellSystem } from './spells.js';
+import { HealthSystem } from './health.js';
+import { CreatureSystem } from './creatures.js';
 
 const SAVE_KEY = 'hogwarts3d-save-v1';
 
@@ -57,7 +59,7 @@ const audio = new SoundManager();
 const save = loadSave();
 
 let sky, water, castle, structures, life, collectibles, player;
-let fx, wand, spells;
+let fx, wand, spells, health, creatures;
 const glowTex = makeGlowTexture();
 
 const buildSteps = [
@@ -78,6 +80,12 @@ const buildSteps = [
     wand = new WandSystem(camera, glowTex);
     spells = new SpellSystem(scene, wand, fx, audio);
     hud.buildSpellbar(SPELL_ORDER.map(id => ({ id, ...SPELLS[id] })));
+  }],
+  ['Kreaturen & Gesundheit', () => {
+    health = new HealthSystem(player, hud, fx, audio);
+    creatures = new CreatureSystem(scene, fx, audio, health, collectibles, hud, glowTex);
+    if (save.peaceful) creatures.peaceful = true;
+    hud.setHearts(health.hearts, health.maxHearts);
   }],
 ];
 
@@ -115,6 +123,7 @@ function persist() {
     collected: collectibles ? collectibles.collectedIds : [],
     muted: audio.muted,
     t: sky ? sky.timeOfDay : undefined,
+    peaceful: creatures ? creatures.peaceful : (save.peaceful === true),
   });
 }
 
@@ -157,6 +166,14 @@ btnStart.addEventListener('click', () => {
 btnSound.addEventListener('click', () => {
   audio.setMuted(!audio.muted);
   btnSound.textContent = `Ton: ${audio.muted ? 'aus' : 'an'}`;
+  persist();
+});
+
+const btnPeaceful = document.getElementById('btn-peaceful');
+btnPeaceful.textContent = `Kreaturen: ${save.peaceful ? 'zahm' : 'wild'}`;
+btnPeaceful.addEventListener('click', () => {
+  creatures.peaceful = !creatures.peaceful;
+  btnPeaceful.textContent = `Kreaturen: ${creatures.peaceful ? 'zahm' : 'wild'}`;
   persist();
 });
 
@@ -255,9 +272,11 @@ function frame(dt) {
     const move = player.update(dt);
 
     wand.update(dt, player, move);
-    spells.update(dt, camera, null /* Kreaturen kommen in Phase 2 */);
+    spells.update(dt, camera, creatures.list);
+    creatures.update(dt, player);
     fx.update(dt);
     camera.position.add(fx.shakeOffset);
+    health.update(dt);
 
     sky.update(dt, player.pos);
     castle.update(dt, time, sky.state.nightGlow);
@@ -288,6 +307,7 @@ function frame(dt) {
     hud.setHeading(player.heading);
     hud.setTracker(collectibles.nearest(player.pos), player.heading);
     hud.setSpell(wand.activeSpell, spells.cooldowns);
+    hud.setHearts(health.hearts, health.maxHearts);
     hud.setFps(fpsEMA, pixelRatio);
     if (player.swimming) hud.showHint('Du schwimmst im See 🏊 — zurück ans Ufer!');
     else hud.hideHint();
@@ -315,10 +335,11 @@ buildWorld().then(() => {
   // Debug-/Test-Zugriff (bewusst öffentlich, hilft bei Fehlersuche)
   window.__game = {
     player, sky, camera, renderer, scene,
-    wand, spells, fx,
+    wand, spells, fx, health, creatures,
     get fps() { return fpsEMA; },
     get pixelRatio() { return pixelRatio; },
     collectibles,
+    gott: () => { health.invincible = true; },
     start: () => { fallbackMode = true; player.dragLook = true; setPlaying(true); },
     teleport: (x, z, yaw = null) => player.teleport(x, z, yaw),
     // Für automatisierte Tests: n Frames direkt simulieren (ohne rAF)
@@ -336,6 +357,8 @@ buildWorld().then(() => {
       spells.cast(camera);
     },
   };
+  health.onRespawn = () => hud.showToast('Du wachst im Innenhof auf … Zeit, sich neu zu sammeln.', 3.5);
+  health.onFountainHeal = () => hud.showToast('Das Brunnenwasser wärmt dich. ♥ voll!', 2.5);
   collectibles.onCollect = (item, n, total) => {
     const done = n === total;
     audio.chime(done);

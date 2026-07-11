@@ -20,6 +20,30 @@
       radial-gradient(ellipse at 50% 45%, transparent 58%, rgba(6, 9, 20, 0.38) 100%),
       linear-gradient(180deg, rgba(6, 9, 20, 0.12) 0%, transparent 12%);
   }
+  #vignette.hurt { animation: hurtFlash 0.32s ease-out; }
+  @keyframes hurtFlash {
+    0% { background-color: rgba(210, 30, 30, 0.5); }
+    100% { background-color: rgba(210, 30, 30, 0); }
+  }
+  #whiteout {
+    position: absolute; inset: 0; background: #fff; opacity: 0; pointer-events: none;
+  }
+
+  #hearts {
+    position: absolute; top: 18px; left: 22px;
+    display: flex; gap: 4px;
+  }
+  .heart { position: relative; width: 22px; height: 20px; font-size: 20px; line-height: 1; }
+  .heart::before {
+    content: "♥"; position: absolute; inset: 0;
+    color: rgba(232,223,200,0.22); text-shadow: 0 1px 3px rgba(0,0,0,0.8);
+  }
+  .heart-fill { position: absolute; inset: 0; overflow: hidden;
+    clip-path: inset(0 calc(100% - (var(--fill, 0) * 100%)) 0 0); }
+  .heart-fill::before {
+    content: "♥"; position: absolute; inset: 0; color: #ff4a4a;
+    text-shadow: 0 0 6px rgba(255,74,74,0.75), 0 1px 3px rgba(0,0,0,0.8);
+  }
 
   #crosshair {
     position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%);
@@ -148,6 +172,7 @@
 
   <div id="hud">
     <div id="vignette"></div>
+    <div id="whiteout"></div>
     <div id="crosshair"></div>
     <div id="compass">N</div>
     <div id="counter">✦ 0 / 12</div>
@@ -157,6 +182,7 @@
     <div id="toast"></div>
     <div id="fps"></div>
     <div id="spellbar"></div>
+    <div id="hearts"></div>
   </div>
 
   <div id="menu">
@@ -185,6 +211,7 @@
       <button id="btn-start">Spiel starten</button>
       <div class="small-buttons">
         <button id="btn-sound">Ton: an</button>
+        <button id="btn-peaceful">Kreaturen: wild</button>
         <button id="btn-reset">Fortschritt zurücksetzen</button>
       </div>
     </div>
