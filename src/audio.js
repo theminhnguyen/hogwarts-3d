@@ -210,6 +210,44 @@ export class SoundManager {
     }
   }
 
+  // Schatten-Drone: EIN globales Node-Set (nicht pro Geist!), Gain je nach
+  // Nähe des nächsten Geists von außen gesetzt (0..1).
+  _ensureGhostDrone() {
+    if (this.ghostDroneGain || !this.ctx) return;
+    const ctx = this.ctx;
+    const out = ctx.createGain();
+    out.gain.value = 0;
+    out.connect(this.master);
+
+    const o1 = ctx.createOscillator();
+    o1.type = 'sine'; o1.frequency.value = 55;
+    const o2 = ctx.createOscillator();
+    o2.type = 'sine'; o2.frequency.value = 57;
+    const mix = ctx.createGain();
+    mix.gain.value = 0.6;
+    o1.connect(mix); o2.connect(mix);
+
+    // langsames Tremolo
+    const lfo = ctx.createOscillator();
+    lfo.frequency.value = 0.15;
+    const lfoGain = ctx.createGain();
+    lfoGain.gain.value = 0.3;
+    lfo.connect(lfoGain).connect(mix.gain);
+
+    mix.connect(out);
+    o1.start(); o2.start(); lfo.start();
+    this.ghostDroneGain = out;
+  }
+
+  setGhostDrone(proximity) {
+    if (!this.ctx) return;
+    this._ensureGhostDrone();
+    if (this.ghostDroneGain) {
+      const target = Math.max(0, Math.min(1, proximity)) * 0.3;
+      this.ghostDroneGain.gain.setTargetAtTime(target, this.ctx.currentTime, 0.4);
+    }
+  }
+
   update(daylight) {
     if (!this.ctx || this.muted) return;
     const now = this.ctx.currentTime;

@@ -57,6 +57,9 @@ export class Hud {
   // Weißblende beim Tod (0 = unsichtbar, 1 = voll deckend)
   setWhiteout(frac) { this.whiteout.style.opacity = frac; }
 
+  // Kälte-Aura nahe Schattengeistern (0..1, blauer Rand-Schleier)
+  setCold(frac) { this.vignette.style.setProperty('--cold', frac.toFixed(3)); }
+
   setCounter(n, total) { this.counter.textContent = `✦ ${n} / ${total}`; }
 
   // Baut die 4 Spruch-Chips einmalig auf (Reihenfolge = Anzeigereihenfolge)

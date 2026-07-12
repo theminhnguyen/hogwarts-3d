@@ -21,6 +21,11 @@
       linear-gradient(180deg, rgba(6, 9, 20, 0.12) 0%, transparent 12%);
   }
   #vignette.hurt { animation: hurtFlash 0.32s ease-out; }
+  #vignette::after {
+    content: ""; position: absolute; inset: 0;
+    background: radial-gradient(ellipse at 50% 50%, transparent 35%, rgba(90,150,230,0.6) 100%);
+    opacity: var(--cold, 0); transition: opacity 0.4s;
+  }
   @keyframes hurtFlash {
     0% { background-color: rgba(210, 30, 30, 0.5); }
     100% { background-color: rgba(210, 30, 30, 0); }

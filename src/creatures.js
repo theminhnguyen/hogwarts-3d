@@ -1,6 +1,7 @@
 // Kreaturen: gemeinsame Basis-FSM + Wichtel/Pixies (frech, tags- und nachts
-// aktiv, klauen nicht eingesammelte Schnätze). Schattengeister & Troll folgen
-// in Phase 3 / Bonus. Distanz-Culling: volle FSM nur < 140m, sichtbar bis 160m.
+// aktiv, klauen nicht eingesammelte Schnätze) + Schattengeister (unheimlich,
+// nur nachts, fliehen vor Lumos). Troll folgt als Bonus. Distanz-Culling:
+// volle FSM nur < 140m, sichtbar bis 160m.
 
 import * as THREE from 'three';
 import { GeoBatch } from './geo.js';
@@ -13,6 +14,11 @@ const TUNING = {
     aggroRange: 14, leaveAggroRange: 20, hitRange: 0.8, dmg: 0.5,
     respawn: 90, attackMin: 3.5, attackMax: 5, giggleMin: 2, giggleMax: 4,
   },
+  ghost: {
+    hp: 3, wanderSpeed: 1.2, aggroSpeed: 2.6, aggroRange: 20, leaveAggroRange: 26,
+    coldRange: 6, touchRange: 1.1, dmg: 1, fleeSpeed: 5, fleeMinDist: 16,
+    lumosFearRange: 9, knockbackDist: 8, fadeDur: 3, dyingDur: 0.7,
+  },
 };
 
 const PIXIE_SWARMS = [
@@ -21,10 +27,31 @@ const PIXIE_SWARMS = [
   { x: 150, z: 170 },
 ];
 const PIXIE_PER_SWARM = 5;
+const GHOST_SPAWNS = [
+  { x: 150, z: -95 },
+  { x: 0, z: -75 },
+  { x: -20, z: 94 },
+];
+const GHOST_PER_SPAWN = 2;
 const CULL_FULL = 140;
 const CULL_HIDE = 160;
 
 function rand(a, b) { return a + Math.random() * (b - a); }
+
+// Verzerrt Vertices zufällig für organische Formen (eigenständige Kopie der
+// kleinen Hilfsfunktion aus props.js — dort nicht exportiert).
+function jitter(geo, amount, seed) {
+  const rng = mulberry32(seed);
+  const pos = geo.attributes.position;
+  for (let i = 0; i < pos.count; i++) {
+    pos.setXYZ(i,
+      pos.getX(i) + (rng() - 0.5) * amount,
+      pos.getY(i) + (rng() - 0.5) * amount * 0.6,
+      pos.getZ(i) + (rng() - 0.5) * amount);
+  }
+  geo.computeVertexNormals();
+  return geo;
+}
 
 // Kürzester Winkel-Diff für sanftes Eindrehen (Blickrichtung folgt der Geschwindigkeit)
 function angleLerp(from, to, t) {
@@ -306,6 +333,242 @@ class Pixie {
   }
 }
 
+// ---------- Gemeinsame Schattengeist-Geometrie ----------
+function buildGhostParts(glowTex) {
+  const cloakGeo = jitter(new THREE.ConeGeometry(0.5, 1.6, 8, 3, true), 0.12, 555);
+  cloakGeo.translate(0, 0.8, 0); // Saum bei y=0, Spitze bei y=1.6
+  const hoodGeo = new THREE.SphereGeometry(0.22, 8, 6);
+  hoodGeo.translate(0, 1.52, 0.02);
+
+  // Dunkel bleibt Absicht (unheimlich!), aber ein reiner Nahe-Schwarz-Ton war
+  // gegen den ebenso dunklen Nachthimmel praktisch unsichtbar — leicht ins
+  // Blaue verschoben, damit die Silhouette noch lesbar bleibt.
+  const cloakMatTemplate = new THREE.MeshLambertMaterial({
+    color: 0x171c30, transparent: true, opacity: 0.88, flatShading: true, side: THREE.DoubleSide,
+  });
+  // Leuchtende Augen sind der eigentliche "ich sehe etwas im Dunkeln"-Hinweis
+  // (klassisches Horror-Genre-Mittel) — deutlich größer/heller als ursprünglich.
+  const eyeMatTemplate = new THREE.SpriteMaterial({
+    map: glowTex, color: 0xafd8ff, transparent: true, opacity: 0.95,
+    blending: THREE.AdditiveBlending, depthWrite: false,
+  });
+  const glowMatTemplate = new THREE.SpriteMaterial({
+    map: glowTex, color: 0x4a70c0, transparent: true, opacity: 0.3,
+    blending: THREE.AdditiveBlending, depthWrite: false,
+  });
+
+  return { cloakGeo, hoodGeo, cloakMatTemplate, eyeMatTemplate, glowMatTemplate };
+}
+
+class Ghost {
+  constructor(system, parts, homePos, seed) {
+    this.system = system;
+    this.species = 'ghost';
+    this.hp = TUNING.ghost.hp;
+    this.maxHp = TUNING.ghost.hp;
+    this.alive = false;
+    this.radius = 0.35;
+    this.state = 'dead'; // 'dead' deckt sowohl Tag-Inaktivität als auch Tod ab
+    this.stateT = 0;
+    this.homePos = homePos;
+    this.vel = new THREE.Vector3();
+    this.fadeFactor = 0;
+    this._sawLow = true; // erlaubt sofortige Erstaktivierung, egal wann das Spiel startet
+
+    const rng = mulberry32(seed * 613 + 7);
+    this.phaseA = rng() * Math.PI * 2;
+    this.phaseB = rng() * Math.PI * 2;
+
+    this.group = new THREE.Group();
+    this.pos = this.group.position;
+    this.pos.set(homePos.x, terrainHeight(homePos.x, homePos.z) + 0.85, homePos.z);
+    this.group.visible = false;
+
+    this.cloakMat = parts.cloakMatTemplate.clone();
+    this.cloakMat.opacity = 0;
+    this.cloak = new THREE.Mesh(parts.cloakGeo, this.cloakMat);
+    this.group.add(this.cloak);
+    const hood = new THREE.Mesh(parts.hoodGeo, this.cloakMat);
+    this.group.add(hood);
+
+    this.eyeMat = parts.eyeMatTemplate.clone();
+    this.eyeMat.opacity = 0;
+    // Augen deutlich VOR die Kapuzen-Kugel setzen (Hood: Zentrum y=1.52,z=0.02,
+    // Radius 0.22) — sonst liegt der Sprite-Anker innerhalb der Kugel und der
+    // Tiefentest der Kapuze verdeckt ihn (additives Blending ändert nur die
+    // Farbmischung, nicht den Tiefentest).
+    const eyeL = new THREE.Sprite(this.eyeMat);
+    eyeL.scale.setScalar(0.13);
+    eyeL.position.set(-0.08, 1.5, 0.32);
+    this.group.add(eyeL);
+    const eyeR = new THREE.Sprite(this.eyeMat);
+    eyeR.scale.setScalar(0.13);
+    eyeR.position.set(0.08, 1.5, 0.32);
+    this.group.add(eyeR);
+
+    this.glowMat = parts.glowMatTemplate.clone();
+    this.glowMat.opacity = 0;
+    const glow = new THREE.Sprite(this.glowMat);
+    glow.scale.setScalar(2.6);
+    glow.position.y = 0.55;
+    this.group.add(glow);
+
+    system.scene.add(this.group);
+  }
+
+  _steerXZ(tx, tz, speed, dt) {
+    const dx = tx - this.pos.x, dz = tz - this.pos.z;
+    const d = Math.hypot(dx, dz) || 1;
+    this.vel.x = (dx / d) * speed;
+    this.vel.z = (dz / d) * speed;
+    this.pos.x += this.vel.x * dt;
+    this.pos.z += this.vel.z * dt;
+  }
+
+  _applyFade() {
+    const f = this.fadeFactor;
+    this.cloakMat.opacity = 0.88 * f;
+    this.eyeMat.opacity = 0.95 * f;
+    this.glowMat.opacity = 0.3 * f;
+  }
+
+  applyHit(spellId, _boltVel) {
+    if (!this.alive) return;
+    const dmg = (spellId === 'stupor' || spellId === 'incendio') ? 1 : 0;
+    if (dmg <= 0) return;
+    this.hp -= dmg;
+    if (this.hp <= 0) this._die();
+  }
+
+  _die() {
+    this.alive = false;
+    this.state = 'dying';
+    this.stateT = 0;
+    this.system.fx.burst(this.pos, 0x8fb0ff, 30, 3.5, { gravity: -1, life: 1.0 });
+    this.system.audio.chime();
+  }
+
+  _activate() {
+    this.hp = this.maxHp;
+    this.alive = true;
+    this.state = 'wander';
+    this.stateT = 0;
+    this.fadeFactor = 0;
+    this.cloak.scale.y = 1;
+    this.group.visible = true;
+    this.pos.set(this.homePos.x, terrainHeight(this.homePos.x, this.homePos.z) + 0.85, this.homePos.z);
+  }
+
+  update(dt, player, skyState, lumosOn) {
+    const night = skyState.nightGlow;
+
+    if (this.state === 'dead') {
+      if (night < 0.2) this._sawLow = true;
+      if (night > 0.5 && this._sawLow) this._activate();
+      else return; // unsichtbar & inaktiv
+    }
+
+    // Sterbeanimation läuft IMMER zu Ende, unabhängig vom Distanz-Culling weiter
+    // unten — sonst bliebe ein Geist für immer in 'dying' hängen, falls der
+    // Spieler direkt nach dem Todesstoß wegläuft/teleportiert.
+    if (this.state === 'dying') {
+      this.stateT += dt;
+      const k = Math.max(0, 1 - this.stateT / TUNING.ghost.dyingDur);
+      this.cloak.scale.y = k;
+      this.fadeFactor = k;
+      this._applyFade();
+      if (this.stateT >= TUNING.ghost.dyingDur) {
+        this.state = 'dead';
+        this._sawLow = false;
+        this.group.visible = false;
+      }
+      return;
+    }
+
+    // Tagesanbruch während aktiv: sanft ausfaden und deaktivieren
+    if (night < 0.35) {
+      this.fadeFactor = Math.max(0, this.fadeFactor - dt / TUNING.ghost.fadeDur);
+      if (this.fadeFactor <= 0) {
+        this.state = 'dead';
+        this.alive = false;
+        this._sawLow = false;
+        this.group.visible = false;
+        return;
+      }
+    } else {
+      this.fadeFactor = Math.min(1, this.fadeFactor + dt / TUNING.ghost.fadeDur);
+    }
+
+    const distSq = this.pos.distanceToSquared(player.pos);
+    if (distSq > CULL_HIDE * CULL_HIDE) { this.group.visible = false; return; }
+    this.group.visible = true;
+    if (distSq > CULL_FULL * CULL_FULL) { this._applyFade(); return; } // eingefroren, aber sichtbar
+
+    // Kälte-Näherungsmeldung ans System (für HUD-Vignette & Drone-Sound)
+    const dist = Math.sqrt(distSq);
+    if (dist < this.system._nearestGhostDist) this.system._nearestGhostDist = dist;
+
+    // Lumos-Furcht hat Vorrang vor normalem Verhalten
+    if (lumosOn && (this.state === 'wander' || this.state === 'aggro')
+      && distSq < TUNING.ghost.lumosFearRange * TUNING.ghost.lumosFearRange) {
+      this.state = 'flee';
+      this.stateT = 0;
+    }
+
+    switch (this.state) {
+      case 'wander': {
+        const t = this.system.time;
+        const lx = this.homePos.x + Math.sin(t * 0.15 + this.phaseA) * 14;
+        const lz = this.homePos.z + Math.cos(t * 0.12 + this.phaseB) * 14;
+        this._steerXZ(lx, lz, TUNING.ghost.wanderSpeed, dt);
+        if (distSq < TUNING.ghost.aggroRange * TUNING.ghost.aggroRange) {
+          this.state = 'aggro';
+          this.stateT = 0;
+        }
+        break;
+      }
+      case 'aggro': {
+        this.stateT += dt;
+        this._steerXZ(player.pos.x, player.pos.z, TUNING.ghost.aggroSpeed, dt);
+        if (Math.sqrt(distSq) < TUNING.ghost.touchRange) {
+          const dx = this.pos.x - player.pos.x, dz = this.pos.z - player.pos.z;
+          const d = Math.hypot(dx, dz) || 1;
+          const dirX = dx / d, dirZ = dz / d;
+          if (!this.system.peaceful) {
+            this.system.health.damage(TUNING.ghost.dmg, { x: dirX, y: 0, z: dirZ });
+            this.system.fx.shake(0.3);
+          }
+          // 8m radial vom Spieler wegteleportieren, damit er nicht dauerschadet
+          this.pos.x = player.pos.x + dirX * TUNING.ghost.knockbackDist;
+          this.pos.z = player.pos.z + dirZ * TUNING.ghost.knockbackDist;
+        }
+        if (distSq > TUNING.ghost.leaveAggroRange * TUNING.ghost.leaveAggroRange) {
+          this.state = 'wander';
+          this.stateT = 0;
+        }
+        break;
+      }
+      case 'flee': {
+        this.stateT += dt;
+        const dx = this.pos.x - player.pos.x, dz = this.pos.z - player.pos.z;
+        const d = Math.hypot(dx, dz) || 1;
+        this._steerXZ(this.pos.x + (dx / d) * 10, this.pos.z + (dz / d) * 10, TUNING.ghost.fleeSpeed, dt);
+        if (!lumosOn || distSq > TUNING.ghost.fleeMinDist * TUNING.ghost.fleeMinDist) {
+          this.state = 'wander';
+          this.stateT = 0;
+        }
+        break;
+      }
+    }
+
+    // Bodenschweben (0.6–1.1m) + wehender Umhangsaum
+    const groundY = terrainHeight(this.pos.x, this.pos.z);
+    this.pos.y = groundY + 0.85 + Math.sin(this.system.time * 0.8 + this.phaseA) * 0.25;
+    this.cloak.rotation.y += 0.3 * dt;
+    this._applyFade();
+  }
+}
+
 export class CreatureSystem {
   constructor(scene, fx, audio, health, collectibles, hud, glowTex) {
     this.scene = scene;
@@ -317,24 +580,42 @@ export class CreatureSystem {
     this.peaceful = false;
     this.time = 0;
     this._theftToastShown = false;
+    this._nearestGhostDist = Infinity;
     this.list = [];
 
-    const parts = buildPixieParts(glowTex);
+    const pixieParts = buildPixieParts(glowTex);
     let seed = 1;
     for (const swarm of PIXIE_SWARMS) {
       for (let i = 0; i < PIXIE_PER_SWARM; i++) {
-        this.list.push(new Pixie(this, parts, swarm, seed++));
+        this.list.push(new Pixie(this, pixieParts, swarm, seed++));
+      }
+    }
+
+    const ghostParts = buildGhostParts(glowTex);
+    seed = 1;
+    for (const spawn of GHOST_SPAWNS) {
+      for (let i = 0; i < GHOST_PER_SPAWN; i++) {
+        this.list.push(new Ghost(this, ghostParts, spawn, seed++));
       }
     }
   }
 
-  update(dt, player) {
+  update(dt, player, skyState, lumosOn) {
     this.time += dt;
-    for (const c of this.list) c.update(dt, player);
+    this._nearestGhostDist = Infinity;
+    for (const c of this.list) c.update(dt, player, skyState, lumosOn);
 
     // Getragene Schnätze hängen unterm Wichtel — pro Frame nachziehen
     for (const c of this.list) {
       if (c.carrying) c.carrying.group.position.set(c.pos.x, c.pos.y - 0.4, c.pos.z);
     }
+
+    // Kälte-Aura (HUD-Vignette) & Schatten-Drone: reagieren auf den NÄCHSTEN
+    // Geist, nicht auf jeden einzeln (sonst Last-Write-Wins-Flackern)
+    const nd = this._nearestGhostDist;
+    const coldFrac = nd < TUNING.ghost.coldRange ? 1 - nd / TUNING.ghost.coldRange : 0;
+    this.hud?.setCold?.(coldFrac);
+    const droneFrac = nd < TUNING.ghost.aggroRange ? Math.max(0, 1 - nd / TUNING.ghost.aggroRange) : 0;
+    this.audio?.setGhostDrone?.(droneFrac);
   }
 }

@@ -273,7 +273,10 @@ function frame(dt) {
 
     wand.update(dt, player, move);
     spells.update(dt, camera, creatures.list);
-    creatures.update(dt, player);
+    // sky.update() läuft weiter unten, aber creatures braucht den Tag/Nacht-
+    // Stand vom LETZTEN Frame — nightGlow ändert sich nur sehr langsam
+    // (300s/Zyklus), eine Frame Verzögerung ist unmerklich.
+    creatures.update(dt, player, sky.state, lumosOn);
     fx.update(dt);
     camera.position.add(fx.shakeOffset);
     health.update(dt);
