@@ -210,7 +210,9 @@ export class SoundManager {
   chime(final = false) {
     if (!this.ctx || this.muted) return;
     const ctx = this.ctx, t = ctx.currentTime;
-    const notes = final ? [660, 880, 1100, 1320, 1760] : [880, 1320];
+    // 'fanfare' = Truhen-Öffnen: aufsteigendes Quinten-Arpeggio (C-G-C-G-C)
+    const notes = final === 'fanfare' ? [523, 784, 1046, 1568, 2093]
+      : final ? [660, 880, 1100, 1320, 1760] : [880, 1320];
     notes.forEach((freq, i) => {
       const o = ctx.createOscillator();
       o.type = 'triangle';
@@ -220,6 +222,40 @@ export class SoundManager {
       o.connect(g).connect(this.master);
       o.start(t + i * 0.09); o.stop(t + i * 0.09 + 0.6);
     });
+  }
+
+  // Druckplatte belegt: tiefer, satter "Klonk"
+  puzzleClonk() {
+    if (!this.ctx || this.muted) return;
+    const ctx = this.ctx, t = ctx.currentTime;
+    const o = ctx.createOscillator();
+    o.type = 'sine';
+    o.frequency.setValueAtTime(160, t);
+    o.frequency.exponentialRampToValueAtTime(70, t + 0.18);
+    const g = ctx.createGain();
+    this._env(g, t, 0.004, 0.3, 0.22);
+    o.connect(g).connect(this.master);
+    o.start(t); o.stop(t + 0.3);
+  }
+
+  // Stein/Hecke bewegt sich: 1-2s tiefes Rumpeln (gefiltertes Rauschen)
+  puzzleRumble(duration = 2) {
+    if (!this.ctx || this.muted) return;
+    const ctx = this.ctx, t = ctx.currentTime;
+    const src = ctx.createBufferSource();
+    src.buffer = this.noiseBuf;
+    src.loop = true;
+    const f = ctx.createBiquadFilter();
+    f.type = 'lowpass';
+    f.frequency.value = 220;
+    const g = ctx.createGain();
+    g.gain.setValueAtTime(0.0001, t);
+    g.gain.exponentialRampToValueAtTime(0.22, t + 0.15);
+    g.gain.setValueAtTime(0.22, t + duration - 0.3);
+    g.gain.exponentialRampToValueAtTime(0.0001, t + duration);
+    src.connect(f).connect(g).connect(this.master);
+    src.start(t);
+    src.stop(t + duration);
   }
 
   // Wichtel-Kichern: 3-5 schnelle Sinus-Blips in zufälliger Reihenfolge

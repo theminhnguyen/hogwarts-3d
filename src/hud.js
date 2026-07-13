@@ -16,6 +16,9 @@ export class Hud {
     this.trackerDist = el('tracker-dist');
     this.hint = el('hint');
     this.toast = el('toast');
+    this.artifacts = el('artifacts');
+    this.puzzleStatus = el('puzzle-status');
+    this._artifactsShown = false;
     this.spellbar = el('spellbar');
     this.spellChips = {};
     this._spellMax = {};
@@ -61,6 +64,18 @@ export class Hud {
   setCold(frac) { this.vignette.style.setProperty('--cold', frac.toFixed(3)); }
 
   setCounter(n, total) { this.counter.textContent = `✦ ${n} / ${total}`; }
+
+  setArtifacts(n, total) {
+    this.artifacts.textContent = `🏆 ${n} / ${total}`;
+    if (!this._artifactsShown && n > 0) { this._artifactsShown = true; this.artifacts.style.display = 'block'; }
+  }
+
+  // text=null blendet die Zeile aus (kein aktives Rätsel gerade)
+  setPuzzleStatus(text) {
+    if (text === null) { this.puzzleStatus.style.display = 'none'; return; }
+    this.puzzleStatus.textContent = text;
+    this.puzzleStatus.style.display = 'block';
+  }
 
   // Baut die 4 Spruch-Chips einmalig auf (Reihenfolge = Anzeigereihenfolge)
   buildSpellbar(spells) {

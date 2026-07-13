@@ -17,15 +17,29 @@ import { WandSystem, SPELLS, SPELL_ORDER } from './wand.js';
 import { SpellSystem } from './spells.js';
 import { HealthSystem } from './health.js';
 import { CreatureSystem } from './creatures.js';
+import { PuzzleSystem } from './puzzles.js';
 
+// Der Schlüsselname trägt noch "v1" aus Phase 0 — umbenennen würde alle
+// bestehenden Spielstände verwaisen lassen. Die eigentliche Versionierung
+// läuft jetzt über das `v`-Feld IM gespeicherten Objekt (siehe loadSave()).
 const SAVE_KEY = 'hogwarts3d-save-v1';
 
 function loadSave() {
-  try { return JSON.parse(localStorage.getItem(SAVE_KEY)) || {}; }
-  catch { return {}; }
+  let raw = {};
+  try { raw = JSON.parse(localStorage.getItem(SAVE_KEY)) || {}; } catch { raw = {}; }
+  // v2: Artefakte + Rätselzustände. Fehlt `v` (alter Save) oder fehlen
+  // einzelne Felder: nie crashen, immer auf Default zurückfallen.
+  return {
+    collected: raw.collected || [],
+    art: raw.art || [],
+    pz: raw.pz || {},
+    muted: raw.muted === true,
+    peaceful: raw.peaceful === true,
+    t: raw.t,
+  };
 }
 function writeSave(data) {
-  try { localStorage.setItem(SAVE_KEY, JSON.stringify(data)); } catch { /* privat-modus etc. */ }
+  try { localStorage.setItem(SAVE_KEY, JSON.stringify({ v: 2, ...data })); } catch { /* privat-modus etc. */ }
 }
 
 // ---------- Renderer & Szene ----------
@@ -59,7 +73,7 @@ const audio = new SoundManager();
 const save = loadSave();
 
 let sky, water, castle, structures, life, collectibles, player;
-let fx, wand, spells, health, creatures;
+let fx, wand, spells, health, creatures, puzzles;
 const glowTex = makeGlowTexture();
 
 // ---------- Kürbis-Gag: Incendio auf die Kürbisse vor Hagrids Hütte ----------
@@ -126,6 +140,10 @@ const buildSteps = [
     hud.buildSpellbar(SPELL_ORDER.map(id => ({ id, ...SPELLS[id] })));
     buildPumpkinGlows();
   }],
+  ['Rätsel', () => {
+    puzzles = new PuzzleSystem(scene, spells, fx, audio, hud, glowTex);
+    puzzles.restore(save.pz, save.art);
+  }],
   ['Kreaturen & Gesundheit', () => {
     health = new HealthSystem(player, hud, fx, audio);
     creatures = new CreatureSystem(scene, fx, audio, health, collectibles, hud, glowTex);
@@ -164,8 +182,11 @@ audio.setMuted(save.muted === true);
 btnSound.textContent = `Ton: ${audio.muted ? 'aus' : 'an'}`;
 
 function persist() {
+  const pdata = puzzles ? puzzles.save() : { art: save.art, pz: save.pz };
   writeSave({
     collected: collectibles ? collectibles.collectedIds : [],
+    art: pdata.art,
+    pz: pdata.pz,
     muted: audio.muted,
     t: sky ? sky.timeOfDay : undefined,
     peaceful: creatures ? creatures.peaceful : (save.peaceful === true),
@@ -233,6 +254,7 @@ btnReset.addEventListener('click', () => {
     collectibles.count = 0;
     hud.setCounter(0, collectibles.total);
   }
+  if (puzzles) puzzles.restore({}, []);
   persist();
   hud.showToast('Fortschritt zurückgesetzt');
 });
@@ -317,6 +339,7 @@ function frame(dt) {
     // Stand vom LETZTEN Frame — nightGlow ändert sich nur sehr langsam
     // (300s/Zyklus), eine Frame Verzögerung ist unmerklich.
     creatures.update(dt, player, sky.state, spells.lumosOn);
+    puzzles.update(dt, player, sky.state);
     fx.update(dt);
     camera.position.add(fx.shakeOffset);
     health.update(dt);
@@ -375,7 +398,7 @@ buildWorld().then(() => {
   // Debug-/Test-Zugriff (bewusst öffentlich, hilft bei Fehlersuche)
   window.__game = {
     player, sky, camera, renderer, scene,
-    wand, spells, fx, health, creatures,
+    wand, spells, fx, health, creatures, puzzles,
     get fps() { return fpsEMA; },
     get pixelRatio() { return pixelRatio; },
     collectibles,
@@ -399,6 +422,10 @@ buildWorld().then(() => {
   };
   health.onRespawn = () => hud.showToast('Du wachst im Innenhof auf … Zeit, sich neu zu sammeln.', 3.5);
   health.onFountainHeal = () => hud.showToast('Das Brunnenwasser wärmt dich. ♥ voll!', 2.5);
+  puzzles.onArtifact = (id, name, n, total) => {
+    hud.showToast(`🏆 Artefakt gefunden: ${name} — ${n} / ${total}`, 4);
+    persist();
+  };
   collectibles.onCollect = (item, n, total) => {
     const done = n === total;
     audio.chime(done);

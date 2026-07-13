@@ -71,8 +71,12 @@ export function resetColliders() {
   colliders.platforms.length = 0;
 }
 
+// Gibt den Blocker zurück (wie addCircleBlocker) — nötig für die Hecke im
+// Schwebender-Garten-Rätsel, die beim Absenken durchlässig werden muss.
 export function addBoxBlocker(minX, maxX, minY, maxY, minZ, maxZ) {
-  colliders.blockers.push({ kind: 'box', minX, maxX, minY, maxY, minZ, maxZ });
+  const b = { kind: 'box', minX, maxX, minY, maxY, minZ, maxZ, disabled: false };
+  colliders.blockers.push(b);
+  return b;
 }
 
 // Gibt den Blocker zurück, damit ihn Aufrufer später mutieren können
