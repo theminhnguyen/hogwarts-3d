@@ -131,6 +131,32 @@ export class FxSystem {
     posArr[i * 3 + 2] = pos.z;
   }
 
+  // Feuerwerksrakete + Explosion (Finale). pos bleibt fix, Rakete steigt von
+  // dort auf; nach `rise` Sekunden knallt sie in `colorHex`.
+  firework(pos, colorHex = 0xffffff) {
+    this._fireworks = this._fireworks || [];
+    this._fireworks.push({ pos: pos.clone(), color: colorHex, t: 0, rise: 1.0 + Math.random() * 0.3, exploded: false });
+  }
+
+  _updateFireworks(dt) {
+    if (!this._fireworks) return;
+    for (let i = this._fireworks.length - 1; i >= 0; i--) {
+      const fw = this._fireworks[i];
+      fw.t += dt;
+      if (!fw.exploded) {
+        if (Math.random() < 0.6) {
+          this.trail({ x: fw.pos.x, y: fw.pos.y + fw.t * 22, z: fw.pos.z }, 0xfff2c0);
+        }
+        if (fw.t >= fw.rise) {
+          fw.exploded = true;
+          this.burst({ x: fw.pos.x, y: fw.pos.y + fw.rise * 22, z: fw.pos.z }, fw.color, 60, 9, { gravity: -4, life: 1.3, size: 0.6 });
+        }
+      } else if (fw.t >= fw.rise + 1.4) {
+        this._fireworks.splice(i, 1);
+      }
+    }
+  }
+
   // Abklingender Kamera-Wackler; nie mehr als 0.5 stapeln
   shake(strength) {
     this.shakeStrength = Math.min(0.5, this.shakeStrength + strength);
@@ -172,5 +198,7 @@ export class FxSystem {
 
     this.shakeStrength *= Math.exp(-8 * dt);
     if (this.shakeStrength < 0.001) this.shakeStrength = 0;
+
+    this._updateFireworks(dt);
   }
 }

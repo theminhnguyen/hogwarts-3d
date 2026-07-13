@@ -207,6 +207,103 @@ export class SoundManager {
     src.start(t, Math.random() * 1.5, 0.1);
   }
 
+  // Lied der Steine: Dreieck-Osc, Pentatonik d4-f4-g4-a4 (ein Ton je Stein)
+  runeTone(index) {
+    if (!this.ctx || this.muted) return;
+    const freqs = [293.66, 349.23, 392.0, 440.0];
+    const ctx = this.ctx, t = ctx.currentTime;
+    const o = ctx.createOscillator();
+    o.type = 'triangle';
+    o.frequency.value = freqs[index] ?? freqs[0];
+    const g = ctx.createGain();
+    this._env(g, t, 0.01, 0.18, 0.35);
+    o.connect(g).connect(this.master);
+    o.start(t); o.stop(t + 0.4);
+  }
+
+  // Falsche Simon-Says-Folge: tiefer Brummton
+  simonFail() {
+    if (!this.ctx || this.muted) return;
+    const ctx = this.ctx, t = ctx.currentTime;
+    const o = ctx.createOscillator();
+    o.type = 'sawtooth';
+    o.frequency.setValueAtTime(110, t);
+    o.frequency.exponentialRampToValueAtTime(55, t + 0.4);
+    const g = ctx.createGain();
+    this._env(g, t, 0.01, 0.22, 0.4);
+    o.connect(g).connect(this.master);
+    o.start(t); o.stop(t + 0.5);
+  }
+
+  // Sternbild: Stern rastet ein — aufsteigender Glockenton
+  starLock() {
+    if (!this.ctx || this.muted) return;
+    const ctx = this.ctx, t = ctx.currentTime;
+    const o = ctx.createOscillator();
+    o.type = 'sine';
+    o.frequency.setValueAtTime(600, t);
+    o.frequency.exponentialRampToValueAtTime(1400, t + 0.35);
+    const g = ctx.createGain();
+    this._env(g, t, 0.01, 0.15, 0.4);
+    o.connect(g).connect(this.master);
+    o.start(t); o.stop(t + 0.5);
+  }
+
+  // Feuerwerk: tiefer Abschuss-Noise, nach ~1s Doppelknall + Glitzer-Chimes
+  fireworkBang() {
+    if (!this.ctx || this.muted) return;
+    const ctx = this.ctx, t = ctx.currentTime;
+    const src = ctx.createBufferSource();
+    src.buffer = this.noiseBuf;
+    const f = ctx.createBiquadFilter();
+    f.type = 'lowpass'; f.frequency.value = 300;
+    const g = ctx.createGain();
+    this._env(g, t, 0.01, 0.18, 0.3);
+    src.connect(f).connect(g).connect(this.master);
+    src.start(t, Math.random() * 1.5, 0.35);
+
+    for (const d of [1.0, 1.08]) {
+      const t0 = t + d;
+      const bsrc = ctx.createBufferSource();
+      bsrc.buffer = this.noiseBuf;
+      const bf = ctx.createBiquadFilter();
+      bf.type = 'bandpass'; bf.frequency.value = 700; bf.Q.value = 1.2;
+      const bg = ctx.createGain();
+      this._env(bg, t0, 0.005, 0.28, 0.25);
+      bsrc.connect(bf).connect(bg).connect(this.master);
+      bsrc.start(t0, Math.random() * 1.5, 0.3);
+    }
+    for (let i = 0; i < 6; i++) {
+      const t0 = t + 1.1 + Math.random() * 0.6;
+      const o = ctx.createOscillator();
+      o.type = 'sine';
+      o.frequency.value = 1600 + Math.random() * 1200;
+      const g2 = ctx.createGain();
+      this._env(g2, t0, 0.005, 0.05, 0.15);
+      o.connect(g2).connect(this.master);
+      o.start(t0); o.stop(t0 + 0.25);
+    }
+  }
+
+  // Hauspokal-Finale: volle, mehrstimmige 5-Ton-Hymne (Grundton + Quinte)
+  hauspokalFanfare() {
+    if (!this.ctx || this.muted) return;
+    const ctx = this.ctx, t = ctx.currentTime;
+    const notes = [523, 659, 784, 1046, 1318];
+    notes.forEach((freq, i) => {
+      const t0 = t + i * 0.18;
+      for (const mul of [1, 1.5]) {
+        const o = ctx.createOscillator();
+        o.type = i === notes.length - 1 ? 'sawtooth' : 'triangle';
+        o.frequency.value = freq * mul;
+        const g = ctx.createGain();
+        this._env(g, t0, 0.015, mul === 1 ? 0.16 : 0.08, 0.9);
+        o.connect(g).connect(this.master);
+        o.start(t0); o.stop(t0 + 1.0);
+      }
+    });
+  }
+
   chime(final = false) {
     if (!this.ctx || this.muted) return;
     const ctx = this.ctx, t = ctx.currentTime;

@@ -141,8 +141,9 @@ const buildSteps = [
     buildPumpkinGlows();
   }],
   ['Rätsel', () => {
-    puzzles = new PuzzleSystem(scene, spells, fx, audio, hud, glowTex);
+    puzzles = new PuzzleSystem(scene, spells, fx, audio, hud, glowTex, structures, collectibles);
     puzzles.restore(save.pz, save.art);
+    if (puzzles.finaleWon) showHauspokalWon();
   }],
   ['Kreaturen & Gesundheit', () => {
     health = new HealthSystem(player, hud, fx, audio);
@@ -155,6 +156,8 @@ const buildSteps = [
 const loadingBar = document.getElementById('loading-bar');
 const menuLoading = document.getElementById('menu-loading');
 const menuMain = document.getElementById('menu-main');
+const hauspokalStatus = document.getElementById('hauspokal-status');
+function showHauspokalWon() { hauspokalStatus.classList.remove('hidden'); }
 
 async function buildWorld() {
   for (let i = 0; i < buildSteps.length; i++) {
@@ -255,6 +258,7 @@ btnReset.addEventListener('click', () => {
     hud.setCounter(0, collectibles.total);
   }
   if (puzzles) puzzles.restore({}, []);
+  hauspokalStatus.classList.add('hidden');
   persist();
   hud.showToast('Fortschritt zurückgesetzt');
 });
@@ -424,6 +428,10 @@ buildWorld().then(() => {
   health.onFountainHeal = () => hud.showToast('Das Brunnenwasser wärmt dich. ♥ voll!', 2.5);
   puzzles.onArtifact = (id, name, n, total) => {
     hud.showToast(`🏆 Artefakt gefunden: ${name} — ${n} / ${total}`, 4);
+    persist();
+  };
+  puzzles.onFinale = () => {
+    showHauspokalWon();
     persist();
   };
   collectibles.onCollect = (item, n, total) => {

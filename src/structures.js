@@ -144,6 +144,9 @@ export function buildStructures(scene) {
   }
 
   // ===== Steinkreis =====
+  // Positionen gemerkt (Steine sind gemergt) für das Lied-der-Steine-Rätsel:
+  // 4 der 9 Steine bekommen dort eine Runen-Plane + werden Stupor-Ziele.
+  const stones = [];
   {
     const x = STONES.x, z = STONES.z;
     const n = 9;
@@ -158,6 +161,7 @@ export function buildStructures(scene) {
       st.translate(sx, sy + h / 2 - 0.2, sz);
       bx.s.addRaw(st, 0x8b8578);
       addCircleBlocker(sx, sz, 1.2, sy - 1, sy + h);
+      stones.push({ x: sx, y: sy, z: sz, topY: sy + h - 0.2 });
     }
     const ay = terrainHeight(x, z);
     bx.s.add(new THREE.BoxGeometry(2.6, 0.7, 1.6), 0x7e7770, x, ay + 0.35, z, 0.4);
@@ -175,6 +179,7 @@ export function buildStructures(scene) {
     flames,
     nightLights,
     pumpkins,
+    stones,
     update(nightGlow) {
       // Fensterfarbe regelt castle.update (gemeinsames Material)
       for (const l of nightLights) l.intensity = 20 * nightGlow;

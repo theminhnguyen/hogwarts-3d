@@ -197,6 +197,22 @@ export class SpellSystem {
     }
   }
 
+  // Sterne (Sternbild-Rätsel) sind "unendlich weit" — kein Bolzen-Treffer,
+  // sondern reiner Blickwinkel-Check (<2°), unabhängig vom normalen Bolzen.
+  _checkStarTargets(camera) {
+    camera.getWorldDirection(_dir);
+    for (const target of this.targets) {
+      if (target.kind !== 'star') continue;
+      const p = target.getPos();
+      const dx = p.x - camera.position.x, dy = p.y - camera.position.y, dz = p.z - camera.position.z;
+      const dist = Math.hypot(dx, dy, dz);
+      if (dist < 1e-4) continue;
+      const dot = (dx * _dir.x + dy * _dir.y + dz * _dir.z) / dist;
+      const angle = Math.acos(Math.max(-1, Math.min(1, dot)));
+      if (angle < (2 * Math.PI / 180)) target.onSpell?.('stupor', p);
+    }
+  }
+
   cast(camera) {
     const id = this.wand.activeSpell;
     if (this.cooldowns[id] > 0) return;
@@ -206,6 +222,7 @@ export class SpellSystem {
     if (id === 'stupor') {
       this.audio.castStupor?.();
       this._fireBolt('stupor', camera);
+      this._checkStarTargets(camera);
     } else if (id === 'incendio') {
       this.audio.castIncendio?.();
       this._fireBolt('incendio', camera);
