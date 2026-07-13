@@ -1,12 +1,11 @@
-// Zauber-System: Projektil-Pool, Stupor-Bolzen (Phase 1), Kollision gegen
-// Gelände/Wasser/Blocker, Einschlag-FX. Der Stab reagiert schon auf alle
-// vier Sprüche (Flick-Animation + Cooldown), aber nur Stupor wirkt bereits —
-// Incendio/Leviosa/Lumos-Wirkung folgt in Phase 3/4. Ziel-Registry ist das
-// Bindeglied zu den Rätseln (Phase 5/6): puzzles.js registriert sich hier,
-// spells.js bleibt dumm/generisch.
+// Zauber-System: Projektil-Pool (Stupor/Incendio), Leviosa-Greifmodus mit
+// Feder-Physik, Lumos-Toggle. Kollision gegen Gelände/Wasser/Blocker/
+// Kreaturen mit Strecken- statt Punktprüfung (Tunneling-Schutz). Ziel-
+// Registry ist das Bindeglied zu den Rätseln (Phase 5/6): puzzles.js
+// registriert sich hier, spells.js bleibt dumm/generisch.
 
 import * as THREE from 'three';
-import { pointBlocked } from './geo.js';
+import { pointBlocked, addCircleBlocker, platformGround } from './geo.js';
 import { terrainHeight, WATER_LEVEL, LAKE } from './terrain.js';
 import { SPELLS } from './wand.js';
 
@@ -17,9 +16,19 @@ const BOLT_RADIUS = 0.35;
 export const TUNING = {
   stupor:   { speed: 46, dmg: 1, cooldown: 0.45, ttl: 2.2 },
   incendio: { speed: 34, dmg: 2, cooldown: 0.9, ttl: 2.0, gravity: -9 },
-  leviosa:  { range: 7, holdDist: 4, cooldown: 0.2 },
-  lumos:    { cooldown: 0.3 },
+  leviosa: {
+    range: 7, holdDist: 4, cooldown: 0.2, coneAngle: 12 * Math.PI / 180,
+    springK: 8, damp: 0.85, minHeight: 0.5, maxHeight: 4, gravity: 24,
+  },
+  lumos: { cooldown: 0.3 },
 };
+
+// Die beiden Leviosa-Steinblöcke im Nordgarten (Rätsel-Setup folgt in Phase 5,
+// hier nur der Greifmechanismus selbst — siehe PLAN-MAGIE.md Abschnitt 3.3)
+const LEVIOSA_SPOTS = [
+  { x: -14, z: -62 },
+  { x: 14, z: -62 },
+];
 
 const _dir = new THREE.Vector3();
 
@@ -47,6 +56,9 @@ export class SpellSystem {
     this.cooldowns = { stupor: 0, incendio: 0, leviosa: 0, lumos: 0 };
     this.targets = []; // Ziel-Registry — Rätsel docken hier an (Phase 5/6)
     this._camPos = null;
+    this.lumosOn = false;    // Migration: lebt jetzt hier statt in main.js
+    this.leviosaHeld = null; // aktuell gegriffenes Leviosa-Objekt (oder null)
+    this._buildLeviosaObjects();
 
     // Bolzen-Pool
     const baseMat = new THREE.SpriteMaterial({
@@ -77,8 +89,113 @@ export class SpellSystem {
 
   registerTarget(target) { this.targets.push(target); return target; }
 
-  // Vom Loslassen der Maustaste — für Leviosa relevant (Phase 4)
-  release() {}
+  get isHoldingLeviosa() { return this.leviosaHeld !== null; }
+
+  // Baut die 2 greifbaren Steinblöcke im Nordgarten (Runen-Gravur = zweite,
+  // etwas größere Box mit BackSide-Material, ergibt dunkle Kanten am Rand).
+  _buildLeviosaObjects() {
+    const outerGeo = new THREE.BoxGeometry(0.9, 0.9, 0.9);
+    const outerMat = new THREE.MeshLambertMaterial({ color: 0x8a8078, flatShading: true });
+    const outlineGeo = new THREE.BoxGeometry(0.98, 0.98, 0.98);
+    const outlineMat = new THREE.MeshBasicMaterial({ color: 0x453c32, side: THREE.BackSide });
+    const glowMat = new THREE.SpriteMaterial({
+      map: this.fx.glowTex, color: SPELLS.leviosa.color, transparent: true,
+      opacity: 0, blending: THREE.AdditiveBlending, depthWrite: false,
+    });
+
+    this.leviosaObjects = [];
+    for (const spot of LEVIOSA_SPOTS) {
+      const y = terrainHeight(spot.x, spot.z) + 0.45;
+      const group = new THREE.Group();
+      group.position.set(spot.x, y, spot.z);
+      const outer = new THREE.Mesh(outerGeo, outerMat);
+      outer.castShadow = true;
+      outer.receiveShadow = true;
+      group.add(outer);
+      group.add(new THREE.Mesh(outlineGeo, outlineMat));
+      const glow = new THREE.Sprite(glowMat.clone());
+      glow.scale.setScalar(1.4);
+      group.add(glow);
+      this.scene.add(group);
+
+      const blocker = addCircleBlocker(spot.x, spot.z, 0.7, y - 0.45, y + 0.45);
+      this.leviosaObjects.push({
+        group, pos: group.position, vel: new THREE.Vector3(),
+        falling: false, blocker, glow,
+      });
+    }
+  }
+
+  _leviosaGrab(camera) {
+    if (this.leviosaHeld) return;
+    camera.getWorldDirection(_dir);
+    let best = null, bestAngle = TUNING.leviosa.coneAngle;
+    for (const obj of this.leviosaObjects) {
+      if (obj.falling) continue;
+      const dx = obj.pos.x - camera.position.x, dy = obj.pos.y - camera.position.y, dz = obj.pos.z - camera.position.z;
+      const dist = Math.hypot(dx, dy, dz);
+      if (dist > TUNING.leviosa.range || dist < 1e-4) continue;
+      const dot = (dx * _dir.x + dy * _dir.y + dz * _dir.z) / dist;
+      const angle = Math.acos(Math.max(-1, Math.min(1, dot)));
+      if (angle < bestAngle) { best = obj; bestAngle = angle; }
+    }
+    if (best) {
+      this.leviosaHeld = best;
+      best.vel.set(0, 0, 0);
+      best.blocker.disabled = true;
+      best.glow.material.opacity = 0.7;
+      this.audio.leviosaHold?.(true);
+    }
+  }
+
+  _updateLeviosaObjects(dt, camera) {
+    const T = TUNING.leviosa;
+    // Sicherheitsnetz: Spruch gewechselt, während noch etwas in der Hand ist
+    if (this.leviosaHeld && this.wand.activeSpell !== 'leviosa') this.release();
+
+    for (const obj of this.leviosaObjects) {
+      if (obj === this.leviosaHeld) {
+        camera.getWorldDirection(_dir);
+        const tx = camera.position.x + _dir.x * T.holdDist;
+        const tz = camera.position.z + _dir.z * T.holdDist;
+        const groundY = terrainHeight(tx, tz);
+        let ty = camera.position.y + _dir.y * T.holdDist;
+        ty = Math.max(groundY + T.minHeight, Math.min(groundY + T.maxHeight, ty));
+        obj.vel.x += (tx - obj.pos.x) * T.springK * dt;
+        obj.vel.y += (ty - obj.pos.y) * T.springK * dt;
+        obj.vel.z += (tz - obj.pos.z) * T.springK * dt;
+        obj.vel.multiplyScalar(T.damp);
+        obj.pos.addScaledVector(obj.vel, dt);
+        if (Math.random() < 0.5) this.fx.trail(obj.pos, SPELLS.leviosa.color);
+      } else if (obj.falling) {
+        obj.vel.y -= T.gravity * dt;
+        obj.pos.addScaledVector(obj.vel, dt);
+        const groundY = Math.max(terrainHeight(obj.pos.x, obj.pos.z), platformGround(obj.pos.x, obj.pos.z, obj.pos.y));
+        if (obj.pos.y <= groundY) {
+          obj.pos.y = groundY;
+          obj.vel.set(0, 0, 0);
+          obj.falling = false;
+          obj.blocker.disabled = false;
+          obj.blocker.x = obj.pos.x;
+          obj.blocker.z = obj.pos.z;
+          obj.blocker.minY = obj.pos.y - 0.45;
+          obj.blocker.maxY = obj.pos.y + 0.45;
+          obj.glow.material.opacity = 0;
+          this.fx.burst(obj.pos, 0x8a7250, 12, 2.5, { gravity: -3, life: 0.4 });
+        }
+      }
+    }
+  }
+
+  // Vom Loslassen der Maustaste — lässt ein gehaltenes Leviosa-Objekt fallen
+  release() {
+    if (this.leviosaHeld) {
+      this.leviosaHeld.falling = true;
+      this.leviosaHeld.glow.material.opacity = 0.35;
+      this.leviosaHeld = null;
+      this.audio.leviosaHold?.(false);
+    }
+  }
 
   cast(camera) {
     const id = this.wand.activeSpell;
@@ -89,8 +206,15 @@ export class SpellSystem {
     if (id === 'stupor') {
       this.audio.castStupor?.();
       this._fireBolt('stupor', camera);
+    } else if (id === 'incendio') {
+      this.audio.castIncendio?.();
+      this._fireBolt('incendio', camera);
+    } else if (id === 'leviosa') {
+      this._leviosaGrab(camera);
+    } else if (id === 'lumos') {
+      this.lumosOn = !this.lumosOn;
+      this.audio.lumosToggle?.(this.lumosOn);
     }
-    // incendio/leviosa/lumos: Stab flickt & kühlt schon ab, Wirkung folgt später.
   }
 
   _fireBolt(spellId, camera) {
@@ -144,6 +268,7 @@ export class SpellSystem {
       if (this.cooldowns[id] > 0) this.cooldowns[id] = Math.max(0, this.cooldowns[id] - dt);
     }
     this._camPos = camera.position;
+    this._updateLeviosaObjects(dt, camera);
 
     for (const bolt of this.bolts) {
       if (!bolt.active) continue;

@@ -33,6 +33,7 @@ export class WandSystem {
     this.castT = -1;     // -1 = keine Cast-Animation aktiv
     this.switchT = -1;   // -1 = kein Spruchwechsel-Dreher aktiv
     this.sprintBlend = 0;
+    this.holdBlend = 0;
 
     this.root = new THREE.Group();
     this.root.position.copy(BASE_POS);
@@ -111,7 +112,7 @@ export class WandSystem {
   }
 
   // player: liefert bobPhase/grounded; move: { hSpeed, sprinting } von player.update()
-  update(dt, player, move, lumosOn = false) {
+  update(dt, player, move, lumosOn = false, holding = false) {
     this.t += dt;
     const hSpeed = move ? move.hSpeed : 0;
     const sprinting = move ? move.sprinting : false;
@@ -133,6 +134,18 @@ export class WandSystem {
     this.sprintBlend += (sprintTarget - this.sprintBlend) * Math.min(1, dt * 4);
     offRotX += -0.35 * this.sprintBlend;
     offY += -0.05 * this.sprintBlend;
+
+    // Leviosa-Halten: Stab zeigt leicht nach oben, Spitze kreist minimal
+    this.holdBlend += ((holding ? 1 : 0) - this.holdBlend) * Math.min(1, dt * 5);
+    offRotX += 0.2 * this.holdBlend;
+    if (this.holdBlend > 0.01) {
+      const cr = 0.005 * this.holdBlend;
+      this.glow.position.x = Math.cos(this.t * 2) * cr;
+      this.glow.position.z = Math.sin(this.t * 2) * cr;
+    } else {
+      this.glow.position.x = 0;
+      this.glow.position.z = 0;
+    }
 
     // Cast-Flick: 180ms hin (easeOut), 220ms zurück (easeIn)
     let castFlash = 0;
@@ -171,9 +184,14 @@ export class WandSystem {
     this.glow.material.color.setHex(spell.color);
     this.glow.material.opacity = 0.55 + castFlash * 0.4;
 
-    // Spitzen-Licht: Cast-Blitz klingt in 0.25s ab
-    this.tipLight.intensity = this.castT >= 0 ? 8 * Math.max(0, 1 - this.castT / 0.25) : 0;
-    this.tipLight.color.setHex(spell.color);
-    void lumosOn; // reserviert für Phase 4 (Lumos-Migration)
+    // Spitzen-Licht: Cast-Blitz klingt in 0.25s ab; Lumos leuchtet währenddessen
+    // dauerhaft (ersetzt das alte separate Lumos-Licht am Spieler aus Phase 1-3).
+    // Ein frischer Cast-Blitz ist kurz heller als das Lumos-Grundglühen und
+    // überstrahlt dessen Farbe für seine Dauer.
+    const castLi = this.castT >= 0 ? 8 * Math.max(0, 1 - this.castT / 0.25) : 0;
+    const lumosLi = lumosOn ? 14 : 0;
+    this.tipLight.intensity = Math.max(castLi, lumosLi);
+    this.tipLight.color.setHex(castLi >= lumosLi ? spell.color : SPELLS.lumos.color);
+    this.tipLight.distance = lumosOn ? 20 : 6;
   }
 }

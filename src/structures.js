@@ -25,6 +25,7 @@ export function buildStructures(scene) {
   };
   const flames = [];
   const nightLights = [];
+  const pumpkins = [];
   const rng = mulberry32(23);
 
   // ===== Bootshaus + Steg =====
@@ -93,6 +94,10 @@ export function buildStructures(scene) {
       p.translate(px, py + s * 0.55, pz);
       bx.d.addRaw(p, i % 3 === 0 ? 0xc96a1e : 0xd97b24);
       bx.d.add(new THREE.CylinderGeometry(0.05, 0.08, 0.4, 5), 0x4a5a2a, px, py + s * 1.15, pz);
+      // Position gemerkt (nicht die Mesh-Referenz — Kürbisse sind in ein
+      // gemeinsames Mesh gemergt) für den Kürbis-Gag: Incendio-Ziel + eine
+      // separate Overlay-Plane/Licht, die bei Treffer aufleuchtet.
+      pumpkins.push({ x: px, y: py + s * 0.55, z: pz, radius: s, facing: 0 });
     }
     const fx0 = x + 6, fx1 = x + 20, fz0 = z, fz1 = z + 14;
     for (let fx = fx0; fx <= fx1; fx += 3.5) {
@@ -169,6 +174,7 @@ export function buildStructures(scene) {
   return {
     flames,
     nightLights,
+    pumpkins,
     update(nightGlow) {
       // Fensterfarbe regelt castle.update (gemeinsames Material)
       for (const l of nightLights) l.intensity = 20 * nightGlow;

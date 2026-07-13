@@ -75,8 +75,12 @@ export function addBoxBlocker(minX, maxX, minY, maxY, minZ, maxZ) {
   colliders.blockers.push({ kind: 'box', minX, maxX, minY, maxY, minZ, maxZ });
 }
 
+// Gibt den Blocker zurück, damit ihn Aufrufer später mutieren können
+// (Leviosa: beim Schweben disabled=true, beim Landen x/z neu setzen).
 export function addCircleBlocker(x, z, r, minY, maxY) {
-  colliders.blockers.push({ kind: 'circle', x, z, r, minY, maxY });
+  const b = { kind: 'circle', x, z, r, minY, maxY, disabled: false };
+  colliders.blockers.push(b);
+  return b;
 }
 
 // Ebene Plattform — oder mit Gefälle entlang z (y0 bei z0 → y1 bei z1)
@@ -104,6 +108,7 @@ export function platformGround(x, z, feetY) {
 // Reiner Punkt-Test gegen alle Blocker (für Projektile — kein Radius/Verdrängung)
 export function pointBlocked(x, y, z) {
   for (const b of colliders.blockers) {
+    if (b.disabled) continue;
     if (y < b.minY || y > b.maxY) continue;
     if (b.kind === 'circle') {
       const dx = x - b.x, dz = z - b.z;
@@ -121,6 +126,7 @@ export function resolveBlockers(pos, radius, feetY) {
   const bodyLow = feetY + 0.55;   // bis hierhin darf "aufgestiegen" werden
   const bodyHigh = feetY + 1.75;
   for (const b of colliders.blockers) {
+    if (b.disabled) continue;
     if (b.maxY <= bodyLow || b.minY >= bodyHigh) continue;
     if (b.kind === 'circle') {
       const dx = pos.x - b.x, dz = pos.z - b.z;

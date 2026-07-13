@@ -62,6 +62,50 @@ let sky, water, castle, structures, life, collectibles, player;
 let fx, wand, spells, health, creatures;
 const glowTex = makeGlowTexture();
 
+// ---------- Kürbis-Gag: Incendio auf die Kürbisse vor Hagrids Hütte ----------
+// entzündet sie zu Jack-o'-Laternen — warmes Licht + Glow, klingt über 10s ab.
+const pumpkinGlows = [];
+let pumpkinFirstFound = false;
+
+function buildPumpkinGlows() {
+  for (const p of structures.pumpkins) {
+    const light = new THREE.PointLight(0xffa438, 0, 6, 2);
+    light.position.set(p.x, p.y + 0.3, p.z);
+    scene.add(light);
+    const glow = new THREE.Sprite(new THREE.SpriteMaterial({
+      map: glowTex, color: 0xffa438, transparent: true,
+      opacity: 0, blending: THREE.AdditiveBlending, depthWrite: false,
+    }));
+    glow.scale.setScalar(p.radius * 2.4);
+    glow.position.set(p.x, p.y + 0.2, p.z);
+    scene.add(glow);
+    const entry = { light, glow, fade: 0 };
+    pumpkinGlows.push(entry);
+    spells.registerTarget({
+      kind: 'pumpkin', radius: p.radius + 0.35, accepts: ['incendio'],
+      getPos: () => p,
+      onSpell: () => {
+        entry.fade = 10;
+        fx.burst(p, 0xffa438, 10, 3, { gravity: -2, life: 0.5 });
+        if (!pumpkinFirstFound) {
+          pumpkinFirstFound = true;
+          hud.showToast("Jack-o'-Lantern! 🎃", 3);
+        }
+      },
+    });
+  }
+}
+
+function updatePumpkinGlows(dt) {
+  for (const g of pumpkinGlows) {
+    if (g.fade <= 0) continue;
+    g.fade = Math.max(0, g.fade - dt);
+    const t = g.fade / 10;
+    g.light.intensity = 8 * t;
+    g.glow.material.opacity = 0.8 * t;
+  }
+}
+
 const buildSteps = [
   ['Himmel & Licht', () => { sky = new SkySystem(scene); if (save.t) sky.timeOfDay = save.t; }],
   ['Gelände', () => { scene.add(buildTerrain()); }],
@@ -80,6 +124,7 @@ const buildSteps = [
     wand = new WandSystem(camera, glowTex);
     spells = new SpellSystem(scene, wand, fx, audio);
     hud.buildSpellbar(SPELL_ORDER.map(id => ({ id, ...SPELLS[id] })));
+    buildPumpkinGlows();
   }],
   ['Kreaturen & Gesundheit', () => {
     health = new HealthSystem(player, hud, fx, audio);
@@ -218,9 +263,9 @@ window.addEventListener('keydown', (e) => {
   } else if (e.code === 'KeyF') {
     hud.toggleFps();
   } else if (e.code === 'KeyL') {
-    lumosOn = !lumosOn;
     wand.selectSpell('lumos');
-    hud.showToast(lumosOn ? '✨ Lumos!' : 'Nox.', 1.4);
+    spells.cast(camera);
+    hud.showToast(spells.lumosOn ? '✨ Lumos!' : 'Nox.', 1.4);
   } else if (DIGIT_SPELLS[e.code]) {
     wand.selectSpell(DIGIT_SPELLS[e.code]);
   }
@@ -240,11 +285,6 @@ window.addEventListener('wheel', (e) => {
   if (!playing) return;
   wand.cycleSpell(e.deltaY > 0 ? 1 : -1);
 }, { passive: true });
-
-// ---------- Lumos (Lichtzauber am Spieler) ----------
-const lumos = new THREE.PointLight(0xcfe0ff, 0, 20, 1.5);
-scene.add(lumos);
-let lumosOn = false;
 
 // ---------- Spielschleife ----------
 const clock = new THREE.Clock();
@@ -271,12 +311,12 @@ function frame(dt) {
     time += dt;
     const move = player.update(dt);
 
-    wand.update(dt, player, move);
+    wand.update(dt, player, move, spells.lumosOn, spells.isHoldingLeviosa);
     spells.update(dt, camera, creatures.list);
     // sky.update() läuft weiter unten, aber creatures braucht den Tag/Nacht-
     // Stand vom LETZTEN Frame — nightGlow ändert sich nur sehr langsam
     // (300s/Zyklus), eine Frame Verzögerung ist unmerklich.
-    creatures.update(dt, player, sky.state, lumosOn);
+    creatures.update(dt, player, sky.state, spells.lumosOn);
     fx.update(dt);
     camera.position.add(fx.shakeOffset);
     health.update(dt);
@@ -301,10 +341,7 @@ function frame(dt) {
       const target = 0.04 + (move.hSpeed / 12) * 0.05 + (player.pos.y / 60) * 0.03;
       audio.windGain.gain.value += (target - audio.windGain.gain.value) * 0.02;
     }
-
-    // Lumos folgt dem Spieler, wirkt vor allem im Dunkeln
-    lumos.intensity = lumosOn ? 10 + sky.state.nightGlow * 26 : 0;
-    if (lumosOn) lumos.position.set(player.pos.x, player.pos.y + 1.9, player.pos.z);
+    updatePumpkinGlows(dt);
 
     hud.setClock(sky.clockText);
     hud.setHeading(player.heading);

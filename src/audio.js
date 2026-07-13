@@ -114,6 +114,82 @@ export class SoundManager {
     src.start(t, Math.random() * 1.5, 0.08);
   }
 
+  // Incendio-Cast: anschwellendes Lowpass-Rauschen + kurzes Knistern obendrauf
+  castIncendio() {
+    if (!this.ctx || this.muted) return;
+    const ctx = this.ctx, t = ctx.currentTime;
+    const src = ctx.createBufferSource();
+    src.buffer = this.noiseBuf;
+    const f = ctx.createBiquadFilter();
+    f.type = 'lowpass';
+    f.frequency.value = 600;
+    const g = ctx.createGain();
+    g.gain.setValueAtTime(0.0001, t);
+    g.gain.exponentialRampToValueAtTime(0.22, t + 0.3);
+    g.gain.exponentialRampToValueAtTime(0.0001, t + 0.55);
+    src.connect(f).connect(g).connect(this.master);
+    src.start(t, Math.random() * 1.5, 0.6);
+
+    for (let i = 0; i < 5; i++) {
+      const t0 = t + Math.random() * 0.4;
+      const crackle = ctx.createBufferSource();
+      crackle.buffer = this.noiseBuf;
+      const cf = ctx.createBiquadFilter();
+      cf.type = 'highpass';
+      cf.frequency.value = 2500;
+      const cg = ctx.createGain();
+      this._env(cg, t0, 0.002, 0.05 + Math.random() * 0.05, 0.03);
+      crackle.connect(cf).connect(cg).connect(this.master);
+      crackle.start(t0, Math.random() * 1.5, 0.05);
+    }
+  }
+
+  // Leviosa halten: leiser Sinus-Chor mit Vibrato, läuft bis release(false)
+  leviosaHold(on) {
+    if (!this.ctx) return;
+    const ctx = this.ctx, t = ctx.currentTime;
+    if (on) {
+      if (this._leviosaNodes) return;
+      const g = ctx.createGain();
+      g.gain.value = 0;
+      g.connect(this.master);
+      const oscs = [400, 500, 600].map((freq) => {
+        const o = ctx.createOscillator();
+        o.type = 'sine'; o.frequency.value = freq;
+        const og = ctx.createGain();
+        og.gain.value = 0.06;
+        o.connect(og).connect(g);
+        const lfo = ctx.createOscillator();
+        lfo.frequency.value = 5 + Math.random();
+        const lfoGain = ctx.createGain();
+        lfoGain.gain.value = 4; // ±4 Hz Vibrato
+        lfo.connect(lfoGain).connect(o.frequency);
+        o.start(); lfo.start();
+        return { o, lfo };
+      });
+      g.gain.setTargetAtTime(0.5, t, 0.15);
+      this._leviosaNodes = { gain: g, oscs };
+    } else if (this._leviosaNodes) {
+      const { gain, oscs } = this._leviosaNodes;
+      gain.gain.setTargetAtTime(0, t, 0.15);
+      setTimeout(() => { for (const { o, lfo } of oscs) { o.stop(); lfo.stop(); } }, 400);
+      this._leviosaNodes = null;
+    }
+  }
+
+  // Lumos an/aus: heller bzw. dunkler Ping
+  lumosToggle(on) {
+    if (!this.ctx || this.muted) return;
+    const ctx = this.ctx, t = ctx.currentTime;
+    const o = ctx.createOscillator();
+    o.type = 'sine';
+    o.frequency.value = on ? 1320 : 660;
+    const g = ctx.createGain();
+    this._env(g, t, 0.005, 0.12, 0.15);
+    o.connect(g).connect(this.master);
+    o.start(t); o.stop(t + 0.25);
+  }
+
   // Bolzen-Einschlag: kurzer Bandpass-Noise-Knall, Tonhöhe je Zauber
   spellImpact(spellId = 'stupor') {
     if (!this.ctx || this.muted) return;
