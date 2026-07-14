@@ -217,6 +217,7 @@ export class PuzzleSystem {
     this.fireActive = false;
     this.fireDone = true;
     this.hud.setPuzzleStatus(null);
+    this.hud.showToast('Die drei Wächterinnen erwärmen sich … ein Weg öffnet sich! 🔥', 2.5);
     this.slabAnimT = 0;
     this.audio.puzzleRumble(2);
     this.grottoTorch.visible = true;
@@ -496,6 +497,7 @@ export class PuzzleSystem {
     this.songDone = true;
     this.songState = 'won';
     this.hud.setPuzzleStatus(null);
+    this.hud.showToast('Die Steine verstummen zufrieden — der Altar erwacht. 🎵', 2.5);
     this.audio.puzzleRumble(1.8);
     this.altarAnimT = 0;
   }
