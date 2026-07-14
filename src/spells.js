@@ -317,7 +317,9 @@ export class SpellSystem {
         this._despawnBolt(bolt, true, bolt.pos);
         continue;
       }
-      // Kreaturen (Phase 2+) — Strecken- statt Punktprüfung gegen Tunneling
+      // Kreaturen (Phase 2+) — Strecken- statt Punktprüfung gegen Tunneling.
+      // c.hitY hebt die Treffer-Kugel vom pos-Anker (oft der FUSSPUNKT) auf
+      // die visuelle Mitte — Spieler zielen auf Torso/Augen, nicht auf Füße.
       if (creatures) {
         let hitCreature = false;
         for (const c of creatures) {
@@ -326,7 +328,7 @@ export class SpellSystem {
           const d2 = segPointDistSq(
             bolt.prevPos.x, bolt.prevPos.y, bolt.prevPos.z,
             bolt.pos.x, bolt.pos.y, bolt.pos.z,
-            c.pos.x, c.pos.y, c.pos.z
+            c.pos.x, c.pos.y + (c.hitY || 0), c.pos.z
           );
           if (d2 < r * r) {
             c.applyHit(bolt.spellId, bolt.vel);

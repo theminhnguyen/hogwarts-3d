@@ -376,7 +376,11 @@ class Ghost {
     this.hp = TUNING.ghost.hp;
     this.maxHp = TUNING.ghost.hp;
     this.alive = false;
-    this.radius = 0.35;
+    // pos ist der FUSSPUNKT (Umhangsaum) — die Treffer-Kugel muss auf die
+    // visuelle Mitte (Spieler zielen auf Kapuze/Augen bei pos+1.5) gehoben
+    // und groß genug für den ganzen Umhang (y 0..1.6) sein.
+    this.radius = 0.6;
+    this.hitY = 0.9;
     this.state = 'dead'; // 'dead' deckt sowohl Tag-Inaktivität als auch Tod ab
     this.stateT = 0;
     this.homePos = homePos;
@@ -586,7 +590,10 @@ class Troll {
     this.hp = TROLL_TUNING.hp;
     this.maxHp = TROLL_TUNING.hp;
     this.alive = true;
-    this.radius = 0.9;
+    // pos ist der FUSSPUNKT — Treffer-Kugel auf Torso-Höhe heben (Körper
+    // spannt y 0..3.5), sonst verfehlen Schüsse auf Brust/Kopf den Anker.
+    this.radius = 1.4;
+    this.hitY = 1.8;
     this.state = 'patrol'; // patrol|aggro|telegraph|slam|stagger|dying|dead
     this.stateT = 0;
     this.homePos = TROLL_POS;
