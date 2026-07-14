@@ -146,8 +146,9 @@ const buildSteps = [
     if (puzzles.finaleWon) showHauspokalWon();
   }],
   ['Kreaturen & Gesundheit', () => {
-    health = new HealthSystem(player, hud, fx, audio);
+    health = new HealthSystem(player, hud, fx, audio, save.pz?.maxHearts || 5);
     creatures = new CreatureSystem(scene, fx, audio, health, collectibles, hud, glowTex);
+    creatures.restoreTroll(save.pz?.troll, save.pz?.trollChest);
     if (save.peaceful) creatures.peaceful = true;
     hud.setHearts(health.hearts, health.maxHearts);
   }],
@@ -189,7 +190,12 @@ function persist() {
   writeSave({
     collected: collectibles ? collectibles.collectedIds : [],
     art: pdata.art,
-    pz: pdata.pz,
+    pz: {
+      ...pdata.pz,
+      troll: creatures ? creatures.trollDefeated : (save.pz?.troll || false),
+      trollChest: creatures ? creatures.troll.chest.collected : (save.pz?.trollChest || false),
+      maxHearts: health ? health.maxHearts : (save.pz?.maxHearts || 5),
+    },
     muted: audio.muted,
     t: sky ? sky.timeOfDay : undefined,
     peaceful: creatures ? creatures.peaceful : (save.peaceful === true),
@@ -258,6 +264,12 @@ btnReset.addEventListener('click', () => {
     hud.setCounter(0, collectibles.total);
   }
   if (puzzles) puzzles.restore({}, []);
+  if (creatures) creatures.restoreTroll(false, false);
+  if (health) {
+    health.maxHearts = 5;
+    health.hearts = Math.min(health.hearts, 5);
+    hud.setHearts(health.hearts, health.maxHearts);
+  }
   hauspokalStatus.classList.add('hidden');
   persist();
   hud.showToast('Fortschritt zurückgesetzt');
@@ -375,6 +387,8 @@ function frame(dt) {
     hud.setTracker(collectibles.nearest(player.pos), player.heading);
     hud.setSpell(wand.activeSpell, spells.cooldowns);
     hud.setHearts(health.hearts, health.maxHearts);
+    const troll = creatures.troll;
+    hud.setBoss(['aggro', 'telegraph', 'slam'].includes(troll.state) ? troll.hp / troll.maxHp : null);
     hud.setFps(fpsEMA, pixelRatio);
     if (player.swimming) hud.showHint('Du schwimmst im See 🏊 — zurück ans Ufer!');
     else hud.hideHint();
@@ -434,6 +448,7 @@ buildWorld().then(() => {
     showHauspokalWon();
     persist();
   };
+  creatures.onTrollChest = () => persist();
   collectibles.onCollect = (item, n, total) => {
     const done = n === total;
     audio.chime(done);

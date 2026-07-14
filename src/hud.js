@@ -27,6 +27,8 @@ export class Hud {
     this._heartsMax = 0;
     this.vignette = el('vignette');
     this.whiteout = el('whiteout');
+    this.bossbar = el('bossbar');
+    this.bossbarFill = this.bossbar.querySelector('i');
     this._toastTimer = 0;
     this._hurtTimer = 0;
     this._fpsVisible = false;
@@ -75,6 +77,13 @@ export class Hud {
     if (text === null) { this.puzzleStatus.style.display = 'none'; return; }
     this.puzzleStatus.textContent = text;
     this.puzzleStatus.style.display = 'block';
+  }
+
+  // frac=null blendet die Bossbar aus (nur während Troll-Aggro sichtbar)
+  setBoss(frac) {
+    if (frac === null) { this.bossbar.style.display = 'none'; return; }
+    this.bossbar.style.display = 'block';
+    this.bossbarFill.style.setProperty('--boss-fill', Math.max(0, Math.min(1, frac)).toFixed(3));
   }
 
   // Baut die 4 Spruch-Chips einmalig auf (Reihenfolge = Anzeigereihenfolge)

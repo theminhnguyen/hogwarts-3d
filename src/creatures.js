@@ -1,7 +1,8 @@
 // Kreaturen: gemeinsame Basis-FSM + Wichtel/Pixies (frech, tags- und nachts
 // aktiv, klauen nicht eingesammelte Schnätze) + Schattengeister (unheimlich,
-// nur nachts, fliehen vor Lumos). Troll folgt als Bonus. Distanz-Culling:
-// volle FSM nur < 140m, sichtbar bis 160m.
+// nur nachts, fliehen vor Lumos) + Troll-Miniboss (Bonus, Schluchtboden,
+// bewacht eine Herz-Upgrade-Truhe). Distanz-Culling: volle FSM nur < 140m,
+// sichtbar bis 160m.
 
 import * as THREE from 'three';
 import { GeoBatch } from './geo.js';
@@ -35,6 +36,14 @@ const GHOST_SPAWNS = [
 const GHOST_PER_SPAWN = 2;
 const CULL_FULL = 140;
 const CULL_HIDE = 160;
+
+const TROLL_POS = { x: -40, z: 94 };
+const TROLL_TUNING = {
+  hp: 12, patrolSpeed: 1.4, chaseSpeed: 3.4, patrolRadius: 13,
+  aggroRange: 16, leaveAggroRange: 22, slamRange: 3.5,
+  telegraphDur: 0.8, slamDmg: 1.5, staggerDur: 0.6,
+  attackCdMin: 2.5, attackCdMax: 4,
+};
 
 function rand(a, b) { return a + Math.random() * (b - a); }
 
@@ -569,6 +578,329 @@ class Ghost {
   }
 }
 
+// ---------- Troll-Miniboss (Bonus) ----------
+class Troll {
+  constructor(system, glowTex) {
+    this.system = system;
+    this.species = 'troll';
+    this.hp = TROLL_TUNING.hp;
+    this.maxHp = TROLL_TUNING.hp;
+    this.alive = true;
+    this.radius = 0.9;
+    this.state = 'patrol'; // patrol|aggro|telegraph|slam|stagger|dying|dead
+    this.stateT = 0;
+    this.homePos = TROLL_POS;
+    this.vel = new THREE.Vector3();
+    this.attackCd = rand(TROLL_TUNING.attackCdMin, TROLL_TUNING.attackCdMax);
+    this.phaseA = Math.random() * Math.PI * 2;
+    this._slamApplied = false;
+
+    const SKIN = 0x6b7a5e, SKIN_DARK = 0x566349, CLUB = 0x5a4632;
+    this.group = new THREE.Group();
+    this.pos = this.group.position;
+    this.pos.set(TROLL_POS.x, terrainHeight(TROLL_POS.x, TROLL_POS.z), TROLL_POS.z);
+
+    const b = new GeoBatch();
+    for (const s of [-1, 1]) {
+      const leg = new THREE.CylinderGeometry(0.34, 0.4, 1.3, 7);
+      leg.translate(s * 0.4, 0.65, 0);
+      b.addRaw(leg, SKIN_DARK);
+    }
+    const torso = new THREE.SphereGeometry(0.85, 8, 6);
+    torso.scale(1.15, 1.3, 0.95);
+    torso.translate(0, 2.0, 0);
+    b.addRaw(torso, SKIN);
+    const head = new THREE.SphereGeometry(0.42, 8, 6);
+    head.scale(0.9, 0.85, 0.95);
+    head.translate(0, 3.05, 0.12);
+    b.addRaw(head, SKIN);
+    for (const s of [-1, 1]) {
+      const ear = new THREE.ConeGeometry(0.14, 0.3, 5);
+      ear.rotateZ(s * 0.9);
+      ear.translate(s * 0.42, 3.15, 0.05);
+      b.addRaw(ear, SKIN_DARK);
+    }
+    const arm = new THREE.CylinderGeometry(0.2, 0.24, 1.0, 6);
+    arm.rotateZ(0.25);
+    arm.translate(-0.95, 1.75, 0.1);
+    b.addRaw(arm, SKIN_DARK);
+    const bodyMat = new THREE.MeshLambertMaterial({ vertexColors: true, flatShading: true });
+    const bodyMesh = b.build(bodyMat, { castShadow: true, receiveShadow: true });
+    this.group.add(bodyMesh);
+
+    // Keulenarm als eigene Gruppe mit Schulter-Pivot — rotiert beim Hebe-/Schlag-Telegraph
+    this.clubArmGroup = new THREE.Group();
+    this.clubArmGroup.position.set(0.9, 2.15, 0.1);
+    const darkMat = new THREE.MeshLambertMaterial({ color: SKIN_DARK, flatShading: true });
+    const clubMat = new THREE.MeshLambertMaterial({ color: CLUB, flatShading: true });
+    const upperArm = new THREE.Mesh(new THREE.CylinderGeometry(0.22, 0.2, 0.55, 6), darkMat);
+    upperArm.position.set(0, -0.28, 0);
+    this.clubArmGroup.add(upperArm);
+    const forearm = new THREE.Mesh(new THREE.CylinderGeometry(0.18, 0.16, 0.55, 6), darkMat);
+    forearm.position.set(0, -0.75, 0);
+    this.clubArmGroup.add(forearm);
+    const clubHandle = new THREE.Mesh(new THREE.CylinderGeometry(0.1, 0.12, 0.7, 6), clubMat);
+    clubHandle.position.set(0, -1.35, 0);
+    this.clubArmGroup.add(clubHandle);
+    const clubHead = new THREE.Mesh(new THREE.SphereGeometry(0.34, 7, 5), clubMat);
+    clubHead.position.set(0, -1.75, 0);
+    this.clubArmGroup.add(clubHead);
+    this.group.add(this.clubArmGroup);
+
+    system.scene.add(this.group);
+
+    // Boden-Ring: Telegraph-Warnung vor dem Keulenschlag
+    const ringGeo = new THREE.RingGeometry(TROLL_TUNING.slamRange - 0.3, TROLL_TUNING.slamRange, 24);
+    ringGeo.rotateX(-Math.PI / 2);
+    this.ringMat = new THREE.MeshBasicMaterial({
+      color: 0xff3030, transparent: true, opacity: 0, side: THREE.DoubleSide,
+      blending: THREE.AdditiveBlending, depthWrite: false,
+    });
+    this.ring = new THREE.Mesh(ringGeo, this.ringMat);
+    this.ring.frustumCulled = false;
+    system.scene.add(this.ring);
+
+    this._buildChest(glowTex);
+  }
+
+  _buildChest(glowTex) {
+    const cx = this.homePos.x + 4, cz = this.homePos.z + 2;
+    const cy = terrainHeight(cx, cz);
+    const group = new THREE.Group();
+    group.position.set(cx, cy, cz);
+    const woodMat = new THREE.MeshLambertMaterial({ color: 0x6d5236, flatShading: true });
+    const body = new THREE.Mesh(new THREE.BoxGeometry(0.9, 0.55, 0.55), woodMat);
+    body.position.y = 0.275;
+    body.castShadow = true;
+    group.add(body);
+    const lidPivot = new THREE.Group();
+    lidPivot.position.set(0, 0.55, -0.27);
+    const lid = new THREE.Mesh(new THREE.BoxGeometry(0.94, 0.22, 0.58), woodMat);
+    lid.position.set(0, 0.11, 0.27);
+    lidPivot.add(lid);
+    group.add(lidPivot);
+    const glow = new THREE.Sprite(new THREE.SpriteMaterial({
+      map: glowTex, color: 0xff5a6a, transparent: true, opacity: 0,
+      blending: THREE.AdditiveBlending, depthWrite: false,
+    }));
+    glow.scale.setScalar(0.1);
+    glow.position.set(0, 0.65, 0);
+    group.add(glow);
+    group.visible = false;
+    this.system.scene.add(group);
+    this.chest = { group, lidPivot, glow, opened: false, openT: -1, collected: false };
+  }
+
+  _steerXZ(tx, tz, speed, dt) {
+    const dx = tx - this.pos.x, dz = tz - this.pos.z;
+    const d = Math.hypot(dx, dz) || 1;
+    this.vel.x = (dx / d) * speed;
+    this.vel.z = (dz / d) * speed;
+    this.pos.x += this.vel.x * dt;
+    this.pos.z += this.vel.z * dt;
+  }
+
+  applyHit(spellId, _boltVel) {
+    if (!this.alive) return;
+    const dmg = spellId === 'incendio' ? 2 : spellId === 'stupor' ? 1 : 0;
+    if (dmg <= 0) return;
+    this.hp -= dmg;
+    this.system.fx.burst(this.pos, 0x8a9878, 10, 3, { gravity: -2, life: 0.4 });
+    if (this.hp <= 0) { this._die(); return; }
+    // Stupor unterbricht jede laufende Aktion (auch den Telegraph!) — der
+    // taktische Konter gegen den Keulenschlag.
+    if (spellId === 'stupor' && this.state !== 'dying') {
+      this.state = 'stagger';
+      this.stateT = 0;
+    }
+  }
+
+  _die() {
+    this.alive = false;
+    this.state = 'dying';
+    this.stateT = 0;
+    this.system.fx.burst(this.pos, 0x8a9878, 40, 6, { gravity: -2, life: 1.0 });
+    this.system.audio.chime?.();
+    this.system.hud?.showToast('Der Troll ist besiegt! Eine Truhe erscheint … 🧌', 3.5);
+  }
+
+  update(dt, player) {
+    // Die Truhe bleibt auch nach 'dead' interaktiv (Spieler kommt evtl. erst
+    // später vorbei) — läuft daher VOR dem frühen Return für 'dead' weiter.
+    if (this.state === 'dead') { this._updateChest(dt, player); return; }
+
+    // Sterbeanimation IMMER zu Ende, unabhängig vom Distanz-Culling (gleiche
+    // Lehre wie beim Schattengeist aus Phase 3).
+    if (this.state === 'dying') {
+      this.stateT += dt;
+      this.group.scale.setScalar(Math.max(0, 1 - this.stateT / 1.0));
+      this.pos.y -= dt * 0.3;
+      this.ringMat.opacity = Math.max(0, this.ringMat.opacity - dt * 2);
+      if (this.stateT >= 1.0) {
+        this.state = 'dead';
+        this.group.visible = false;
+        this.chest.group.visible = true;
+      }
+      this._updateChest(dt, player);
+      return;
+    }
+
+    const distSq = this.pos.distanceToSquared(player.pos);
+    if (distSq > CULL_HIDE * CULL_HIDE) { this.group.visible = false; this._updateChest(dt, player); return; }
+    this.group.visible = true;
+    if (distSq > CULL_FULL * CULL_FULL) { this._updateChest(dt, player); return; }
+
+    switch (this.state) {
+      case 'patrol': {
+        const t = this.system.time;
+        const lx = this.homePos.x + Math.sin(t * 0.2 + this.phaseA) * TROLL_TUNING.patrolRadius;
+        const lz = this.homePos.z + Math.cos(t * 0.17 + this.phaseA) * TROLL_TUNING.patrolRadius;
+        this._steerXZ(lx, lz, TROLL_TUNING.patrolSpeed, dt);
+        if (distSq < TROLL_TUNING.aggroRange * TROLL_TUNING.aggroRange) {
+          this.state = 'aggro';
+          this.stateT = 0;
+          this.system.audio.trollRoar?.();
+        }
+        break;
+      }
+      case 'aggro': {
+        this.stateT += dt;
+        this.attackCd -= dt;
+        const dist = Math.sqrt(distSq);
+        if (dist > TROLL_TUNING.slamRange * 0.7) {
+          this._steerXZ(player.pos.x, player.pos.z, TROLL_TUNING.chaseSpeed, dt);
+        } else {
+          this.vel.set(0, 0, 0);
+        }
+        if (this.attackCd <= 0 && dist < TROLL_TUNING.slamRange + 1.5) {
+          this.state = 'telegraph';
+          this.stateT = 0;
+        }
+        if (distSq > TROLL_TUNING.leaveAggroRange * TROLL_TUNING.leaveAggroRange) {
+          this.state = 'patrol';
+          this.stateT = 0;
+        }
+        break;
+      }
+      case 'telegraph': {
+        this.stateT += dt;
+        const f = Math.min(1, this.stateT / TROLL_TUNING.telegraphDur);
+        this.clubArmGroup.rotation.x = -f * 2.3;
+        this.ringMat.opacity = f * 0.6;
+        this.ring.scale.setScalar(0.6 + f * 0.4);
+        if (this.stateT >= TROLL_TUNING.telegraphDur) {
+          this.state = 'slam';
+          this.stateT = 0;
+          this._slamApplied = false;
+        }
+        break;
+      }
+      case 'slam': {
+        this.stateT += dt;
+        const f = Math.min(1, this.stateT / 0.25);
+        this.clubArmGroup.rotation.x = -2.3 + f * 2.6;
+        if (this.stateT >= 0.02 && !this._slamApplied) {
+          this._slamApplied = true;
+          this.system.audio.trollSlam?.();
+          this.system.fx.burst(this.pos, 0x8a7250, 24, 5, { gravity: -3, life: 0.5 });
+          this.ringMat.opacity = 1;
+          const distNow = Math.hypot(this.pos.x - player.pos.x, this.pos.z - player.pos.z);
+          if (distNow < TROLL_TUNING.slamRange && !this.system.peaceful) {
+            const dx = player.pos.x - this.pos.x, dz = player.pos.z - this.pos.z;
+            const d = Math.hypot(dx, dz) || 1;
+            this.system.health.damage(TROLL_TUNING.slamDmg, { x: dx / d, y: 0.3, z: dz / d });
+            this.system.fx.shake(0.5);
+          }
+        }
+        if (this.stateT >= 0.35) {
+          this.state = 'aggro';
+          this.stateT = 0;
+          this.attackCd = rand(TROLL_TUNING.attackCdMin, TROLL_TUNING.attackCdMax);
+        }
+        break;
+      }
+      case 'stagger': {
+        this.stateT += dt;
+        this.clubArmGroup.rotation.x *= Math.max(0, 1 - dt * 3);
+        if (this.stateT >= TROLL_TUNING.staggerDur) {
+          this.state = 'aggro';
+          this.stateT = 0;
+        }
+        break;
+      }
+    }
+
+    if (this.state !== 'telegraph' && this.state !== 'slam') {
+      this.ringMat.opacity = Math.max(0, this.ringMat.opacity - dt * 3);
+    }
+    this.ring.position.set(this.pos.x, terrainHeight(this.pos.x, this.pos.z) + 0.05, this.pos.z);
+
+    this.pos.y = terrainHeight(this.pos.x, this.pos.z);
+    const hSpeed = Math.hypot(this.vel.x, this.vel.z);
+    if (hSpeed > 0.2) {
+      const targetYaw = Math.atan2(this.vel.x, this.vel.z);
+      this.group.rotation.y = angleLerp(this.group.rotation.y, targetYaw, Math.min(1, dt * 4));
+    }
+
+    this._updateChest(dt, player);
+  }
+
+  // Truhe: proximity-getriggert (kein Zauber nötig), gibt das Herz-Upgrade
+  _updateChest(dt, player) {
+    const chest = this.chest;
+    if (!chest.group.visible || chest.collected) return;
+    if (!chest.opened) {
+      const dx = player.pos.x - chest.group.position.x, dz = player.pos.z - chest.group.position.z;
+      if (dx * dx + dz * dz < 2.5 * 2.5) {
+        chest.opened = true;
+        chest.openT = 0;
+        this.system.audio.chime?.('fanfare');
+        this.system.fx.burst(chest.group.position, 0xff5a6a, 24, 4, { gravity: -1, life: 1.0 });
+      }
+    }
+    if (chest.openT >= 0) {
+      chest.openT += dt;
+      const f = Math.min(1, chest.openT / 1.0);
+      chest.lidPivot.rotation.x = -1.9 * f;
+      chest.glow.scale.setScalar(0.1 + f * 1.1);
+      chest.glow.material.opacity = f < 0.5 ? f * 1.6 : (1 - f) * 1.6;
+      if (chest.openT >= 1.0 && !chest.collected) {
+        chest.collected = true;
+        chest.openT = -1;
+        this.system.health.upgradeMaxHearts(6);
+        this.system.hud?.setHearts(this.system.health.hearts, this.system.health.maxHearts);
+        this.system.hud?.showToast('❤️ Herz-Upgrade! Maximale Herzen: 6', 4);
+        this.system.onTrollChest?.();
+      }
+    }
+  }
+
+  // Setzt den Troll-Zustand SOFORT (ohne Animation/Sound) — für Save-Reload
+  // und den Reset-Button, analog zu puzzles.js' restore().
+  restore(defeated, chestCollected) {
+    if (defeated) {
+      this.alive = false;
+      this.state = 'dead';
+      this.hp = 0;
+      this.group.visible = false;
+    } else {
+      this.alive = true;
+      this.state = 'patrol';
+      this.hp = this.maxHp;
+      this.group.visible = true;
+      this.pos.set(this.homePos.x, terrainHeight(this.homePos.x, this.homePos.z), this.homePos.z);
+    }
+    this.ringMat.opacity = 0;
+    this.chest.collected = !!chestCollected;
+    this.chest.opened = !!chestCollected;
+    this.chest.openT = -1;
+    this.chest.lidPivot.rotation.x = chestCollected ? -1.9 : 0;
+    this.chest.glow.material.opacity = 0;
+    this.chest.group.visible = defeated;
+    if (chestCollected) this.system.health.maxHearts = Math.max(this.system.health.maxHearts, 6);
+  }
+}
+
 export class CreatureSystem {
   constructor(scene, fx, audio, health, collectibles, hud, glowTex) {
     this.scene = scene;
@@ -581,6 +913,7 @@ export class CreatureSystem {
     this.time = 0;
     this._theftToastShown = false;
     this._nearestGhostDist = Infinity;
+    this.onTrollChest = null; // main.js hängt hier persist() ein
     this.list = [];
 
     const pixieParts = buildPixieParts(glowTex);
@@ -598,6 +931,19 @@ export class CreatureSystem {
         this.list.push(new Ghost(this, ghostParts, spawn, seed++));
       }
     }
+
+    this.troll = new Troll(this, glowTex);
+    this.list.push(this.troll);
+  }
+
+  get trollDefeated() { return this.troll.state === 'dead'; }
+
+  saveTroll() {
+    return { defeated: this.trollDefeated, chestCollected: this.troll.chest.collected };
+  }
+
+  restoreTroll(defeated, chestCollected) {
+    this.troll.restore(!!defeated, !!chestCollected);
   }
 
   update(dt, player, skyState, lumosOn) {

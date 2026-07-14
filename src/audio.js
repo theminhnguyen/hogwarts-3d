@@ -388,6 +388,55 @@ export class SoundManager {
     src.start(t, Math.random() * 1.5, 0.1);
   }
 
+  // Troll wird auf den Spieler aufmerksam: tiefes, kurzes Brüllen
+  trollRoar() {
+    if (!this.ctx || this.muted) return;
+    const ctx = this.ctx, t = ctx.currentTime;
+    const o = ctx.createOscillator();
+    o.type = 'sawtooth';
+    o.frequency.setValueAtTime(85, t);
+    o.frequency.linearRampToValueAtTime(130, t + 0.15);
+    o.frequency.linearRampToValueAtTime(70, t + 0.5);
+    const f = ctx.createBiquadFilter();
+    f.type = 'lowpass'; f.frequency.value = 500;
+    const g = ctx.createGain();
+    this._env(g, t, 0.03, 0.3, 0.4);
+    o.connect(f).connect(g).connect(this.master);
+    o.start(t); o.stop(t + 0.75);
+
+    const src = ctx.createBufferSource();
+    src.buffer = this.noiseBuf;
+    const nf = ctx.createBiquadFilter();
+    nf.type = 'bandpass'; nf.frequency.value = 350; nf.Q.value = 0.8;
+    const ng = ctx.createGain();
+    this._env(ng, t, 0.03, 0.18, 0.35);
+    src.connect(nf).connect(ng).connect(this.master);
+    src.start(t, Math.random() * 1.5, 0.5);
+  }
+
+  // Keulenschlag auf den Boden: dumpfer, tiefer Einschlag + Rumpeln
+  trollSlam() {
+    if (!this.ctx || this.muted) return;
+    const ctx = this.ctx, t = ctx.currentTime;
+    const o = ctx.createOscillator();
+    o.type = 'sine';
+    o.frequency.setValueAtTime(90, t);
+    o.frequency.exponentialRampToValueAtTime(35, t + 0.3);
+    const g = ctx.createGain();
+    this._env(g, t, 0.003, 0.5, 0.35);
+    o.connect(g).connect(this.master);
+    o.start(t); o.stop(t + 0.4);
+
+    const src = ctx.createBufferSource();
+    src.buffer = this.noiseBuf;
+    const f = ctx.createBiquadFilter();
+    f.type = 'lowpass'; f.frequency.value = 220;
+    const ng = ctx.createGain();
+    this._env(ng, t, 0.004, 0.32, 0.3);
+    src.connect(f).connect(ng).connect(this.master);
+    src.start(t, Math.random() * 1.5, 0.35);
+  }
+
   _bird() {
     const ctx = this.ctx, t = ctx.currentTime;
     const n = 2 + Math.floor(Math.random() * 3);

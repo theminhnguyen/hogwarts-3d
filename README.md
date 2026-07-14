@@ -51,6 +51,9 @@ Oder lokal: Ordner klonen und `node dev-server.mjs` starten → http://localhost
   (und sie dir wieder abjagen lassen), unheimliche Schattengeister, die nur
   nachts erwachen und vor Lumos fliehen — mit Herz-System, Regeneration und
   heilendem Brunnen im Innenhof (friedlicher Modus für sanfteres Spiel)
+- 🧌 Bonus-Miniboss: ein Troll patrouilliert die Schlucht, greift mit
+  telegraphiertem Keulenschlag an (Stupor unterbricht ihn), und bewacht
+  eine Truhe mit Herz-Upgrade (5 → 6 maximale Herzen)
 - 🧩 Vier Rätsel mit eigenen Artefakten: die Feuerprobe am Viadukt, der
   schwebende Garten im Nordgarten, das Lied der Steine am Steinkreis
   (Simon-Says mit Stupor) und das Sternbild des Hirschen am Astronomieturm

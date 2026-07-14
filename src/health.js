@@ -35,6 +35,13 @@ export class HealthSystem {
     this.onFountainHeal = null;
   }
 
+  // Herz-Upgrade (Troll-Bonus-Truhe): mehr maximale Herzen, sofort teilheilen
+  upgradeMaxHearts(n) {
+    if (n <= this.maxHearts) return;
+    this.maxHearts = n;
+    this.hearts = Math.min(n, this.hearts + 1);
+  }
+
   damage(amount, knockDir) {
     if (this.invincible || this.dead || this.iFrameT > 0 || this.hearts <= 0) return;
     this.hearts = Math.max(0, this.hearts - amount);
