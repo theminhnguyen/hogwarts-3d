@@ -29,19 +29,21 @@ const SAVE_KEY = 'hogwarts3d-save-v1';
 function loadSave() {
   let raw = {};
   try { raw = JSON.parse(localStorage.getItem(SAVE_KEY)) || {}; } catch { raw = {}; }
-  // v2: Artefakte + Rätselzustände. Fehlt `v` (alter Save) oder fehlen
-  // einzelne Felder: nie crashen, immer auf Default zurückfallen.
+  // v3: + Nebelmoor (abgegebene Seelenlichter + Laterne). Fehlt `v` (alter
+  // Save) oder fehlen einzelne Felder: nie crashen, immer auf Default
+  // zurückfallen.
   return {
     collected: raw.collected || [],
     art: raw.art || [],
     pz: raw.pz || {},
+    moor: raw.moor || { lichter: [], laterne: 0 },
     muted: raw.muted === true,
     peaceful: raw.peaceful === true,
     t: raw.t,
   };
 }
 function writeSave(data) {
-  try { localStorage.setItem(SAVE_KEY, JSON.stringify({ v: 2, ...data })); } catch { /* privat-modus etc. */ }
+  try { localStorage.setItem(SAVE_KEY, JSON.stringify({ v: 3, ...data })); } catch { /* privat-modus etc. */ }
 }
 
 // ---------- Renderer & Szene ----------
@@ -76,6 +78,7 @@ const save = loadSave();
 
 let sky, water, castle, structures, moor, life, collectibles, player;
 let fx, wand, spells, health, creatures, puzzles, dementors;
+let lanternWasCollected = false; // erkennt den Moment, in dem die Laterne live geborgen wird
 const glowTex = makeGlowTexture();
 
 // ---------- Kürbis-Gag: Incendio auf die Kürbisse vor Hagrids Hütte ----------
@@ -128,7 +131,6 @@ const buildSteps = [
   ['See', () => { water = buildWater(); scene.add(water.mesh); }],
   ['Schloss', () => { castle = buildCastle(scene); castle.setGlowTexture(glowTex); }],
   ['Bootshaus, Hütte & Feld', () => { structures = buildStructures(scene); }],
-  ['Nebelmoor', () => { moor = buildMoor(scene, glowTex, hud); }],
   ['Wälder & Wiesen', () => { buildNature(scene); }],
   ['Leben & Magie', () => {
     life = new LifeSystem(scene, glowTex, [...castle.flames, ...structures.flames]);
@@ -142,6 +144,12 @@ const buildSteps = [
     spells = new SpellSystem(scene, wand, fx, audio, hud, glowTex);
     hud.buildSpellbar(SPELL_ORDER.map(id => ({ id, ...SPELLS[id] })));
     buildPumpkinGlows();
+  }],
+  // Braucht fx+audio (Truhen-Effekte, Sounds) — deshalb erst NACH 'Zauberstab'.
+  ['Nebelmoor', () => {
+    moor = buildMoor(scene, glowTex, hud, audio, fx);
+    moor.restore(save.moor);
+    if (moor.laterneCollected) { lanternWasCollected = true; showLanternWon(); }
   }],
   ['Rätsel', () => {
     puzzles = new PuzzleSystem(scene, spells, fx, audio, hud, glowTex, structures, collectibles);
@@ -166,6 +174,8 @@ const menuLoading = document.getElementById('menu-loading');
 const menuMain = document.getElementById('menu-main');
 const hauspokalStatus = document.getElementById('hauspokal-status');
 function showHauspokalWon() { hauspokalStatus.classList.remove('hidden'); }
+const lanternStatus = document.getElementById('lantern-status');
+function showLanternWon() { lanternStatus.classList.remove('hidden'); hud.showLanternIcon(); }
 
 async function buildWorld() {
   for (let i = 0; i < buildSteps.length; i++) {
@@ -203,6 +213,7 @@ function persist() {
       trollChest: creatures ? creatures.troll.chest.collected : (save.pz?.trollChest || false),
       maxHearts: health ? health.maxHearts : (save.pz?.maxHearts || 5),
     },
+    moor: moor ? moor.save() : save.moor,
     muted: audio.muted,
     t: sky ? sky.timeOfDay : undefined,
     peaceful: creatures ? creatures.peaceful : (save.peaceful === true),
@@ -273,12 +284,15 @@ btnReset.addEventListener('click', () => {
   }
   if (puzzles) puzzles.restore({}, []);
   if (creatures) creatures.restoreTroll(false, false);
+  if (moor) moor.restore({});
+  lanternWasCollected = false;
   if (health) {
     health.maxHearts = 5;
     health.hearts = Math.min(health.hearts, 5);
     hud.setHearts(health.hearts, health.maxHearts);
   }
   hauspokalStatus.classList.add('hidden');
+  lanternStatus.classList.add('hidden');
   persist();
   hud.showToast('Fortschritt zurückgesetzt');
 });
@@ -366,6 +380,11 @@ function frame(dt) {
     // Stand vom LETZTEN Frame — nightGlow ändert sich nur sehr langsam
     // (300s/Zyklus), eine Frame Verzögerung ist unmerklich.
     creatures.update(dt, player, sky.state, spells.lumosOn);
+    // Risiko-Spirale + Laterne (N4): moor.js speist die effektive Aggro-
+    // Reichweite und die Frost-Aufbau-Geschwindigkeit der Dementoren.
+    dementors.aggroRangeExtra = moor.carriedCount * 4;
+    dementors.aggroRangeMul = moor.laterneCollected ? 0.5 : 1;
+    dementors.frostRateMul = moor.laterneCollected ? 0.5 : 1;
     dementors.update(dt, player);
     player.slowFactor = dementors.frostFactor > 0.5 ? 0.75 : 1;
     hud.setFrost(dementors.frostFactor);
@@ -405,6 +424,13 @@ function frame(dt) {
     const troll = creatures.troll;
     hud.setBoss(['aggro', 'telegraph', 'slam'].includes(troll.state) ? troll.hp / troll.maxHp : null);
     hud.setMoor(moor.insideFactor(player.pos));
+    if (moor.laterneCollected) {
+      if (!lanternWasCollected) { lanternWasCollected = true; showLanternWon(); persist(); }
+    } else {
+      const soulN = moor.carriedCount + moor.deliveredCount;
+      if (soulN > 0 || moor.insideFactor(player.pos) > 0) hud.setSoulLights(soulN, 5);
+      else hud.setSoulLights(0, null);
+    }
     hud.setFps(fpsEMA, pixelRatio);
     if (player.swimming) hud.showHint('Du schwimmst im See 🏊 — zurück ans Ufer!');
     else hud.hideHint();
@@ -455,7 +481,10 @@ buildWorld().then(() => {
       spells.cast(camera);
     },
   };
-  health.onRespawn = () => hud.showToast('Du wachst im Innenhof auf … Zeit, sich neu zu sammeln.', 3.5);
+  health.onRespawn = () => {
+    hud.showToast('Du wachst im Innenhof auf … Zeit, sich neu zu sammeln.', 3.5);
+    moor.dropCarriedLights(); // getragene Seelenlichter fallen an ihre Ursprungs-Spots zurück
+  };
   health.onFountainHeal = () => hud.showToast('Das Brunnenwasser wärmt dich. ♥ voll!', 2.5);
   puzzles.onArtifact = (id, name, n, total) => {
     hud.showToast(`🏆 Artefakt gefunden: ${name} — ${n} / ${total}`, 4);

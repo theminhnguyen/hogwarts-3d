@@ -19,6 +19,8 @@ export class Hud {
     this.artifacts = el('artifacts');
     this.puzzleStatus = el('puzzle-status');
     this._artifactsShown = false;
+    this.soullights = el('soullights');
+    this.lanternIcon = el('lantern-icon');
     this.spellbar = el('spellbar');
     this.spellChips = {};
     this._spellMax = {};
@@ -80,6 +82,20 @@ export class Hud {
   setArtifacts(n, total) {
     this.artifacts.textContent = `🏆 ${n} / ${total}`;
     if (!this._artifactsShown && n > 0) { this._artifactsShown = true; this.artifacts.style.display = 'block'; }
+  }
+
+  // total=null blendet die Zeile aus (kein Grund, sie gerade zu zeigen)
+  setSoulLights(n, total) {
+    if (total === null) { this.soullights.style.display = 'none'; return; }
+    this.soullights.style.display = 'block';
+    this.soullights.textContent = `🏮 ${n} / ${total}`;
+  }
+
+  // Ersetzt den Seelenlichter-Zähler dauerhaft durch ein statisches Icon,
+  // sobald die Silberne Seelenlaterne geborgen ist.
+  showLanternIcon() {
+    this.soullights.style.display = 'none';
+    this.lanternIcon.style.display = 'block';
   }
 
   // text=null blendet die Zeile aus (kein aktives Rätsel gerade)

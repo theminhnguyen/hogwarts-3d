@@ -200,7 +200,11 @@ class Dementor {
           const lx = this.homePos.x + Math.sin(t * 0.12 + this.phaseA) * 12;
           const lz = this.homePos.z + Math.cos(t * 0.1 + this.phaseB) * 12;
           this._steerXZ(lx, lz, TUNING.driftSpeed, dt);
-          if (distSq < TUNING.aggroRange * TUNING.aggroRange) {
+          // Risiko-Spirale (N4): aggroRange wächst mit jedem getragenen
+          // Seelenlicht, die Laterne halbiert sie wieder — main.js speist
+          // beide Werte aus moor.js.
+          const aggroR = (TUNING.aggroRange + this.system.aggroRangeExtra) * this.system.aggroRangeMul;
+          if (distSq < aggroR * aggroR) {
             this.state = 'aggro';
             this.stateT = 0;
           }
@@ -223,7 +227,8 @@ class Dementor {
             this.pos.x = player.pos.x + dirX * TUNING.knockback;
             this.pos.z = player.pos.z + dirZ * TUNING.knockback;
           }
-          if (distSq > TUNING.leaveAggroRange * TUNING.leaveAggroRange) {
+          const leaveR = (TUNING.leaveAggroRange + this.system.aggroRangeExtra) * this.system.aggroRangeMul;
+          if (distSq > leaveR * leaveR) {
             this.state = 'drift';
             this.stateT = 0;
           }
@@ -269,6 +274,10 @@ export class DementorSystem {
     this.frostFactor = 0;
     this._drainTimer = 0;
     this._immuneToastShown = false;
+    // Risiko-Spirale + Laterne (N4, main.js speist beide aus moor.js):
+    this.aggroRangeExtra = 0; // +4 pro getragenem Seelenlicht
+    this.aggroRangeMul = 1;   // ×0.5 sobald die Laterne geborgen ist
+    this.frostRateMul = 1;    // ×0.5 sobald die Laterne geborgen ist
 
     const parts = buildDementorParts(glowTex);
     this.list = SPAWNS.map((s, i) => new Dementor(this, parts, s, i + 1));
@@ -286,10 +295,11 @@ export class DementorSystem {
     }
 
     // Frost-Meter: baut sich über 4s auf, solange der Spieler in irgendeiner
-    // Aura steht, baut sonst mit 0.5/s ab. frostFactor wird von main.js für
-    // hud.setFrost() und player.slowFactor gelesen.
+    // Aura steht (die Laterne halbiert dieses Tempo via frostRateMul), baut
+    // sonst mit 0.5/s ab. frostFactor wird von main.js für hud.setFrost()
+    // und player.slowFactor gelesen.
     this.frost = inAura
-      ? Math.min(1, this.frost + dt / TUNING.frostBuildDur)
+      ? Math.min(1, this.frost + (dt / TUNING.frostBuildDur) * this.frostRateMul)
       : Math.max(0, this.frost - dt * TUNING.frostDecay);
     this.frostFactor = this.frost;
 

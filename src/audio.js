@@ -601,6 +601,43 @@ export class SoundManager {
     o.start(t); o.stop(t + 0.45);
   }
 
+  // Seelenlicht aufgehoben: heller Glas-Ping + Oktave
+  soulLightPickup() {
+    if (!this.ctx || this.muted) return;
+    const ctx = this.ctx, t = ctx.currentTime;
+    for (const mul of [1, 2]) {
+      const o = ctx.createOscillator();
+      o.type = 'sine';
+      o.frequency.value = 1568 * mul;
+      const g = ctx.createGain();
+      this._env(g, t, 0.004, mul === 1 ? 0.16 : 0.08, 0.22);
+      o.connect(g).connect(this.master);
+      o.start(t); o.stop(t + 0.28);
+    }
+  }
+
+  // Seelenlicht in die Krypta-Nische abgegeben: Ping + leiser Nachhall
+  soulLightDeliver() {
+    if (!this.ctx || this.muted) return;
+    const ctx = this.ctx, t = ctx.currentTime;
+    const o = ctx.createOscillator();
+    o.type = 'sine';
+    o.frequency.value = 1568;
+    const g = ctx.createGain();
+    this._env(g, t, 0.005, 0.18, 0.3);
+    o.connect(g).connect(this.master);
+    o.start(t); o.stop(t + 0.35);
+
+    const t0 = t + 0.09;
+    const o2 = ctx.createOscillator();
+    o2.type = 'sine';
+    o2.frequency.value = 1568;
+    const g2 = ctx.createGain();
+    this._env(g2, t0, 0.005, 0.08, 0.3);
+    o2.connect(g2).connect(this.master);
+    o2.start(t0); o2.stop(t0 + 0.35);
+  }
+
   update(daylight) {
     if (!this.ctx || this.muted) return;
     const now = this.ctx.currentTime;
