@@ -26,6 +26,12 @@
     background: radial-gradient(ellipse at 50% 50%, transparent 35%, rgba(90,150,230,0.6) 100%);
     opacity: var(--cold, 0); transition: opacity 0.4s;
   }
+  #vignette::before {
+    content: ""; position: absolute; inset: 0;
+    background: rgba(38, 42, 36, 0.55);
+    mix-blend-mode: multiply;
+    opacity: var(--moor, 0); transition: opacity 1.2s;
+  }
   @keyframes hurtFlash {
     0% { background-color: rgba(210, 30, 30, 0.5); }
     100% { background-color: rgba(210, 30, 30, 0); }

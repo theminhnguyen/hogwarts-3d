@@ -18,6 +18,7 @@ import { SpellSystem } from './spells.js';
 import { HealthSystem } from './health.js';
 import { CreatureSystem } from './creatures.js';
 import { PuzzleSystem } from './puzzles.js';
+import { buildMoor } from './moor.js';
 
 // Der Schlüsselname trägt noch "v1" aus Phase 0 — umbenennen würde alle
 // bestehenden Spielstände verwaisen lassen. Die eigentliche Versionierung
@@ -72,7 +73,7 @@ const hud = new Hud();
 const audio = new SoundManager();
 const save = loadSave();
 
-let sky, water, castle, structures, life, collectibles, player;
+let sky, water, castle, structures, moor, life, collectibles, player;
 let fx, wand, spells, health, creatures, puzzles;
 const glowTex = makeGlowTexture();
 
@@ -126,6 +127,7 @@ const buildSteps = [
   ['See', () => { water = buildWater(); scene.add(water.mesh); }],
   ['Schloss', () => { castle = buildCastle(scene); castle.setGlowTexture(glowTex); }],
   ['Bootshaus, Hütte & Feld', () => { structures = buildStructures(scene); }],
+  ['Nebelmoor', () => { moor = buildMoor(scene, glowTex, hud); }],
   ['Wälder & Wiesen', () => { buildNature(scene); }],
   ['Leben & Magie', () => {
     life = new LifeSystem(scene, glowTex, [...castle.flames, ...structures.flames]);
@@ -355,6 +357,7 @@ function frame(dt) {
     // Stand vom LETZTEN Frame — nightGlow ändert sich nur sehr langsam
     // (300s/Zyklus), eine Frame Verzögerung ist unmerklich.
     creatures.update(dt, player, sky.state, spells.lumosOn);
+    moor.update(dt, player);
     puzzles.update(dt, player, sky.state);
     fx.update(dt);
     camera.position.add(fx.shakeOffset);
@@ -389,6 +392,7 @@ function frame(dt) {
     hud.setHearts(health.hearts, health.maxHearts);
     const troll = creatures.troll;
     hud.setBoss(['aggro', 'telegraph', 'slam'].includes(troll.state) ? troll.hp / troll.maxHp : null);
+    hud.setMoor(moor.insideFactor(player.pos));
     hud.setFps(fpsEMA, pixelRatio);
     if (player.swimming) hud.showHint('Du schwimmst im See 🏊 — zurück ans Ufer!');
     else hud.hideHint();
@@ -416,7 +420,7 @@ buildWorld().then(() => {
   // Debug-/Test-Zugriff (bewusst öffentlich, hilft bei Fehlersuche)
   window.__game = {
     player, sky, camera, renderer, scene,
-    wand, spells, fx, health, creatures, puzzles,
+    wand, spells, fx, health, creatures, puzzles, moor,
     get fps() { return fpsEMA; },
     get pixelRatio() { return pixelRatio; },
     collectibles,

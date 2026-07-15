@@ -9,6 +9,17 @@
 > Abschnitt 0 (Arbeitsumgebung) und Abschnitt 12 (Stolperfallen) sind mit den
 > Lehren aus ALLEN sieben Magie-Phasen + Bonus aktualisiert — sie ersparen
 > dir dieselben Fehler ein zweites Mal.
+>
+> **KORREKTUR nach N1 (2026-07-14):** Die in diesem Dokument ursprünglich
+> geplante Moor-Position (215,-150) kollidierte mit dem Terrain-Hügel-
+> Shaping des Steinkreises (STONES-Radius reicht bis 62.4m, Zentren waren
+> nur 85m auseinander — exakt die Falle aus Abschnitt 0.3/12.3). Das
+> tatsächlich gebaute Zentrum ist **`MOOR = { x: 240, z: -175, r: 55,
+> blend: 25, h: 1.6 }`** (`terrain.js`). ALLE Koordinaten weiter unten in
+> diesem Dokument (Dementor-Spawns, Seelenlichter, Warnschild-Position),
+> die relativ zu (215,-150) beschrieben waren, sind in den jeweiligen
+> Abschnitten bereits auf das neue Zentrum umgerechnet — nicht die alten
+> Rohwerte verwenden, falls du eine ältere Version dieses Plans im Kopf hast.
 
 ---
 
@@ -105,7 +116,7 @@ puzzles.update(…)                     // unverändert
 ### 2.1 Terrain (terrain.js)
 
 ```js
-export const MOOR = { x: 215, z: -150, r: 55, blend: 25, h: 1.6 };
+export const MOOR = { x: 240, z: -175, r: 55, blend: 25, h: 1.6 };
 ```
 - In `terrainHeight()` NACH der See-Senke einfügen: Senke auf `h = 1.6`
   (über WATER_LEVEL 0.4 — matschig, aber begehbar, kein Schwimmen):
@@ -116,9 +127,15 @@ export const MOOR = { x: 215, z: -150, r: 55, blend: 25, h: 1.6 };
     h = lerp(h, MOOR.h + fbm(x * 0.08, z * 0.08, 2) * 0.5, m); // leicht buckelig
   }
   ```
-- Randlage geprüft: Zentrum d0≈262, äußerster Rand ≈317 < 330 (Bergring-
-  Start) — das Moor liegt in einer natürlichen Senke VOR den Bergen. Passt.
-- **Neuer Weg** in `PATHS`: `[[140, -98], [180, -128], [215, -150]]`
+- **[UMGESETZT, korrigiert]** Ursprünglich war (215,-150) geplant — das lag
+  nur 85m vom Steinkreis-Zentrum entfernt, dessen Terrain-Hügel-Shaping
+  aber bis r×2.6=62.4m reicht (STONES aus terrain.js). Mit (240,-175) liegt
+  der nächste Moor-Rand (117.8−55=62.8) knapp hinter dem Ende des
+  Steinkreis-Einflusses — keine Überlappung mehr. Zentrum d0≈297 vom
+  Weltursprung, äußerster Kernrand ≈352 — knapp jenseits des Bergring-
+  Starts (330), aber nur als minimaler Zipfel am äußersten Punkt (m≈0.07),
+  liest sich wie ein natürlicher Übergang zum Gebirge.
+- **Neuer Weg** in `PATHS`: `[[140, -98], [190, -140], [240, -175]]`
   (zweigt am Steinkreis-Rundwegende ab, endet an der Krypta).
 
 ### 2.2 Vegetations-Ausschluss (props.js)
@@ -144,13 +161,15 @@ dürfen bleiben — nachts im Moor wirken sie sogar wie Irrlichter.
   Farbe `0x9aa4b0`, opacity 0.22, Scale 40–70×12, y = Boden+2, driften
   langsam im Kreis (wie Wolken, aber cx/cz = MOOR-Zentrum, r 15–45).
   → `moor.update()` bewegt sie. Bei Laterne (Abschnitt 5): opacity ×0.6.
-- **Warnschild** am Moor-Eingang `(180, -128)` (Zwei-Pfosten-Muster aus
-  puzzles.js kopieren). Proximity-Toast (einmalig):
+- **Warnschild** am Moor-Eingang `(195, -143)` (Zwei-Pfosten-Muster aus
+  puzzles.js kopieren, am Wegknick knapp vorm Moor-Kernrand). Proximity-
+  Toast (einmalig):
   „*Hier endet der Schutz des Schlosses. Was hier friert, friert von innen.*"
-- **Die Krypta** im Zentrum `(215, -150)`: Steinquader 5×3.5×5 (GeoBatch,
-  mats.stone), Eingang nach Süd-Westen (Richtung Weg), davor zwei schiefe
-  Säulen. Verschlossen durch eine Torplatte (das bewährte
-  Grotten-Schiebeplatten-Muster aus puzzles.js: Mesh + addBoxBlocker,
+- **Die Krypta** im Zentrum `(240, -175)`: statt eines blickdichten
+  Vollquaders eine NISCHE (Rückwand + 2 Seitenwände, Eingang nach Westen —
+  das bewährte Grotten-Muster aus puzzles.js R1, nur größer, ~5.6m breit,
+  3.4m hoch), davor zwei schiefe Säulen. Verschlossen durch eine Torplatte
+  (dasselbe Schiebeplatten-Muster: Mesh + addBoxBlocker,
   Blocker-Referenz behalten, `disabled` beim Öffnen). Innen: Truhe
   (Truhen-Muster aus puzzles.js `_makeChestLid` — als Vorlage kopieren oder
   besser: die Truhen-Logik aus puzzles.js in einen kleinen geteilten Helfer
@@ -185,7 +204,7 @@ dürfen bleiben — nachts im Moor wirken sie sogar wie Irrlichter.
 
 ### 3.2 Spawns & Leine
 
-5 Dementoren: `(190,-130), (240,-135), (245,-175), (205,-185), (180,-162)`.
+5 Dementoren: `(215,-155), (265,-160), (270,-200), (230,-210), (205,-187)`.
 **Harte Leine:** Sie verlassen NIEMALS `dist(MOOR) > MOOR.r + 8` — beim
 Erreichen der Leine drehen sie ab (state zurück auf drift), egal wie nah der
 Spieler ist. Der Rest der Welt bleibt von diesem Update unberührt — das ist
@@ -295,7 +314,7 @@ Start 400→900 Hz).
 ### 5.1 Fünf Seelenlichter
 
 Positionen (im Moor verteilt, alle < r 50 vom Zentrum):
-`(185,-125), (250,-140), (238,-185), (190,-180), (222,-118)`.
+`(210,-150), (275,-165), (263,-210), (215,-205), (247,-143)`.
 
 - Look: Irrlicht — glowTex-Sprite `0x9fd8ff`, Scale 0.9, pulsierend
   (Schnatz-Bobbing-Muster), + 3 Mini-Motten-Sprites drumherum
@@ -393,7 +412,7 @@ Positionen (im Moor verteilt, alle < r 50 vom Zentrum):
 ## 9) Phasenplan mit Definition-of-Done
 
 > Nach JEDER Phase: rsync → Reload → step()-Tests → Screenshot → FPS-Check
-> (die 5 bekannten Spots + NEU: Moor-Mitte (215,-150)) → Commit → Push →
+> (die 5 bekannten Spots + NEU: Moor-Mitte (240,-175)) → Commit → Push →
 > Pages-Build prüfen → Memory updaten.
 
 **Phase N1 — Das Moor (Zone, ~1 Session)**
@@ -441,7 +460,7 @@ g.start(); g.gott(); g.ep();                    // EP freischalten (Test-Hook)
 
 // Frost & Drain:
 g.gott = null; g.health.invincible = false;
-g.teleport(215, -150, 0); g.step(300);          // 5s in der Moor-Mitte
+g.teleport(240, -175, 0); g.step(300);          // 5s in der Moor-Mitte
 assert(getComputedStyle(vignette).getPropertyValue('--frost') > 0.5);
 assert(g.health.hearts < 5);
 

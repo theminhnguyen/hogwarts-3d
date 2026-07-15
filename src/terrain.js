@@ -16,6 +16,13 @@ export const HAGRID = { x: 122, z: 200, r: 16, h: 5 };
 export const STONES = { x: 150, z: -95, r: 24, h: 14 };
 export const BOATHOUSE = { x: -88, z: 158, r: 14, h: 1.3 };
 export const RAVINE = { z: 94 };      // Schlucht, die das Viadukt überspannt
+// x/z gegenüber PLAN-NEBELMOOR.md (215,-150) verschoben: Der Steinkreis-Hügel
+// (STONES.r=24, Terrain-Einfluss bis r×2.6=62.4) reichte bei der ursprünglich
+// geplanten Position bis auf ~23m an den Moor-Kern heran (Abstand der Zentren
+// war nur 85m). Mit diesem Zentrum liegt der nächste Moor-Rand (Abstand 117.8
+// − MOOR.r 55 = 62.8) knapp HINTER dem Ende des Steinkreis-Einflusses (62.4) —
+// beide Terrain-Shapings überlappen sich nirgends mehr.
+export const MOOR = { x: 240, z: -175, r: 55, blend: 25, h: 1.6 };
 
 // Wege als Polylinien (für Färbung + Freihalten von Bäumen)
 export const PATHS = [
@@ -25,6 +32,7 @@ export const PATHS = [
   [[0, 168], [60, 185], [118, 198]],         // Kreuzung → Hagrids Hütte
   [[0, 168], [-90, 100], [-165, 40]],        // Kreuzung → Quidditch-Feld
   [[-90, 100], [-40, -60], [80, -100], [140, -98]], // Rundweg → Steinkreis
+  [[140, -98], [190, -140], [240, -175]],    // Steinkreis-Rundweg → Nebelmoor
 ];
 
 export function distToPaths(x, z) {
@@ -109,6 +117,19 @@ export function terrainHeight(x, z) {
     const d = Math.sqrt((x - STONES.x) ** 2 + (z - STONES.z) ** 2);
     const m = 1 - smoothstep(STONES.r, STONES.r * 2.6, d);
     h = lerp(h, STONES.h + fbm(x * 0.05, z * 0.05, 2) * 1.5, m * 0.9);
+  }
+
+  // Nebelmoor-Senke (leicht buckelig, knapp über Wasserlinie — matschig,
+  // aber begehbar). Zentrum d0≈297 vom Weltursprung, äußerster Kernrand
+  // (ohne Blend) ≈352 — knapp JENSEITS des Bergring-Starts (330). Nur der
+  // äußerste Zipfel des Kerns (dem Weltrand zugewandt) bekommt dadurch einen
+  // minimalen Bergring-Einschlag (m≈0.07 im schlimmsten Punkt) — bei einem
+  // Moor am Kartenrand liest sich das eher wie ein natürlicher Übergang zum
+  // Gebirge als wie ein Fehler.
+  {
+    const d = Math.sqrt((x - MOOR.x) ** 2 + (z - MOOR.z) ** 2);
+    const m = 1 - smoothstep(MOOR.r, MOOR.r + MOOR.blend, d);
+    h = lerp(h, MOOR.h + fbm(x * 0.08, z * 0.08, 2) * 0.5, m);
   }
 
   return h;

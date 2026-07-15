@@ -65,6 +65,9 @@ export class Hud {
   // Kälte-Aura nahe Schattengeistern (0..1, blauer Rand-Schleier)
   setCold(frac) { this.vignette.style.setProperty('--cold', frac.toFixed(3)); }
 
+  // Trübung/Entsättigung im Nebelmoor (0..1, wächst zum Zentrum hin)
+  setMoor(frac) { this.vignette.style.setProperty('--moor', frac.toFixed(3)); }
+
   setCounter(n, total) { this.counter.textContent = `✦ ${n} / ${total}`; }
 
   setArtifacts(n, total) {
