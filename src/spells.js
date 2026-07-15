@@ -7,7 +7,8 @@
 import * as THREE from 'three';
 import { pointBlocked, addCircleBlocker, platformGround } from './geo.js';
 import { terrainHeight, WATER_LEVEL, LAKE } from './terrain.js';
-import { SPELLS } from './wand.js';
+import { SPELLS, SPELL_ORDER } from './wand.js';
+import { buildPatronusModel } from './patronus.js';
 
 const POOL_SIZE = 24;
 const LIGHT_POOL_SIZE = 3;
@@ -21,6 +22,7 @@ export const TUNING = {
     springK: 8, damp: 0.85, minHeight: 0.5, maxHeight: 4, gravity: 24,
   },
   lumos: { cooldown: 0.3 },
+  patronum: { cooldown: 8, range: 26, dur: 2.8, repelRadius: 10 },
 };
 
 // Die beiden Leviosa-Steinblöcke im Nordgarten (Rätsel-Setup folgt in Phase 5,
@@ -47,18 +49,28 @@ function segPointDistSq(ax, ay, az, bx, by, bz, px, py, pz) {
 }
 
 export class SpellSystem {
-  constructor(scene, wand, fx, audio) {
+  constructor(scene, wand, fx, audio, hud, glowTex) {
     this.scene = scene;
     this.wand = wand;
     this.fx = fx;
     this.audio = audio;
+    this.hud = hud;
+    this._glowTex = glowTex;
 
-    this.cooldowns = { stupor: 0, incendio: 0, leviosa: 0, lumos: 0 };
+    this.cooldowns = { stupor: 0, incendio: 0, leviosa: 0, lumos: 0, patronum: 0 };
     this.targets = []; // Ziel-Registry — Rätsel docken hier an (Phase 5/6)
     this._camPos = null;
     this.lumosOn = false;    // Migration: lebt jetzt hier statt in main.js
     this.leviosaHeld = null; // aktuell gegriffenes Leviosa-Objekt (oder null)
     this._buildLeviosaObjects();
+
+    // Expecto Patronum: erst nach dem Hauspokal freigeschaltet (Abschnitt
+    // 4.1). Charge-Hirsch wird lazy gebaut (nur falls je gecastet).
+    this.epUnlocked = false;
+    this._patronusModel = null;
+    this._chargeT = -1; // -1 = kein aktiver Charge
+    this._chargeStart = new THREE.Vector3();
+    this._chargeDir = new THREE.Vector3();
 
     // Bolzen-Pool
     const baseMat = new THREE.SpriteMaterial({
@@ -84,6 +96,18 @@ export class SpellSystem {
       const l = new THREE.PointLight(0xffffff, 0, 10, 2);
       scene.add(l);
       this.lights.push({ light: l, life: 0 });
+    }
+  }
+
+  // Schaltet Expecto Patronum frei (Hauspokal gewonnen). Idempotent — mehrfache
+  // Aufrufe (z.B. jeden Frame nach dem Finale) sind harmlos.
+  unlockPatronum(showToast = true) {
+    if (this.epUnlocked) return;
+    this.epUnlocked = true;
+    if (!SPELL_ORDER.includes('patronum')) SPELL_ORDER.push('patronum');
+    this.hud?.buildSpellbar(SPELL_ORDER.map(id => ({ id, ...SPELLS[id] })));
+    if (showToast) {
+      this.hud?.showToast('🦌 Du spürst eine neue Kraft … EXPECTO PATRONUM! (Taste 5)', 6);
     }
   }
 
@@ -231,6 +255,72 @@ export class SpellSystem {
     } else if (id === 'lumos') {
       this.lumosOn = !this.lumosOn;
       this.audio.lumosToggle?.(this.lumosOn);
+    } else if (id === 'patronum') {
+      this._castPatronum(camera);
+    }
+  }
+
+  // Expecto Patronum: materialisiert den Hirsch aus patronus.js 2m vor dem
+  // Spieler und lässt ihn 26m geradeaus über 2.8s galoppieren (nur XZ, er
+  // läuft am Boden). update() treibt die eigentliche Bewegung + den Dementor-
+  // Vertreiben-Check an (siehe unten).
+  _castPatronum(camera) {
+    if (!this._patronusModel) {
+      this._patronusModel = buildPatronusModel(this._glowTex);
+      this.scene.add(this._patronusModel.group);
+    }
+    this.audio.patronusCast?.();
+    camera.getWorldDirection(_dir);
+    _dir.y = 0;
+    if (_dir.lengthSq() < 1e-6) _dir.set(0, 0, -1); else _dir.normalize();
+    this._chargeDir.copy(_dir);
+    this._chargeStart.set(camera.position.x + _dir.x * 2, 0, camera.position.z + _dir.z * 2);
+    this._chargeT = 0;
+    this._patronusModel.group.visible = true;
+  }
+
+  // Bewegt den Charge-Hirschen, faded ein/aus, vertreibt Dementoren im
+  // Wirkradius. Läuft überall (auch außerhalb des Moors — dann rein dekorativ,
+  // die Schattengeister aus Phase 3 ignorieren ihn bewusst).
+  _updatePatronusCharge(dt, creatures) {
+    if (this._chargeT < 0) return;
+    const T = TUNING.patronum;
+    this._chargeT += dt;
+    if (this._chargeT >= T.dur) {
+      this._chargeT = -1;
+      this._patronusModel.group.visible = false;
+      return;
+    }
+
+    const distTraveled = Math.min(T.range, (this._chargeT / T.dur) * T.range);
+    const gx = this._chargeStart.x + this._chargeDir.x * distTraveled;
+    const gz = this._chargeStart.z + this._chargeDir.z * distTraveled;
+    const groundY = terrainHeight(gx, gz);
+    const bob = Math.abs(Math.sin(this._chargeT * 14)) * 0.25;
+    const g = this._patronusModel.group;
+    g.position.set(gx, groundY + 1 + bob, gz);
+    g.lookAt(gx + this._chargeDir.x, groundY + 1, gz + this._chargeDir.z);
+    for (const leg of this._patronusModel.legs) {
+      leg.rotation.x = Math.sin(this._chargeT * 14 + leg.position.x * 3) * 0.5;
+    }
+
+    // Fade-in (0.2s) / Fade-out (letzte 0.4s)
+    let fade = 1;
+    if (this._chargeT < 0.2) fade = this._chargeT / 0.2;
+    else if (this._chargeT > T.dur - 0.4) fade = Math.max(0, (T.dur - this._chargeT) / 0.4);
+    this._patronusModel.mat.opacity = 0.55 * fade;
+    this._patronusModel.glowMat.opacity = 0.4 * fade;
+
+    this.fx.trail(g.position, 0xcfe8ff);
+    this.fx.trail(g.position, 0xcfe8ff);
+
+    if (creatures) {
+      const r2 = T.repelRadius * T.repelRadius;
+      for (const c of creatures) {
+        if (c.species !== 'dementor') continue;
+        const dx = c.pos.x - gx, dz = c.pos.z - gz;
+        if (dx * dx + dz * dz < r2) c.repel?.();
+      }
     }
   }
 
@@ -286,6 +376,7 @@ export class SpellSystem {
     }
     this._camPos = camera.position;
     this._updateLeviosaObjects(dt, camera);
+    this._updatePatronusCharge(dt, creatures);
 
     for (const bolt of this.bolts) {
       if (!bolt.active) continue;

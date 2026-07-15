@@ -11,7 +11,11 @@ export const SPELLS = {
   incendio: { name: 'Incendio', emoji: '🔥', color: 0xff9a2e, cooldown: 0.9 },
   leviosa:  { name: 'Leviosa',  emoji: '🪄', color: 0xb08cff, cooldown: 0.2 },
   lumos:    { name: 'Lumos',    emoji: '💡', color: 0x9fc4ff, cooldown: 0.3 },
+  patronum: { name: 'Expecto Patronum', emoji: '🦌', color: 0xcfe8ff, cooldown: 8 },
 };
+// 'patronum' ist bewusst NICHT von Anfang an dabei — der Chip existiert erst
+// nach dem Hauspokal (spells.unlockPatronum() erweitert dieses Array live,
+// buildSpellbar wird danach neu aufgerufen).
 export const SPELL_ORDER = ['stupor', 'incendio', 'leviosa', 'lumos'];
 
 const BASE_POS = new THREE.Vector3(0.28, -0.24, -0.45);
@@ -150,12 +154,15 @@ export class WandSystem {
     // Cast-Flick: 180ms hin (easeOut), 220ms zurück (easeIn)
     let castFlash = 0;
     let castScale = 1;
+    // Expecto Patronum bekommt einen deutlich größeren/helleren Cast-Blitz
+    // als die übrigen Sprüche — er ist die mächtigste Geste im Spiel.
+    const castScaleMax = this.activeSpell === 'patronum' ? 3.5 : 2.2;
     if (this.castT >= 0) {
       this.castT += dt;
       const elapsed = this.castT; // vor einem möglichen Reset auf -1 sichern
       if (elapsed < CAST_OUT) {
         offRotX += lerp(-0.5, 0.15, easeOutCubic(elapsed / CAST_OUT));
-        castScale = lerp(1, 2.2, easeOutCubic(elapsed / CAST_OUT));
+        castScale = lerp(1, castScaleMax, easeOutCubic(elapsed / CAST_OUT));
       } else if (elapsed < CAST_OUT + CAST_BACK) {
         offRotX += lerp(0.15, 0, easeInCubic((elapsed - CAST_OUT) / CAST_BACK));
       } else {
@@ -188,7 +195,8 @@ export class WandSystem {
     // dauerhaft (ersetzt das alte separate Lumos-Licht am Spieler aus Phase 1-3).
     // Ein frischer Cast-Blitz ist kurz heller als das Lumos-Grundglühen und
     // überstrahlt dessen Farbe für seine Dauer.
-    const castLi = this.castT >= 0 ? 8 * Math.max(0, 1 - this.castT / 0.25) : 0;
+    const castLiMax = this.activeSpell === 'patronum' ? 12 : 8;
+    const castLi = this.castT >= 0 ? castLiMax * Math.max(0, 1 - this.castT / 0.25) : 0;
     const lumosLi = lumosOn ? 14 : 0;
     this.tipLight.intensity = Math.max(castLi, lumosLi);
     this.tipLight.color.setHex(castLi >= lumosLi ? spell.color : SPELLS.lumos.color);

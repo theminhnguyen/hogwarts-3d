@@ -139,7 +139,7 @@ const buildSteps = [
   ['Zauberstab', () => {
     fx = new FxSystem(scene, renderer);
     wand = new WandSystem(camera, glowTex);
-    spells = new SpellSystem(scene, wand, fx, audio);
+    spells = new SpellSystem(scene, wand, fx, audio, hud, glowTex);
     hud.buildSpellbar(SPELL_ORDER.map(id => ({ id, ...SPELLS[id] })));
     buildPumpkinGlows();
   }],
@@ -293,7 +293,7 @@ document.addEventListener('pointerlockerror', () => {
 });
 
 // Nicht-Bewegungs-Tasten
-const DIGIT_SPELLS = { Digit1: 'stupor', Digit2: 'incendio', Digit3: 'leviosa', Digit4: 'lumos' };
+const DIGIT_SPELLS = { Digit1: 'stupor', Digit2: 'incendio', Digit3: 'leviosa', Digit4: 'lumos', Digit5: 'patronum' };
 window.addEventListener('keydown', (e) => {
   if (!playing) return;
   if (e.code === 'Escape' && fallbackMode) {
@@ -313,7 +313,8 @@ window.addEventListener('keydown', (e) => {
     spells.cast(camera);
     hud.showToast(spells.lumosOn ? '✨ Lumos!' : 'Nox.', 1.4);
   } else if (DIGIT_SPELLS[e.code]) {
-    wand.selectSpell(DIGIT_SPELLS[e.code]);
+    const id = DIGIT_SPELLS[e.code];
+    if (id !== 'patronum' || spells.epUnlocked) wand.selectSpell(id);
   }
 });
 
@@ -436,6 +437,7 @@ buildWorld().then(() => {
     get pixelRatio() { return pixelRatio; },
     collectibles,
     gott: () => { health.invincible = true; },
+    ep: () => spells.unlockPatronum(false), // Testkomfort: EP sofort freischalten
     start: () => { fallbackMode = true; player.dragLook = true; setPlaying(true); },
     teleport: (x, z, yaw = null) => player.teleport(x, z, yaw),
     // Für automatisierte Tests: n Frames direkt simulieren (ohne rAF)

@@ -560,6 +560,33 @@ export class SoundManager {
     o.start(t); o.stop(t + 0.2);
   }
 
+  // Expecto Patronum: aufsteigender heller Dreiklang + Hochpass-Schimmer
+  patronusCast() {
+    if (!this.ctx || this.muted) return;
+    const ctx = this.ctx, t = ctx.currentTime;
+    [784, 1046, 1568].forEach((freq, i) => {
+      const t0 = t + i * 0.15;
+      const o = ctx.createOscillator();
+      o.type = 'triangle';
+      o.frequency.value = freq;
+      const g = ctx.createGain();
+      this._env(g, t0, 0.01, 0.16, 0.5);
+      o.connect(g).connect(this.master);
+      o.start(t0); o.stop(t0 + 0.6);
+    });
+    const src = ctx.createBufferSource();
+    src.buffer = this.noiseBuf;
+    const f = ctx.createBiquadFilter();
+    f.type = 'highpass';
+    f.frequency.value = 4000;
+    const g = ctx.createGain();
+    g.gain.setValueAtTime(0.0001, t);
+    g.gain.exponentialRampToValueAtTime(0.1, t + 0.2);
+    g.gain.exponentialRampToValueAtTime(0.0001, t + 1.2);
+    src.connect(f).connect(g).connect(this.master);
+    src.start(t, Math.random() * 1.5, 1.2);
+  }
+
   // Dementor wird vom Patronus vertrieben: tiefer Glockenton, aufsteigend
   dementorRepel() {
     if (!this.ctx || this.muted) return;
