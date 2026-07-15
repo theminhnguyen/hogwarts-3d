@@ -23,6 +23,7 @@ export class Player {
     this.grounded = false;
     this.swimming = false;
     this.enabled = false;
+    this.slowFactor = 1; // Frost-Aura der Dementoren setzt dies auf 0.75
 
     this.keys = new Set();
     this.bobPhase = 0;
@@ -89,6 +90,7 @@ export class Player {
 
     let speed = sprinting ? SPRINT : WALK;
     if (this.swimming) speed *= 0.45;
+    speed *= this.slowFactor;
     const targetVX = (dirX / dLen) * speed * (fwd || strafe ? 1 : 0);
     const targetVZ = (dirZ / dLen) * speed * (fwd || strafe ? 1 : 0);
 

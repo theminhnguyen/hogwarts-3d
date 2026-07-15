@@ -68,6 +68,13 @@ export class Hud {
   // Trübung/Entsättigung im Nebelmoor (0..1, wächst zum Zentrum hin)
   setMoor(frac) { this.vignette.style.setProperty('--moor', frac.toFixed(3)); }
 
+  // Dementor-Frost-Aura (0..1). Ab 0.7 blendet zusätzlich eine leichte
+  // Gesamt-Abdunklung ein (--frost-dark, 0..1 über den Bereich 0.7..1).
+  setFrost(frac) {
+    this.vignette.style.setProperty('--frost', frac.toFixed(3));
+    this.vignette.style.setProperty('--frost-dark', Math.max(0, (frac - 0.7) / 0.3).toFixed(3));
+  }
+
   setCounter(n, total) { this.counter.textContent = `✦ ${n} / ${total}`; }
 
   setArtifacts(n, total) {

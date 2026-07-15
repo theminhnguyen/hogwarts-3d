@@ -506,6 +506,74 @@ export class SoundManager {
     }
   }
 
+  // Dementor-Atem: EIN globales Node-Set (Muster: Schatten-Drone), tiefes
+  // Bandpass-Rauschen mit langsamem Rassel-An-/Abschwellen, Gain je nach
+  // Nähe des nächsten Dementors von außen gesetzt (0..1).
+  _ensureDementorBreath() {
+    if (this.dementorBreathGain || !this.ctx) return;
+    const ctx = this.ctx;
+    const out = ctx.createGain();
+    out.gain.value = 0;
+    out.connect(this.master);
+
+    const src = ctx.createBufferSource();
+    src.buffer = this.noiseBuf;
+    src.loop = true;
+    const f = ctx.createBiquadFilter();
+    f.type = 'bandpass';
+    f.frequency.value = 180;
+    f.Q.value = 1.2;
+
+    const lfo = ctx.createOscillator();
+    lfo.frequency.value = 0.4; // rasselndes Ein-/Ausatmen
+    const lfoGain = ctx.createGain();
+    lfoGain.gain.value = 0.5;
+    const breathGain = ctx.createGain();
+    breathGain.gain.value = 0.5;
+    lfo.connect(lfoGain).connect(breathGain.gain);
+
+    src.connect(f).connect(breathGain).connect(out);
+    src.start(); lfo.start();
+    this.dementorBreathGain = out;
+  }
+
+  setDementorBreath(proximity) {
+    if (!this.ctx) return;
+    this._ensureDementorBreath();
+    if (this.dementorBreathGain) {
+      const target = Math.max(0, Math.min(1, proximity)) * 0.35;
+      this.dementorBreathGain.gain.setTargetAtTime(target, this.ctx.currentTime, 0.4);
+    }
+  }
+
+  // Zauber verpufft wirkungslos an einem immunen Ziel: kraftloser, leiser Plopp
+  spellFizzle() {
+    if (!this.ctx || this.muted) return;
+    const ctx = this.ctx, t = ctx.currentTime;
+    const o = ctx.createOscillator();
+    o.type = 'sine';
+    o.frequency.setValueAtTime(110, t);
+    o.frequency.exponentialRampToValueAtTime(70, t + 0.15);
+    const g = ctx.createGain();
+    this._env(g, t, 0.004, 0.08, 0.13);
+    o.connect(g).connect(this.master);
+    o.start(t); o.stop(t + 0.2);
+  }
+
+  // Dementor wird vom Patronus vertrieben: tiefer Glockenton, aufsteigend
+  dementorRepel() {
+    if (!this.ctx || this.muted) return;
+    const ctx = this.ctx, t = ctx.currentTime;
+    const o = ctx.createOscillator();
+    o.type = 'sine';
+    o.frequency.setValueAtTime(400, t);
+    o.frequency.exponentialRampToValueAtTime(900, t + 0.3);
+    const g = ctx.createGain();
+    this._env(g, t, 0.008, 0.16, 0.4);
+    o.connect(g).connect(this.master);
+    o.start(t); o.stop(t + 0.45);
+  }
+
   update(daylight) {
     if (!this.ctx || this.muted) return;
     const now = this.ctx.currentTime;

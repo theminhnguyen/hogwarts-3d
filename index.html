@@ -32,6 +32,19 @@
     mix-blend-mode: multiply;
     opacity: var(--moor, 0); transition: opacity 1.2s;
   }
+  /* Dementor-Frost: eisblau-weißer Rand-Schleier, deckender als --cold.
+     Eigenes Kind-Element statt weiterer Pseudo-Elemente, da #vignette schon
+     ::before (Moor) und ::after (Kälte) belegt. */
+  #vignette-frost {
+    position: absolute; inset: 0;
+    background: radial-gradient(ellipse at 50% 50%, transparent 20%, rgba(210,235,255,0.5) 70%, rgba(225,240,255,0.85) 100%);
+    opacity: var(--frost, 0); transition: opacity 0.5s;
+  }
+  #vignette-frost::after {
+    content: ""; position: absolute; inset: 0;
+    background: rgba(4, 8, 16, 0.5);
+    opacity: var(--frost-dark, 0); transition: opacity 0.5s;
+  }
   @keyframes hurtFlash {
     0% { background-color: rgba(210, 30, 30, 0.5); }
     100% { background-color: rgba(210, 30, 30, 0); }
@@ -209,7 +222,7 @@
   <canvas id="game-canvas"></canvas>
 
   <div id="hud">
-    <div id="vignette"></div>
+    <div id="vignette"><div id="vignette-frost"></div></div>
     <div id="whiteout"></div>
     <div id="crosshair"></div>
     <div id="compass">N</div>

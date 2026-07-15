@@ -17,6 +17,7 @@ import { WandSystem, SPELLS, SPELL_ORDER } from './wand.js';
 import { SpellSystem } from './spells.js';
 import { HealthSystem } from './health.js';
 import { CreatureSystem } from './creatures.js';
+import { DementorSystem } from './dementor.js';
 import { PuzzleSystem } from './puzzles.js';
 import { buildMoor } from './moor.js';
 
@@ -74,7 +75,7 @@ const audio = new SoundManager();
 const save = loadSave();
 
 let sky, water, castle, structures, moor, life, collectibles, player;
-let fx, wand, spells, health, creatures, puzzles;
+let fx, wand, spells, health, creatures, puzzles, dementors;
 const glowTex = makeGlowTexture();
 
 // ---------- Kürbis-Gag: Incendio auf die Kürbisse vor Hagrids Hütte ----------
@@ -153,6 +154,10 @@ const buildSteps = [
     creatures.restoreTroll(save.pz?.troll, save.pz?.trollChest);
     if (save.peaceful) creatures.peaceful = true;
     hud.setHearts(health.hearts, health.maxHearts);
+  }],
+  ['Dementoren', () => {
+    dementors = new DementorSystem(scene, fx, audio, health, hud, glowTex);
+    if (save.peaceful) dementors.peaceful = true;
   }],
 ];
 
@@ -250,6 +255,7 @@ const btnPeaceful = document.getElementById('btn-peaceful');
 btnPeaceful.textContent = `Kreaturen: ${save.peaceful ? 'zahm' : 'wild'}`;
 btnPeaceful.addEventListener('click', () => {
   creatures.peaceful = !creatures.peaceful;
+  dementors.peaceful = creatures.peaceful;
   btnPeaceful.textContent = `Kreaturen: ${creatures.peaceful ? 'zahm' : 'wild'}`;
   persist();
 });
@@ -352,11 +358,16 @@ function frame(dt) {
     const move = player.update(dt);
 
     wand.update(dt, player, move, spells.lumosOn, spells.isHoldingLeviosa);
-    spells.update(dt, camera, creatures.list);
+    // Dementoren sind immun, aber trotzdem gültige Bolzen-Ziele (fürs
+    // Verpuffen-Feedback) — daher zusammen mit creatures.list übergeben.
+    spells.update(dt, camera, creatures.list.concat(dementors.list));
     // sky.update() läuft weiter unten, aber creatures braucht den Tag/Nacht-
     // Stand vom LETZTEN Frame — nightGlow ändert sich nur sehr langsam
     // (300s/Zyklus), eine Frame Verzögerung ist unmerklich.
     creatures.update(dt, player, sky.state, spells.lumosOn);
+    dementors.update(dt, player);
+    player.slowFactor = dementors.frostFactor > 0.5 ? 0.75 : 1;
+    hud.setFrost(dementors.frostFactor);
     moor.update(dt, player);
     puzzles.update(dt, player, sky.state);
     fx.update(dt);
@@ -420,7 +431,7 @@ buildWorld().then(() => {
   // Debug-/Test-Zugriff (bewusst öffentlich, hilft bei Fehlersuche)
   window.__game = {
     player, sky, camera, renderer, scene,
-    wand, spells, fx, health, creatures, puzzles, moor,
+    wand, spells, fx, health, creatures, puzzles, moor, dementors,
     get fps() { return fpsEMA; },
     get pixelRatio() { return pixelRatio; },
     collectibles,

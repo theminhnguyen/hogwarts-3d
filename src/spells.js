@@ -331,8 +331,11 @@ export class SpellSystem {
             c.pos.x, c.pos.y + (c.hitY || 0), c.pos.z
           );
           if (d2 < r * r) {
-            c.applyHit(bolt.spellId, bolt.vel);
-            this._despawnBolt(bolt, true, bolt.pos);
+            // applyHit() kann true zurückgeben (z.B. immune Dementoren), um
+            // den normalen farbigen Einschlagseffekt zu unterdrücken — die
+            // Kreatur zeigt dann ihr eigenes (schwächeres) Feedback selbst.
+            const suppressDefaultFx = c.applyHit(bolt.spellId, bolt.vel);
+            this._despawnBolt(bolt, !suppressDefaultFx, bolt.pos);
             hitCreature = true;
             break;
           }
