@@ -6,6 +6,7 @@ export class SoundManager {
     this.ctx = null;
     this.muted = false;
     this._nextChirp = 0;
+    this._nextOwlCall = 0;
   }
 
   // Muss nach einer Nutzer-Interaktion aufgerufen werden (Browser-Regel)
@@ -718,8 +719,67 @@ export class SoundManager {
     }
   }
 
-  // gloom (0..1, von weather.js): bei Regen/Sturm verstummen Vögel/Grillen
-  update(daylight, gloom = 0) {
+  // Peitschende Weide — Telegraph: tiefes, langgezogenes Holz-Knarzen
+  // (bandpassgefilterter Sägezahn, langsam absinkend).
+  willowCreak() {
+    if (!this.ctx || this.muted) return;
+    const ctx = this.ctx, t = ctx.currentTime;
+    const o = ctx.createOscillator();
+    o.type = 'sawtooth';
+    o.frequency.setValueAtTime(90, t);
+    o.frequency.exponentialRampToValueAtTime(55, t + 0.85);
+    const f = ctx.createBiquadFilter();
+    f.type = 'bandpass'; f.frequency.value = 350; f.Q.value = 4;
+    const g = ctx.createGain();
+    this._env(g, t, 0.05, 0.16, 0.85);
+    o.connect(f).connect(g).connect(this.master);
+    o.start(t); o.stop(t + 0.95);
+  }
+
+  // Peitschende Weide — Schlag: schnelles Whoosh (Rauschen mit fallendem
+  // Bandpass-Sweep, wie eine Rute durch die Luft).
+  willowSwing() {
+    if (!this.ctx || this.muted) return;
+    const ctx = this.ctx, t = ctx.currentTime;
+    const src = ctx.createBufferSource();
+    src.buffer = this.noiseBuf;
+    const f = ctx.createBiquadFilter();
+    f.type = 'bandpass'; f.Q.value = 6;
+    f.frequency.setValueAtTime(1800, t);
+    f.frequency.exponentialRampToValueAtTime(300, t + 0.35);
+    const g = ctx.createGain();
+    this._env(g, t, 0.01, 0.22, 0.4);
+    src.connect(f).connect(g).connect(this.master);
+    src.start(t, Math.random() * 1.5, 0.45);
+  }
+
+  // Eulenruf: zwei absteigende Hoot-Noten mit leichtem Vibrato.
+  // proximity (0..1) skaliert Lautstärke — Ruf kommt aus der Eulerei.
+  _owlCall(proximity = 1) {
+    const ctx = this.ctx, t = ctx.currentTime;
+    const vol = 0.05 + 0.13 * Math.max(0, Math.min(1, proximity));
+    for (const [freq, delay] of [[540, 0], [480, 0.32]]) {
+      const t0 = t + delay;
+      const o = ctx.createOscillator();
+      o.type = 'sine';
+      o.frequency.setValueAtTime(freq * 1.15, t0);
+      o.frequency.exponentialRampToValueAtTime(freq, t0 + 0.12);
+      const vib = ctx.createOscillator();
+      vib.frequency.value = 7;
+      const vibGain = ctx.createGain();
+      vibGain.gain.value = freq * 0.015;
+      vib.connect(vibGain).connect(o.frequency);
+      const g = ctx.createGain();
+      this._env(g, t0, 0.04, 0.3, vol);
+      o.connect(g).connect(this.master);
+      o.start(t0); vib.start(t0);
+      o.stop(t0 + 0.42); vib.stop(t0 + 0.42);
+    }
+  }
+
+  // gloom (0..1, von weather.js): bei Regen/Sturm verstummen Vögel/Grillen.
+  // owlProximity (0..1, von main.js): Nähe zur Eulerei, gated Eulenrufe nachts.
+  update(daylight, gloom = 0, owlProximity = 0) {
     if (!this.ctx || this.muted) return;
     const now = this.ctx.currentTime;
     if (now > this._nextChirp) {
@@ -728,6 +788,12 @@ export class SoundManager {
         else if (daylight < 0.25) this._cricket();
       }
       this._nextChirp = now + 2.5 + Math.random() * 5;
+    }
+    if (now > this._nextOwlCall) {
+      if (daylight < 0.35 && owlProximity > 0.1 && Math.random() < owlProximity) {
+        this._owlCall(owlProximity);
+      }
+      this._nextOwlCall = now + 6 + Math.random() * 8;
     }
   }
 }

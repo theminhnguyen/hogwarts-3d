@@ -24,6 +24,7 @@ import { WeatherSystem } from './weather.js';
 import { PostFX } from './post.js';
 import { buildVillage } from './village.js';
 import { buildTrain } from './train.js';
+import { buildWillow } from './willow.js';
 
 // Der Schlüsselname trägt noch "v1" aus Phase 0 — umbenennen würde alle
 // bestehenden Spielstände verwaisen lassen. Die eigentliche Versionierung
@@ -85,7 +86,7 @@ post.setQuality(save.grafik);
 post.onDegrade = () => hud.showToast('Grafik automatisch reduziert (Bloom aus)', 3.5);
 
 let sky, water, castle, structures, moor, life, collectibles, player;
-let fx, wand, spells, health, creatures, puzzles, dementors, weather, village, train;
+let fx, wand, spells, health, creatures, puzzles, dementors, weather, village, train, willow;
 let lanternWasCollected = false; // erkennt den Moment, in dem die Laterne live geborgen wird
 let natureSwayMaterials = [];
 const glowTex = makeGlowTexture();
@@ -143,7 +144,7 @@ const buildSteps = [
   ['Bootshaus, Hütte & Feld', () => { structures = buildStructures(scene); }],
   ['Wälder & Wiesen', () => { natureSwayMaterials = buildNature(scene).swayMaterials; }],
   ['Leben & Magie', () => {
-    life = new LifeSystem(scene, glowTex, [...castle.flames, ...structures.flames]);
+    life = new LifeSystem(scene, glowTex, [...castle.flames, ...structures.flames], structures.owlPerches);
     collectibles = new Collectibles(scene, glowTex, save.collected || []);
     hud.setCounter(collectibles.count, collectibles.total);
   }],
@@ -181,6 +182,11 @@ const buildSteps = [
     village = buildVillage(scene, glowTex, hud, audio, health, fx);
     train = buildTrain(scene, glowTex, audio);
     train.onSmoke = (pos) => fx.trail(pos, 0x9aa0a8);
+  }],
+  ['Peitschende Weide', () => {
+    willow = buildWillow(scene, glowTex, audio, fx, health);
+    willow.restore(save.pz?.willowChest);
+    if (save.peaceful) willow.peaceful = true;
   }],
 ];
 
@@ -227,6 +233,7 @@ function persist() {
       troll: creatures ? creatures.trollDefeated : (save.pz?.troll || false),
       trollChest: creatures ? creatures.troll.chest.collected : (save.pz?.trollChest || false),
       maxHearts: health ? health.maxHearts : (save.pz?.maxHearts || 5),
+      willowChest: willow ? willow.chestOpened : (save.pz?.willowChest || false),
     },
     moor: moor ? moor.save() : save.moor,
     muted: audio.muted,
@@ -283,6 +290,7 @@ btnPeaceful.textContent = `Kreaturen: ${save.peaceful ? 'zahm' : 'wild'}`;
 btnPeaceful.addEventListener('click', () => {
   creatures.peaceful = !creatures.peaceful;
   dementors.peaceful = creatures.peaceful;
+  willow.peaceful = creatures.peaceful;
   btnPeaceful.textContent = `Kreaturen: ${creatures.peaceful ? 'zahm' : 'wild'}`;
   persist();
 });
@@ -309,6 +317,7 @@ btnReset.addEventListener('click', () => {
   if (puzzles) puzzles.restore({}, []);
   if (creatures) creatures.restoreTroll(false, false);
   if (moor) moor.restore({});
+  if (willow) willow.restore(false);
   lanternWasCollected = false;
   if (health) {
     health.maxHearts = 5;
@@ -416,6 +425,7 @@ function frame(dt) {
     moor.update(dt, player);
     village.update(dt, player);
     train.update(dt, player);
+    willow.update(dt, player);
     puzzles.update(dt, player, sky.state);
     fx.update(dt);
     camera.position.add(fx.shakeOffset);
@@ -424,7 +434,7 @@ function frame(dt) {
     sky.update(dt, player.pos, weather.gloom);
     sky.hemi.intensity += weather.lightningBoost; // Blitz-Aufhellung, additiv nach dem normalen Tag/Nacht-Update
     castle.update(dt, time, sky.state.nightGlow);
-    structures.update(sky.state.nightGlow);
+    structures.update(sky.state.nightGlow, time);
     life.update(dt, sky.state);
     collectibles.update(dt, time, player.pos);
     updateSway(natureSwayMaterials, time, weather.windStrength);
@@ -438,7 +448,9 @@ function frame(dt) {
     wu.uSky.value.copy(sky.state.skyHorizon);
     wu.uNight.value = sky.state.nightGlow;
 
-    audio.update(sky.state.daylight, weather.gloom);
+    const owlDist = Math.hypot(player.pos.x - structures.eulerei.x, player.pos.z - structures.eulerei.z);
+    const owlProximity = Math.max(0, 1 - owlDist / 40);
+    audio.update(sky.state.daylight, weather.gloom, owlProximity);
     if (audio.windGain) {
       const target = (0.04 + (move.hSpeed / 12) * 0.05 + (player.pos.y / 60) * 0.03)
         * (0.6 + weather.windStrength * 1.4);
@@ -490,7 +502,7 @@ buildWorld().then(() => {
   // Debug-/Test-Zugriff (bewusst öffentlich, hilft bei Fehlersuche)
   window.__game = {
     player, sky, camera, renderer, scene,
-    wand, spells, fx, health, creatures, puzzles, moor, dementors, weather, post, village, train,
+    wand, spells, fx, health, creatures, puzzles, moor, dementors, weather, post, village, train, willow,
     get fps() { return fpsEMA; },
     get pixelRatio() { return pixelRatio; },
     collectibles,
@@ -527,6 +539,7 @@ buildWorld().then(() => {
     persist();
   };
   creatures.onTrollChest = () => persist();
+  willow.onChestOpen = () => persist();
   collectibles.onCollect = (item, n, total) => {
     const done = n === total;
     audio.chime(done);

@@ -272,7 +272,7 @@ export function buildNature(scene) {
 // ---------- Bewegtes Leben ----------
 
 export class LifeSystem {
-  constructor(scene, glowTex, flamePositions) {
+  constructor(scene, glowTex, flamePositions, owlPerches = []) {
     this.scene = scene;
     this.time = 0;
 
@@ -342,6 +342,42 @@ export class LifeSystem {
       this.birds.push(bird);
     }
 
+    // Eulen (Eulerei): tags auf der Sitzstange, nachts kreisend um den Turm
+    this.owls = [];
+    if (owlPerches.length) {
+      const eyeMat = new THREE.SpriteMaterial({
+        map: glowTex, color: 0xffcf6b, transparent: true, opacity: 0,
+        blending: THREE.AdditiveBlending, depthWrite: false,
+      });
+      const owlWingMat = new THREE.MeshBasicMaterial({ color: 0x4a3a28, side: THREE.DoubleSide });
+      const owlHeadGeo = new THREE.SphereGeometry(0.14, 7, 5);
+      const owlHeadMat = new THREE.MeshLambertMaterial({ color: 0x5a4632, flatShading: true });
+      const OWL_COUNT = 4;
+      for (let i = 0; i < OWL_COUNT; i++) {
+        const perch = owlPerches[i % owlPerches.length];
+        const group = new THREE.Group();
+        const wings = new THREE.Mesh(birdGeo, owlWingMat);
+        wings.scale.set(1.4, 1.4, 1.4);
+        group.add(wings);
+        const head = new THREE.Mesh(owlHeadGeo, owlHeadMat);
+        head.position.set(0, 0.1, 0.42);
+        group.add(head);
+        const eyes = new THREE.Sprite(eyeMat.clone());
+        eyes.scale.set(0.18, 0.11, 1);
+        eyes.position.set(0, 0.1, 0.5);
+        group.add(eyes);
+        scene.add(group);
+        this.owls.push({
+          group, wings, eyes,
+          sitX: perch.x + (i - (OWL_COUNT - 1) / 2) * 0.7,
+          sitY: perch.y, sitZ: perch.z,
+          cx: perch.x, cz: perch.z, cy: perch.y + 5,
+          r: 5 + (i % 3) * 1.6, speed: 0.09 + rng() * 0.05, a: rng() * Math.PI * 2,
+          flap: rng() * Math.PI * 2,
+        });
+      }
+    }
+
     // Rauch aus Hagrids Schornstein
     this.smoke = [];
     const smokeMat = new THREE.SpriteMaterial({
@@ -396,6 +432,25 @@ export class LifeSystem {
       );
       bird.rotation.y = -u.a;
       bird.scale.y = 0.4 + Math.abs(Math.sin(u.flap)) * 1.4;
+    }
+
+    // Eulen: sanfter Übergang Sitzstange → Kreisflug mit einsetzender Nacht
+    for (const o of this.owls) {
+      const flyT = Math.max(0, Math.min(1, (night - 0.3) / 0.25));
+      o.a += o.speed * dt * flyT;
+      o.flap += dt * 7;
+      const cx = o.cx + Math.cos(o.a) * o.r, cz = o.cz + Math.sin(o.a) * o.r;
+      const cy = o.cy + Math.sin(o.a * 1.7) * 1.2;
+      o.group.position.set(
+        o.sitX + (cx - o.sitX) * flyT,
+        o.sitY + Math.sin(t * 0.3 + o.flap) * 0.02 + (cy - o.sitY) * flyT,
+        o.sitZ + (cz - o.sitZ) * flyT
+      );
+      const sitYaw = Math.sin(t * 0.25 + o.flap) * 0.3;
+      const flyYaw = -o.a + Math.PI / 2;
+      o.group.rotation.y = sitYaw + (flyYaw - sitYaw) * flyT;
+      o.wings.scale.y = 1.4 * (0.35 + flyT * (Math.abs(Math.sin(o.flap)) * 1.1 - 0.35));
+      o.eyes.material.opacity = flyT * 0.9;
     }
 
     // Rauch steigt auf

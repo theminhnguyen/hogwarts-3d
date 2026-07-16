@@ -111,6 +111,123 @@ export function buildStructures(scene) {
     bx.w.add(new THREE.CylinderGeometry(0.9, 0.9, 1.0, 8), WOOD, x - 2, gy + 0.5, z + 7.5);
   }
 
+  // ===== Gewächshaus (Glashaus, begehbar) =====
+  // Abstände geprüft: HAGRID 58m > 30.4(HAGRID-Einfluss)+22.8(eigenes
+  // Flatten×1.9) ✓, LAKE 250m ✓ — keine Überlappung mit bestehenden Zonen.
+  const GEWAECHSHAUS = { x: 80, z: 240, w: 10, d: 6, h: 4.2 };
+  const leuchtkraeuter = [];
+  const gwPlants = [];
+  {
+    const { x: hx, z: hz, w: hw, d: hd, h: hh } = GEWAECHSHAUS;
+    const hy = terrainHeight(hx, hz);
+    const halfW = hw / 2, halfD = hd / 2, wallT = 0.15, doorHalfW = 1.2;
+    const glassMat = new THREE.MeshLambertMaterial({
+      color: 0xbfe8e0, transparent: true, opacity: 0.22, side: THREE.DoubleSide, depthWrite: false,
+    });
+    // Eckpfosten
+    for (const [ox, oz] of [[-halfW, -halfD], [halfW, -halfD], [-halfW, halfD], [halfW, halfD]]) {
+      bx.w.add(new THREE.BoxGeometry(0.22, hh, 0.22), WOOD_DARK, hx + ox, hy + hh / 2, hz + oz);
+    }
+    // Glaswände: Nord/West/Ost solide, Süd (Zugang) mit Türlücke
+    const northGlass = new THREE.Mesh(new THREE.PlaneGeometry(hw, hh), glassMat);
+    northGlass.position.set(hx, hy + hh / 2, hz - halfD);
+    scene.add(northGlass);
+    addBoxBlocker(hx - halfW, hx + halfW, hy, hy + hh, hz - halfD - wallT, hz - halfD + wallT);
+    for (const side of [-1, 1]) {
+      const wallGlass = new THREE.Mesh(new THREE.PlaneGeometry(hd, hh), glassMat);
+      wallGlass.rotation.y = Math.PI / 2;
+      wallGlass.position.set(hx + side * halfW, hy + hh / 2, hz);
+      scene.add(wallGlass);
+      addBoxBlocker(hx + side * halfW - wallT, hx + side * halfW + wallT, hy, hy + hh, hz - halfD, hz + halfD);
+    }
+    const segW = halfW - doorHalfW;
+    const southL = new THREE.Mesh(new THREE.PlaneGeometry(segW, hh), glassMat);
+    southL.position.set(hx - doorHalfW - segW / 2, hy + hh / 2, hz + halfD);
+    scene.add(southL);
+    addBoxBlocker(hx - halfW, hx - doorHalfW, hy, hy + hh, hz + halfD - wallT, hz + halfD + wallT);
+    const southR = new THREE.Mesh(new THREE.PlaneGeometry(segW, hh), glassMat);
+    southR.position.set(hx + doorHalfW + segW / 2, hy + hh / 2, hz + halfD);
+    scene.add(southR);
+    addBoxBlocker(hx + doorHalfW, hx + halfW, hy, hy + hh, hz + halfD - wallT, hz + halfD + wallT);
+    // Glas-Giebeldach
+    const roofR = (hw / 2 + 0.3) / 0.866, roofH = hh * 0.4;
+    const roofSy = roofH / (1.5 * roofR);
+    const roofGeo = new THREE.CylinderGeometry(roofR, roofR, hd + 0.4, 3, 1, false, Math.PI / 2);
+    roofGeo.rotateZ(Math.PI / 2);
+    roofGeo.scale(1, roofSy, 1);
+    roofGeo.translate(hx, hy + hh + 0.5 * roofR * roofSy, hz);
+    const roofMesh = new THREE.Mesh(roofGeo, glassMat);
+    scene.add(roofMesh);
+
+    // 2 Pflanztische mit Töpfen + wippenden Fantasie-Pflanzen
+    for (const tx of [-hw * 0.28, hw * 0.28]) {
+      bx.w.add(new THREE.BoxGeometry(2.6, 0.8, 1.2), WOOD_DARK, hx + tx, hy + 0.4, hz - 0.5);
+      for (let i = 0; i < 3; i++) {
+        const px = hx + tx + (i - 1) * 0.8, pz = hz - 0.5;
+        const py = hy + 0.8;
+        bx.d.add(new THREE.CylinderGeometry(0.18, 0.22, 0.3, 8), 0x8a6a45, px, py + 0.15, pz);
+        const plantColor = i % 2 === 0 ? 0x4f9b4a : 0x3a7a5a;
+        const plant = new THREE.Mesh(new THREE.ConeGeometry(0.16, 0.5, 6), new THREE.MeshLambertMaterial({ color: plantColor, flatShading: true }));
+        plant.position.set(px, py + 0.55, pz);
+        scene.add(plant);
+        gwPlants.push({ mesh: plant, phase: rng() * Math.PI * 2 });
+      }
+    }
+    // 3 Leuchtkräuter (Pickup erst in W5 — hier nur Deko + Positionen)
+    const lkMat = new THREE.SpriteMaterial({
+      color: 0x5cffa0, transparent: true, opacity: 0.85, depthWrite: false,
+    });
+    const lkSpots = [
+      { x: hx - hw * 0.28, z: hz - 0.5 + 0.3 },
+      { x: hx + hw * 0.05, z: hz - 0.5 },
+      { x: hx + hw * 0.28, z: hz - 0.5 - 0.3 },
+    ];
+    for (const spot of lkSpots) {
+      const y = hy + 1.15;
+      const s = new THREE.Sprite(lkMat.clone());
+      s.position.set(spot.x, y, spot.z);
+      s.scale.setScalar(0.3);
+      scene.add(s);
+      leuchtkraeuter.push({ x: spot.x, y, z: spot.z, sprite: s });
+    }
+  }
+
+  // ===== Eulerei (runder Turm, offene Fensterbögen, Sitzstangen) =====
+  // Abstände geprüft: liegt bewusst im PLATEAU-Blendbereich (95m < 130m
+  // Einfluss) — der Turm bekommt DESHALB kein eigenes Terrain-Flatten,
+  // seine Basis folgt einfach der natürlich sanft ansteigenden Flanke.
+  // STONES-Abstand 89m > 62.4m Einfluss ✓.
+  const EULEREI = { x: 95, z: -25, r: 3, h: 9 };
+  const owlPerches = [];
+  {
+    const { x: ex, z: ez, r: er, h: eh } = EULEREI;
+    const ey = terrainHeight(ex, ez);
+    bx.s.add(new THREE.CylinderGeometry(er * 1.05, er * 1.2, eh, 10), STONE_DARK, ex, ey + eh / 2, ez);
+    addCircleBlocker(ex, ez, er * 1.15, ey, ey + eh);
+    // Offene Fensterbögen oben (nur Rahmen, kein Glas — Eulen fliegen ein/aus)
+    for (let i = 0; i < 4; i++) {
+      const a = (i / 4) * Math.PI * 2;
+      const wx = ex + Math.cos(a) * er * 1.05, wz = ez + Math.sin(a) * er * 1.05;
+      bx.s.add(new THREE.BoxGeometry(1.1, 1.6, 0.2), STONE_DARK, wx, ey + eh - 1.2, wz, a);
+    }
+    // Kegeldach
+    bx.r.add(new THREE.ConeGeometry(er * 1.5, 2.6, 10), ROOF_WOOD, ex, ey + eh + 1.3, ez);
+    // Sitzstangen: kleine Konsolen, die an 2 der 4 Fensteröffnungen nach außen
+    // ragen. Der Turmkörper ist ein solider Zylinder (kein echtes Loch) —
+    // Sitzstangen MITTIG im Turm wären daher komplett unsichtbar von außen.
+    for (const wa of [0, Math.PI]) {
+      const px = ex + Math.cos(wa) * (er * 1.05 + 0.4);
+      const pz = ez + Math.sin(wa) * (er * 1.05 + 0.4);
+      const py = ey + eh - 1.2;
+      const perchGeo = new THREE.CylinderGeometry(0.06, 0.06, 0.8, 6);
+      perchGeo.rotateZ(Math.PI / 2);
+      perchGeo.rotateY(wa);
+      perchGeo.translate(px, py, pz);
+      bx.w.addRaw(perchGeo, WOOD_DARK);
+      owlPerches.push({ x: px, y: py + 0.15, z: pz });
+    }
+  }
+
   // ===== Quidditch-Feld =====
   {
     const x = QUIDDITCH.x, z = QUIDDITCH.z, gy = QUIDDITCH.h;
@@ -180,9 +297,22 @@ export function buildStructures(scene) {
     nightLights,
     pumpkins,
     stones,
-    update(nightGlow) {
+    gewaechshaus: GEWAECHSHAUS,
+    leuchtkraeuter,
+    eulerei: EULEREI,
+    owlPerches,
+    update(nightGlow, time = 0) {
       // Fensterfarbe regelt castle.update (gemeinsames Material)
       for (const l of nightLights) l.intensity = 20 * nightGlow;
+      for (const p of gwPlants) {
+        p.mesh.rotation.z = Math.sin(time * 1.4 + p.phase) * 0.12;
+        p.mesh.rotation.x = Math.sin(time * 1.1 + p.phase * 1.3) * 0.08;
+      }
+      for (const l of leuchtkraeuter) {
+        const s = 0.3 + Math.sin(time * 2 + l.x) * 0.04;
+        l.sprite.scale.setScalar(s);
+        l.sprite.material.opacity = 0.7 + Math.sin(time * 2.4 + l.z) * 0.15;
+      }
     },
   };
 }
