@@ -662,6 +662,62 @@ export class SoundManager {
     src.start(t, Math.random() * 1.5, 2.0);
   }
 
+  // Zug-Pfeife: zwei versetzte Sinustöne
+  trainWhistle() {
+    if (!this.ctx || this.muted) return;
+    const ctx = this.ctx, t = ctx.currentTime;
+    [620, 930].forEach((freq, i) => {
+      const t0 = t + i * 0.12;
+      const o = ctx.createOscillator();
+      o.type = 'sine';
+      o.frequency.value = freq;
+      const g = ctx.createGain();
+      this._env(g, t0, 0.03, 0.18, 0.7);
+      o.connect(g).connect(this.master);
+      o.start(t0); o.stop(t0 + 0.8);
+    });
+  }
+
+  // Zug-Chuff: EIN globales Node-Set (Muster: Schatten-Drone/Dementor-Atem),
+  // rhythmisches Noise-Puffen, Gain ∝ Nähe von außen gesetzt (0..1).
+  _ensureTrainChuff() {
+    if (this.trainChuffGain || !this.ctx) return;
+    const ctx = this.ctx;
+    const out = ctx.createGain();
+    out.gain.value = 0;
+    out.connect(this.master);
+
+    const src = ctx.createBufferSource();
+    src.buffer = this.noiseBuf;
+    src.loop = true;
+    const f = ctx.createBiquadFilter();
+    f.type = 'lowpass';
+    f.frequency.value = 500;
+
+    // Rhythmisches Puffen: LFO moduliert die Lautstärke in kurzen Stößen
+    const puffGain = ctx.createGain();
+    puffGain.gain.value = 0.5;
+    const chuffLfo = ctx.createOscillator();
+    chuffLfo.type = 'sawtooth';
+    chuffLfo.frequency.value = 2.2;
+    const lfoGain = ctx.createGain();
+    lfoGain.gain.value = 0.5;
+    chuffLfo.connect(lfoGain).connect(puffGain.gain);
+
+    src.connect(f).connect(puffGain).connect(out);
+    src.start(); chuffLfo.start();
+    this.trainChuffGain = out;
+  }
+
+  setTrainChuff(proximity) {
+    if (!this.ctx) return;
+    this._ensureTrainChuff();
+    if (this.trainChuffGain) {
+      const target = Math.max(0, Math.min(1, proximity)) * 0.25;
+      this.trainChuffGain.gain.setTargetAtTime(target, this.ctx.currentTime, 0.3);
+    }
+  }
+
   // gloom (0..1, von weather.js): bei Regen/Sturm verstummen Vögel/Grillen
   update(daylight, gloom = 0) {
     if (!this.ctx || this.muted) return;

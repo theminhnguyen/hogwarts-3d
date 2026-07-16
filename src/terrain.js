@@ -23,6 +23,17 @@ export const RAVINE = { z: 94 };      // Schlucht, die das Viadukt überspannt
 // − MOOR.r 55 = 62.8) knapp HINTER dem Ende des Steinkreis-Einflusses (62.4) —
 // beide Terrain-Shapings überlappen sich nirgends mehr.
 export const MOOR = { x: 240, z: -175, r: 55, blend: 25, h: 1.6 };
+// Dorf "Eulenbrück" — Senke wie QUIDDITCH/HAGRID-Muster. Abstände geprüft:
+// d0=240 (Außenkante 316 < Bergring-Start 330), PLATEAU-Abstand 221 > 130+76,
+// STONES-Abstand 258, MOOR-Abstand ~315 — keine Überlappung mit bestehenden Zonen.
+export const DORF = { x: -70, z: -230, r: 40, h: 4 };
+// Gleis-Trasse: beide Enden liegen ABSICHTLICH im Bergring-Anstieg (d0 ≈ 330-340)
+// — die Tunnelportale sollen wie in den Berg gegraben wirken. Bahnhof (Mitte der
+// Trasse, dritter Punkt) liegt im Dorf-Umfeld.
+export const TRASSE = [
+  [-285, -185], [-215, -235], [-140, -255], [-40, -275], [60, -290], [115, -310],
+];
+export const BAHNHOF = { x: -140, z: -255 };
 
 // Wege als Polylinien (für Färbung + Freihalten von Bäumen)
 export const PATHS = [
@@ -33,7 +44,25 @@ export const PATHS = [
   [[0, 168], [-90, 100], [-165, 40]],        // Kreuzung → Quidditch-Feld
   [[-90, 100], [-40, -60], [80, -100], [140, -98]], // Rundweg → Steinkreis
   [[140, -98], [190, -140], [240, -175]],    // Steinkreis-Rundweg → Nebelmoor
+  [[-90, 100], [-80, -160], [-70, -230]],    // Rundweg → Dorf
+  [[-70, -230], [-140, -255]],               // Dorf → Bahnhof
 ];
+
+// Kürzester Abstand zu EINER Polylinie (nicht dem gesamten PATHS-Bestand) —
+// eigenständig, damit die Gleis-Trasse ihre eigene, engere Flatten-Zone
+// bekommt, ohne versehentlich auch andere Wege anderswo mit-flachzuklopfen.
+export function distToPolyline(x, z, pts) {
+  let best = Infinity;
+  for (let i = 0; i < pts.length - 1; i++) {
+    const [ax, az] = pts[i], [bx, bz] = pts[i + 1];
+    const abx = bx - ax, abz = bz - az;
+    const t = clamp(((x - ax) * abx + (z - az) * abz) / (abx * abx + abz * abz), 0, 1);
+    const dx = x - (ax + abx * t), dz = z - (az + abz * t);
+    const d = Math.sqrt(dx * dx + dz * dz);
+    if (d < best) best = d;
+  }
+  return best;
+}
 
 export function distToPaths(x, z) {
   let best = Infinity;
@@ -97,10 +126,18 @@ export function terrainHeight(x, z) {
   }
 
   // Ebene Spielflächen
-  for (const spot of [QUIDDITCH, HAGRID, BOATHOUSE]) {
+  for (const spot of [QUIDDITCH, HAGRID, BOATHOUSE, DORF]) {
     const d = Math.sqrt((x - spot.x) ** 2 + (z - spot.z) ** 2);
     const m = 1 - smoothstep(spot.r, spot.r * 1.9, d);
     h = lerp(h, spot.h, m);
+  }
+
+  // Gleis-Trasse: flacher Bahndamm (±6m Korridor), gleiche Zielhöhe wie DORF
+  // (4) — verhindert jede Naht zwischen Dorf-Senke und Trasse.
+  {
+    const d = distToPolyline(x, z, TRASSE);
+    const m = 1 - smoothstep(4, 6, d);
+    h = lerp(h, DORF.h, m);
   }
 
   // Wege nicht unter Wasser: Senken entlang der Pfade leicht anheben

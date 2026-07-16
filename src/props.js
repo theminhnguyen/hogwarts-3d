@@ -4,8 +4,8 @@
 import * as THREE from 'three';
 import { tint, addCircleBlocker } from './geo.js';
 import {
-  terrainHeight, distToPaths, WATER_LEVEL,
-  PLATEAU, LAKE, QUIDDITCH, HAGRID, STONES, BOATHOUSE, MOOR,
+  terrainHeight, distToPaths, distToPolyline, WATER_LEVEL,
+  PLATEAU, LAKE, QUIDDITCH, HAGRID, STONES, BOATHOUSE, MOOR, DORF, TRASSE,
 } from './terrain.js';
 import { fbm, mulberry32 } from './noise.js';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
@@ -151,6 +151,8 @@ function spotFree(x, z, h) {
   if (Math.hypot(x - BOATHOUSE.x, z - BOATHOUSE.z) < 20) return false;
   if (Math.abs(x) < 12 && z > 28 && z < 190) return false; // Damm & Viadukt
   if (Math.hypot(x - MOOR.x, z - MOOR.z) < MOOR.r + 10) return false; // totes Moor
+  if (Math.hypot(x - DORF.x, z - DORF.z) < DORF.r + 10) return false; // Dorfplatz
+  if (distToPolyline(x, z, TRASSE) < 8) return false; // Gleis-Trasse
   return true;
 }
 
@@ -233,6 +235,8 @@ export function buildNature(scene) {
     if (Math.hypot(x - PLATEAU.x, z - PLATEAU.z) < 95) continue;
     if (Math.abs(x) < 12 && z > 28 && z < 190) continue;
     if (Math.hypot(x - MOOR.x, z - MOOR.z) < MOOR.r + 10) continue;
+    if (Math.hypot(x - DORF.x, z - DORF.z) < DORF.r + 10) continue;
+    if (distToPolyline(x, z, TRASSE) < 8) continue;
     const s = 0.5 + rng() * rng() * 2.2;
     rocks.push({ x, y: h + s * 0.2, z, ry: rng() * Math.PI * 2, s, tint: rng() });
     if (s > 1.0) addCircleBlocker(x, z, s * 0.85, h - 1, h + s);
@@ -247,6 +251,8 @@ export function buildNature(scene) {
     if (distToPaths(x, z) < 3.2) continue;
     if (Math.hypot(x - PLATEAU.x, z - PLATEAU.z) < 92) continue;
     if (Math.hypot(x - MOOR.x, z - MOOR.z) < MOOR.r + 10) continue;
+    if (Math.hypot(x - DORF.x, z - DORF.z) < DORF.r + 10) continue;
+    if (distToPolyline(x, z, TRASSE) < 8) continue;
     grass.push({ x, y: h, z, ry: rng() * Math.PI, s: 0.7 + rng() * 0.7, tint: rng() });
   }
 

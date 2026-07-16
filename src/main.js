@@ -22,6 +22,8 @@ import { PuzzleSystem } from './puzzles.js';
 import { buildMoor } from './moor.js';
 import { WeatherSystem } from './weather.js';
 import { PostFX } from './post.js';
+import { buildVillage } from './village.js';
+import { buildTrain } from './train.js';
 
 // Der Schlüsselname trägt noch "v1" aus Phase 0 — umbenennen würde alle
 // bestehenden Spielstände verwaisen lassen. Die eigentliche Versionierung
@@ -83,7 +85,7 @@ post.setQuality(save.grafik);
 post.onDegrade = () => hud.showToast('Grafik automatisch reduziert (Bloom aus)', 3.5);
 
 let sky, water, castle, structures, moor, life, collectibles, player;
-let fx, wand, spells, health, creatures, puzzles, dementors, weather;
+let fx, wand, spells, health, creatures, puzzles, dementors, weather, village, train;
 let lanternWasCollected = false; // erkennt den Moment, in dem die Laterne live geborgen wird
 let natureSwayMaterials = [];
 const glowTex = makeGlowTexture();
@@ -174,6 +176,11 @@ const buildSteps = [
   ['Dementoren', () => {
     dementors = new DementorSystem(scene, fx, audio, health, hud, glowTex);
     if (save.peaceful) dementors.peaceful = true;
+  }],
+  ['Dorf & Bahn', () => {
+    village = buildVillage(scene, glowTex, hud, audio, health, fx);
+    train = buildTrain(scene, glowTex, audio);
+    train.onSmoke = (pos) => fx.trail(pos, 0x9aa0a8);
   }],
 ];
 
@@ -407,6 +414,8 @@ function frame(dt) {
     player.slowFactor = dementors.frostFactor > 0.5 ? 0.75 : 1;
     hud.setFrost(dementors.frostFactor);
     moor.update(dt, player);
+    village.update(dt, player);
+    train.update(dt, player);
     puzzles.update(dt, player, sky.state);
     fx.update(dt);
     camera.position.add(fx.shakeOffset);
@@ -481,7 +490,7 @@ buildWorld().then(() => {
   // Debug-/Test-Zugriff (bewusst öffentlich, hilft bei Fehlersuche)
   window.__game = {
     player, sky, camera, renderer, scene,
-    wand, spells, fx, health, creatures, puzzles, moor, dementors, weather, post,
+    wand, spells, fx, health, creatures, puzzles, moor, dementors, weather, post, village, train,
     get fps() { return fpsEMA; },
     get pixelRatio() { return pixelRatio; },
     collectibles,
