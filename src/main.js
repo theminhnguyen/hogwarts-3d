@@ -21,6 +21,7 @@ import { DementorSystem } from './dementor.js';
 import { PuzzleSystem } from './puzzles.js';
 import { buildMoor } from './moor.js';
 import { WeatherSystem } from './weather.js';
+import { PostFX } from './post.js';
 
 // Der Schlüsselname trägt noch "v1" aus Phase 0 — umbenennen würde alle
 // bestehenden Spielstände verwaisen lassen. Die eigentliche Versionierung
@@ -30,9 +31,8 @@ const SAVE_KEY = 'hogwarts3d-save-v1';
 function loadSave() {
   let raw = {};
   try { raw = JSON.parse(localStorage.getItem(SAVE_KEY)) || {}; } catch { raw = {}; }
-  // v3: + Nebelmoor (abgegebene Seelenlichter + Laterne). Fehlt `v` (alter
-  // Save) oder fehlen einzelne Felder: nie crashen, immer auf Default
-  // zurückfallen.
+  // v4: + Grafik-Qualität (Post-FX Schön/Schnell). Fehlt `v` (alter Save)
+  // oder fehlen einzelne Felder: nie crashen, immer auf Default zurückfallen.
   return {
     collected: raw.collected || [],
     art: raw.art || [],
@@ -40,11 +40,12 @@ function loadSave() {
     moor: raw.moor || { lichter: [], laterne: 0 },
     muted: raw.muted === true,
     peaceful: raw.peaceful === true,
+    grafik: raw.grafik === 'schnell' ? 'schnell' : 'schoen',
     t: raw.t,
   };
 }
 function writeSave(data) {
-  try { localStorage.setItem(SAVE_KEY, JSON.stringify({ v: 3, ...data })); } catch { /* privat-modus etc. */ }
+  try { localStorage.setItem(SAVE_KEY, JSON.stringify({ v: 4, ...data })); } catch { /* privat-modus etc. */ }
 }
 
 // ---------- Renderer & Szene ----------
@@ -70,12 +71,16 @@ window.addEventListener('resize', () => {
   camera.updateProjectionMatrix();
   renderer.setSize(window.innerWidth, window.innerHeight);
   if (fx) fx.onResize();
+  post.resize();
 });
 
 // ---------- Welt schrittweise aufbauen ----------
 const hud = new Hud();
 const audio = new SoundManager();
 const save = loadSave();
+const post = new PostFX(renderer, scene, camera);
+post.setQuality(save.grafik);
+post.onDegrade = () => hud.showToast('Grafik automatisch reduziert (Bloom aus)', 3.5);
 
 let sky, water, castle, structures, moor, life, collectibles, player;
 let fx, wand, spells, health, creatures, puzzles, dementors, weather;
@@ -220,6 +225,7 @@ function persist() {
     muted: audio.muted,
     t: sky ? sky.timeOfDay : undefined,
     peaceful: creatures ? creatures.peaceful : (save.peaceful === true),
+    grafik: post.quality,
   });
 }
 
@@ -271,6 +277,14 @@ btnPeaceful.addEventListener('click', () => {
   creatures.peaceful = !creatures.peaceful;
   dementors.peaceful = creatures.peaceful;
   btnPeaceful.textContent = `Kreaturen: ${creatures.peaceful ? 'zahm' : 'wild'}`;
+  persist();
+});
+
+const btnGrafik = document.getElementById('btn-grafik');
+btnGrafik.textContent = `Grafik: ${save.grafik === 'schnell' ? 'Schnell' : 'Schön'}`;
+btnGrafik.addEventListener('click', () => {
+  post.setQuality(post.quality === 'schoen' ? 'schnell' : 'schoen');
+  btnGrafik.textContent = `Grafik: ${post.quality === 'schnell' ? 'Schnell' : 'Schön'}`;
   persist();
 });
 
@@ -366,7 +380,7 @@ function tick() {
 
   if (playing) frame(dt);
 
-  renderer.render(scene, camera);
+  post.render(sky.state.nightGlow, fpsEMA);
 }
 
 // Ein Simulationsschritt (vom Render-Loop und von __game.step() genutzt)
@@ -449,9 +463,11 @@ function frame(dt) {
       if (fpsEMA < 42 && pixelRatio > 0.6) {
         pixelRatio = Math.max(0.6, pixelRatio * 0.85);
         renderer.setPixelRatio(pixelRatio);
+        post.resize();
       } else if (fpsEMA > 57 && pixelRatio < MAX_PIXEL_RATIO) {
         pixelRatio = Math.min(MAX_PIXEL_RATIO, pixelRatio * 1.1);
         renderer.setPixelRatio(pixelRatio);
+        post.resize();
       }
     }
   }
@@ -465,7 +481,7 @@ buildWorld().then(() => {
   // Debug-/Test-Zugriff (bewusst öffentlich, hilft bei Fehlersuche)
   window.__game = {
     player, sky, camera, renderer, scene,
-    wand, spells, fx, health, creatures, puzzles, moor, dementors, weather,
+    wand, spells, fx, health, creatures, puzzles, moor, dementors, weather, post,
     get fps() { return fpsEMA; },
     get pixelRatio() { return pixelRatio; },
     collectibles,
@@ -476,7 +492,7 @@ buildWorld().then(() => {
     // Für automatisierte Tests: n Frames direkt simulieren (ohne rAF)
     step: (n = 60, dt = 1 / 60) => {
       for (let i = 0; i < n; i++) frame(dt);
-      renderer.render(scene, camera);
+      post.render(sky.state.nightGlow, fpsEMA);
     },
     // Sofort in eine Richtung schauen und zaubern (Kamera-Rotation synchron
     // vor dem Cast aktualisieren, sonst nutzt getWorldDirection() die
