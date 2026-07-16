@@ -7,7 +7,7 @@ import { buildTerrain, buildWater } from './terrain.js';
 import { SkySystem } from './sky.js';
 import { buildCastle } from './castle.js';
 import { buildStructures } from './structures.js';
-import { buildNature, LifeSystem, makeGlowTexture } from './props.js';
+import { buildNature, LifeSystem, makeGlowTexture, updateSway } from './props.js';
 import { Collectibles } from './collectibles.js';
 import { Player } from './player.js';
 import { SoundManager } from './audio.js';
@@ -20,6 +20,7 @@ import { CreatureSystem } from './creatures.js';
 import { DementorSystem } from './dementor.js';
 import { PuzzleSystem } from './puzzles.js';
 import { buildMoor } from './moor.js';
+import { WeatherSystem } from './weather.js';
 
 // Der Schlüsselname trägt noch "v1" aus Phase 0 — umbenennen würde alle
 // bestehenden Spielstände verwaisen lassen. Die eigentliche Versionierung
@@ -77,8 +78,9 @@ const audio = new SoundManager();
 const save = loadSave();
 
 let sky, water, castle, structures, moor, life, collectibles, player;
-let fx, wand, spells, health, creatures, puzzles, dementors;
+let fx, wand, spells, health, creatures, puzzles, dementors, weather;
 let lanternWasCollected = false; // erkennt den Moment, in dem die Laterne live geborgen wird
+let natureSwayMaterials = [];
 const glowTex = makeGlowTexture();
 
 // ---------- Kürbis-Gag: Incendio auf die Kürbisse vor Hagrids Hütte ----------
@@ -127,11 +129,12 @@ function updatePumpkinGlows(dt) {
 
 const buildSteps = [
   ['Himmel & Licht', () => { sky = new SkySystem(scene); if (save.t) sky.timeOfDay = save.t; }],
+  ['Wetter', () => { weather = new WeatherSystem(scene, hud, audio); }],
   ['Gelände', () => { scene.add(buildTerrain()); }],
   ['See', () => { water = buildWater(); scene.add(water.mesh); }],
   ['Schloss', () => { castle = buildCastle(scene); castle.setGlowTexture(glowTex); }],
   ['Bootshaus, Hütte & Feld', () => { structures = buildStructures(scene); }],
-  ['Wälder & Wiesen', () => { buildNature(scene); }],
+  ['Wälder & Wiesen', () => { natureSwayMaterials = buildNature(scene).swayMaterials; }],
   ['Leben & Magie', () => {
     life = new LifeSystem(scene, glowTex, [...castle.flames, ...structures.flames]);
     collectibles = new Collectibles(scene, glowTex, save.collected || []);
@@ -370,6 +373,7 @@ function tick() {
 function frame(dt) {
   {
     time += dt;
+    weather.update(dt, player);
     const move = player.update(dt);
 
     wand.update(dt, player, move, spells.lumosOn, spells.isHoldingLeviosa);
@@ -394,11 +398,13 @@ function frame(dt) {
     camera.position.add(fx.shakeOffset);
     health.update(dt);
 
-    sky.update(dt, player.pos);
+    sky.update(dt, player.pos, weather.gloom);
+    sky.hemi.intensity += weather.lightningBoost; // Blitz-Aufhellung, additiv nach dem normalen Tag/Nacht-Update
     castle.update(dt, time, sky.state.nightGlow);
     structures.update(sky.state.nightGlow);
     life.update(dt, sky.state);
     collectibles.update(dt, time, player.pos);
+    updateSway(natureSwayMaterials, time, weather.windStrength);
 
     // Wasser-Uniforms mit der Tageszeit synchronisieren
     const wu = water.uniforms;
@@ -409,9 +415,10 @@ function frame(dt) {
     wu.uSky.value.copy(sky.state.skyHorizon);
     wu.uNight.value = sky.state.nightGlow;
 
-    audio.update(sky.state.daylight);
+    audio.update(sky.state.daylight, weather.gloom);
     if (audio.windGain) {
-      const target = 0.04 + (move.hSpeed / 12) * 0.05 + (player.pos.y / 60) * 0.03;
+      const target = (0.04 + (move.hSpeed / 12) * 0.05 + (player.pos.y / 60) * 0.03)
+        * (0.6 + weather.windStrength * 1.4);
       audio.windGain.gain.value += (target - audio.windGain.gain.value) * 0.02;
     }
     updatePumpkinGlows(dt);
@@ -458,7 +465,7 @@ buildWorld().then(() => {
   // Debug-/Test-Zugriff (bewusst öffentlich, hilft bei Fehlersuche)
   window.__game = {
     player, sky, camera, renderer, scene,
-    wand, spells, fx, health, creatures, puzzles, moor, dementors,
+    wand, spells, fx, health, creatures, puzzles, moor, dementors, weather,
     get fps() { return fpsEMA; },
     get pixelRatio() { return pixelRatio; },
     collectibles,

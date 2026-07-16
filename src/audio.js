@@ -638,12 +638,39 @@ export class SoundManager {
     o2.start(t0); o2.stop(t0 + 0.35);
   }
 
-  update(daylight) {
+  // Donner: tiefes Rumpeln (Sinus-Sweep + Lowpass-Noise), 2s Abklingen —
+  // Muster wie trollSlam, aber länger und tiefer.
+  thunder() {
+    if (!this.ctx || this.muted) return;
+    const ctx = this.ctx, t = ctx.currentTime;
+    const o = ctx.createOscillator();
+    o.type = 'sine';
+    o.frequency.setValueAtTime(55, t);
+    o.frequency.exponentialRampToValueAtTime(25, t + 1.6);
+    const g = ctx.createGain();
+    this._env(g, t, 0.02, 0.4, 1.9);
+    o.connect(g).connect(this.master);
+    o.start(t); o.stop(t + 2.0);
+
+    const src = ctx.createBufferSource();
+    src.buffer = this.noiseBuf;
+    const f = ctx.createBiquadFilter();
+    f.type = 'lowpass'; f.frequency.value = 120;
+    const ng = ctx.createGain();
+    this._env(ng, t, 0.05, 0.3, 1.9);
+    src.connect(f).connect(ng).connect(this.master);
+    src.start(t, Math.random() * 1.5, 2.0);
+  }
+
+  // gloom (0..1, von weather.js): bei Regen/Sturm verstummen Vögel/Grillen
+  update(daylight, gloom = 0) {
     if (!this.ctx || this.muted) return;
     const now = this.ctx.currentTime;
     if (now > this._nextChirp) {
-      if (daylight > 0.6) this._bird();
-      else if (daylight < 0.25) this._cricket();
+      if (gloom < 0.4) {
+        if (daylight > 0.6) this._bird();
+        else if (daylight < 0.25) this._cricket();
+      }
       this._nextChirp = now + 2.5 + Math.random() * 5;
     }
   }

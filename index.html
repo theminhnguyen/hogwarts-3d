@@ -52,6 +52,14 @@
   #whiteout {
     position: absolute; inset: 0; background: #fff; opacity: 0; pointer-events: none;
   }
+  #lightning-flash {
+    position: absolute; inset: 0; background: #fff; opacity: 0; pointer-events: none;
+  }
+  #lightning-flash.flash { animation: lightningFlash 0.5s ease-out; }
+  @keyframes lightningFlash {
+    0% { opacity: 0.85; }
+    100% { opacity: 0; }
+  }
 
   #hearts {
     position: absolute; top: 18px; left: 22px;
@@ -237,6 +245,7 @@
   <div id="hud">
     <div id="vignette"><div id="vignette-frost"></div></div>
     <div id="whiteout"></div>
+    <div id="lightning-flash"></div>
     <div id="crosshair"></div>
     <div id="compass">N</div>
     <div id="bossbar"><i></i></div>

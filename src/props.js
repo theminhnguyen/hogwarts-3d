@@ -89,6 +89,55 @@ function grassGeo() {
   return mergeGeometries(parts, false);
 }
 
+// Wald-Dichte-Maske (dieselbe Formel wie beim Platzieren der Bäume in
+// buildNature()) — exportiert, damit weather.js weiß, wo "Waldnähe" für
+// fallende Blätter beginnt, ohne die Platzierungs-Arrays selbst zu kennen.
+export function forestDensity(x, z) {
+  return fbm(x * 0.006 + 3.7, z * 0.006 - 1.2, 3);
+}
+
+// Wind-Schwanken für Gras/Baumkronen: verschiebt `transformed` VOR der
+// Instanz-Transformation (lokale Höhe = Ansatzpunkt für den Biege-Falloff),
+// Phase pro Instanz aus der Übersetzungsspalte von instanceMatrix gehasht —
+// dadurch schwanken alle Instanzen einer Charge nicht im Gleichschritt.
+// uTime/uWind werden von außen (updateSway) pro Frame gesetzt.
+function attachSway(mat, ampBase, heightNorm) {
+  mat.onBeforeCompile = (shader) => {
+    shader.uniforms.uTime = { value: 0 };
+    shader.uniforms.uWind = { value: 0.2 };
+    shader.uniforms.uSwayAmp = { value: ampBase };
+    shader.uniforms.uSwayH = { value: heightNorm };
+    shader.vertexShader = shader.vertexShader
+      .replace('#include <common>', `#include <common>
+uniform float uTime;
+uniform float uWind;
+uniform float uSwayAmp;
+uniform float uSwayH;`)
+      .replace('#include <begin_vertex>', `#include <begin_vertex>
+#ifdef USE_INSTANCING
+  float swayPhase = dot(instanceMatrix[3].xyz, vec3(1.7, 0.0, 1.3));
+  float hr = clamp(transformed.y / uSwayH, 0.0, 1.0);
+  hr *= hr;
+  float sway = sin(uTime * 1.6 + swayPhase) * uWind * uSwayAmp * hr;
+  transformed.x += sway;
+  transformed.z += sway * 0.6;
+#endif`);
+    mat.userData.shader = shader;
+  };
+}
+
+// Von main.js pro Frame aufgerufen: aktualisiert uTime/uWind aller Sway-
+// Materialien (überlebt auch Shader-Neukompilierungen, da attachSway()
+// userData.shader bei jedem onBeforeCompile-Aufruf neu setzt).
+export function updateSway(materials, time, wind) {
+  for (const m of materials) {
+    const sh = m.userData.shader;
+    if (!sh) continue;
+    sh.uniforms.uTime.value = time;
+    sh.uniforms.uWind.value = wind;
+  }
+}
+
 // Platz frei? (nicht auf Wegen, im Schloss, im See, auf Spielflächen …)
 function spotFree(x, z, h) {
   if (h < 1.6 || h > 34) return false;
@@ -106,7 +155,7 @@ function spotFree(x, z, h) {
 }
 
 // Instanzen in 3×3 Regionen aufteilen → Frustum-/Schatten-Culling greift
-function buildChunkedInstances(scene, geo, placements, { castShadow = true, doubleSide = false } = {}) {
+function buildChunkedInstances(scene, geo, placements, { castShadow = true, doubleSide = false, sway = null, swayMaterials = null } = {}) {
   const chunks = new Map();
   for (const p of placements) {
     const key = `${Math.floor((p.x + 480) / 320)}_${Math.floor((p.z + 480) / 320)}`;
@@ -117,6 +166,10 @@ function buildChunkedInstances(scene, geo, placements, { castShadow = true, doub
     vertexColors: true, flatShading: true,
     side: doubleSide ? THREE.DoubleSide : THREE.FrontSide,
   });
+  if (sway) {
+    attachSway(mat, sway.amp, sway.height);
+    swayMaterials?.push(mat);
+  }
   const m = new THREE.Matrix4();
   const q = new THREE.Quaternion();
   const e = new THREE.Euler();
@@ -197,12 +250,17 @@ export function buildNature(scene) {
     grass.push({ x, y: h, z, ry: rng() * Math.PI, s: 0.7 + rng() * 0.7, tint: rng() });
   }
 
-  buildChunkedInstances(scene, coniferGeo(), conifers);
-  buildChunkedInstances(scene, broadleafGeo(), broadleaf);
+  // Wind-Schwanken: Bäume dezent (×0.4 der Gras-Amplitude), Felsen gar nicht.
+  const swayMaterials = [];
+  buildChunkedInstances(scene, coniferGeo(), conifers, { sway: { amp: 0.14, height: 8 }, swayMaterials });
+  buildChunkedInstances(scene, broadleafGeo(), broadleaf, { sway: { amp: 0.14, height: 8 }, swayMaterials });
   buildChunkedInstances(scene, rockGeo(), rocks);
-  buildChunkedInstances(scene, grassGeo(), grass, { castShadow: false });
+  buildChunkedInstances(scene, grassGeo(), grass, { castShadow: false, sway: { amp: 0.35, height: 0.55 }, swayMaterials });
 
-  return { treeCount: conifers.length + broadleaf.length, rockCount: rocks.length, grassCount: grass.length };
+  return {
+    treeCount: conifers.length + broadleaf.length, rockCount: rocks.length, grassCount: grass.length,
+    swayMaterials,
+  };
 }
 
 // ---------- Bewegtes Leben ----------

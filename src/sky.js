@@ -165,6 +165,7 @@ export class SkySystem {
       hemiSky: { night: new THREE.Color(0x2a3550), dusk: new THREE.Color(0x8a7a90), day: new THREE.Color(0xbdd8f0) },
     };
     this._c1 = new THREE.Color();
+    this._gray = new THREE.Color(0x4a4f58); // Sturm-Grau (weather.js gloom-Lerp-Ziel)
   }
 
   // 3-fach-Mix: Nacht ↔ Dämmerung ↔ Tag
@@ -184,7 +185,7 @@ export class SkySystem {
     return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')} Uhr`;
   }
 
-  update(dt, playerPos) {
+  update(dt, playerPos, gloom = 0) {
     if (!this.paused) this.timeOfDay = (this.timeOfDay + dt / DAY_LENGTH) % 1;
     const t = this.timeOfDay;
 
@@ -254,6 +255,17 @@ export class SkySystem {
     // Nebel
     this._mix(this.scene.fog.color, this.pal.fog, daylight, duskAmount);
     this.scene.fog.far = 420 + daylight * 340;
+
+    // Wetter-Verdunkelung (Regen/Sturm): Grau-Lerp über die bereits fertig
+    // gemischten Farben, Sonnen-/Hemi-Intensität gedämpft. Reiner additiver
+    // Input von weather.js — der übrige Tag/Nacht-Zyklus bleibt unverändert.
+    if (gloom > 0) {
+      this.skyUniforms.uZenith.value.lerp(this._gray, gloom * 0.6);
+      this.skyUniforms.uHorizon.value.lerp(this._gray, gloom * 0.6);
+      this.scene.fog.color.lerp(this._gray, gloom * 0.5);
+      this.sun.intensity *= 1 - 0.5 * gloom;
+      this.hemi.intensity *= 1 - 0.3 * gloom;
+    }
 
     // Kuppel & Sterne folgen dem Spieler
     this.skyMesh.position.copy(playerPos);
