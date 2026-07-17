@@ -25,6 +25,8 @@ import { PostFX } from './post.js';
 import { buildVillage } from './village.js';
 import { buildTrain } from './train.js';
 import { buildWillow } from './willow.js';
+import { InteractSystem } from './interact.js';
+import { buildNpcs } from './npc.js';
 
 // Der Schlüsselname trägt noch "v1" aus Phase 0 — umbenennen würde alle
 // bestehenden Spielstände verwaisen lassen. Die eigentliche Versionierung
@@ -41,6 +43,7 @@ function loadSave() {
     art: raw.art || [],
     pz: raw.pz || {},
     moor: raw.moor || { lichter: [], laterne: 0 },
+    quests: raw.quests || {},
     muted: raw.muted === true,
     peaceful: raw.peaceful === true,
     grafik: raw.grafik === 'schnell' ? 'schnell' : 'schoen',
@@ -86,7 +89,7 @@ post.setQuality(save.grafik);
 post.onDegrade = () => hud.showToast('Grafik automatisch reduziert (Bloom aus)', 3.5);
 
 let sky, water, castle, structures, moor, life, collectibles, player;
-let fx, wand, spells, health, creatures, puzzles, dementors, weather, village, train, willow;
+let fx, wand, spells, health, creatures, puzzles, dementors, weather, village, train, willow, interact, npc;
 let lanternWasCollected = false; // erkennt den Moment, in dem die Laterne live geborgen wird
 let natureSwayMaterials = [];
 const glowTex = makeGlowTexture();
@@ -188,6 +191,15 @@ const buildSteps = [
     willow.restore(save.pz?.willowChest);
     if (save.peaceful) willow.peaceful = true;
   }],
+  ['NPCs & Quests', () => {
+    interact = new InteractSystem(hud);
+    npc = buildNpcs(scene, glowTex, hud, audio, fx, health, interact, {
+      collectibles, puzzles, spells, moor, dementors,
+      leuchtkraeuter: structures.leuchtkraeuter,
+    });
+    npc.restore(save.quests);
+    npc.onQuestChange = () => persist();
+  }],
 ];
 
 const loadingBar = document.getElementById('loading-bar');
@@ -236,6 +248,7 @@ function persist() {
       willowChest: willow ? willow.chestOpened : (save.pz?.willowChest || false),
     },
     moor: moor ? moor.save() : save.moor,
+    quests: npc ? npc.save() : save.quests,
     muted: audio.muted,
     t: sky ? sky.timeOfDay : undefined,
     peaceful: creatures ? creatures.peaceful : (save.peaceful === true),
@@ -318,6 +331,7 @@ btnReset.addEventListener('click', () => {
   if (creatures) creatures.restoreTroll(false, false);
   if (moor) moor.restore({});
   if (willow) willow.restore(false);
+  if (npc) npc.restore({});
   lanternWasCollected = false;
   if (health) {
     health.maxHearts = 5;
@@ -362,6 +376,9 @@ window.addEventListener('keydown', (e) => {
   } else if (DIGIT_SPELLS[e.code]) {
     const id = DIGIT_SPELLS[e.code];
     if (id !== 'patronum' || spells.epUnlocked) wand.selectSpell(id);
+  } else if (e.code === 'KeyE') {
+    if (hud.dialogOpen) hud.advanceDialog();
+    else interact.trigger();
   }
 });
 
@@ -418,7 +435,8 @@ function frame(dt) {
     // Reichweite und die Frost-Aufbau-Geschwindigkeit der Dementoren.
     dementors.aggroRangeExtra = moor.carriedCount * 4;
     dementors.aggroRangeMul = moor.laterneCollected ? 0.5 : 1;
-    dementors.frostRateMul = moor.laterneCollected ? 0.5 : 1;
+    // "Warm ums Herz" (Q2-Belohnung, W5): multipliziert sich mit der Laterne.
+    dementors.frostRateMul = (moor.laterneCollected ? 0.5 : 1) * (npc.quests.kraeuterDone ? 0.75 : 1);
     dementors.update(dt, player);
     player.slowFactor = dementors.frostFactor > 0.5 ? 0.75 : 1;
     hud.setFrost(dementors.frostFactor);
@@ -426,6 +444,8 @@ function frame(dt) {
     village.update(dt, player);
     train.update(dt, player);
     willow.update(dt, player);
+    npc.update(dt, player, sky.state);
+    interact.update(player);
     puzzles.update(dt, player, sky.state);
     fx.update(dt);
     camera.position.add(fx.shakeOffset);
@@ -502,7 +522,7 @@ buildWorld().then(() => {
   // Debug-/Test-Zugriff (bewusst öffentlich, hilft bei Fehlersuche)
   window.__game = {
     player, sky, camera, renderer, scene,
-    wand, spells, fx, health, creatures, puzzles, moor, dementors, weather, post, village, train, willow,
+    wand, spells, fx, health, creatures, puzzles, moor, dementors, weather, post, village, train, willow, interact, npc, hud,
     get fps() { return fpsEMA; },
     get pixelRatio() { return pixelRatio; },
     collectibles,

@@ -34,7 +34,7 @@ const HOUSE_DEFS = [
 // achsenparallel bleiben, damit das begehbare Innere sauber kollidiert.
 // Position südlich der Platzmitte, Front (-Z, Türlücke) zeigt naturgemäß
 // nach Norden zurück zum Platz/Zugang.
-const GASTHAUS = { x: DORF.x, z: DORF.z + 20, w: 9, d: 7.5, h: 5.2 };
+export const GASTHAUS = { x: DORF.x, z: DORF.z + 20, w: 9, d: 7.5, h: 5.2 };
 
 function jitter(geo, amount, seed) {
   const rng = mulberry32(seed);

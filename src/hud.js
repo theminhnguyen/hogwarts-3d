@@ -35,6 +35,13 @@ export class Hud {
     this._toastTimer = 0;
     this._hurtTimer = 0;
     this._fpsVisible = false;
+    this.interactPrompt = el('interact-prompt');
+    this.dialog = el('dialog');
+    this.dialogName = el('dialog-name');
+    this.dialogText = el('dialog-text');
+    this._dialogLines = [];
+    this._dialogIdx = 0;
+    this._dialogOnClose = null;
   }
 
   setActive(on) { this.hud.classList.toggle('active', on); }
@@ -180,6 +187,40 @@ export class Hud {
   }
 
   hideHint() { this.hint.classList.remove('visible'); }
+
+  showInteractPrompt(text) {
+    this.interactPrompt.textContent = text;
+    this.interactPrompt.classList.add('visible');
+  }
+
+  hideInteractPrompt() { this.interactPrompt.classList.remove('visible'); }
+
+  get dialogOpen() { return this.dialog.classList.contains('visible'); }
+
+  // onClose (optional): feuert, sobald die letzte Zeile weggeklickt wurde —
+  // NPC-/Quest-Code hängt hier Folgereaktionen ein, hud.js kennt keine Quests.
+  showDialog(name, lines, onClose = null) {
+    this._dialogLines = lines;
+    this._dialogIdx = 0;
+    this._dialogOnClose = onClose;
+    this.dialogName.textContent = name;
+    this.dialogText.textContent = lines[0];
+    this.dialog.classList.add('visible');
+  }
+
+  // Von E aufgerufen, solange dialogOpen === true. Blättert weiter oder
+  // schließt bei der letzten Zeile.
+  advanceDialog() {
+    this._dialogIdx++;
+    if (this._dialogIdx >= this._dialogLines.length) {
+      this.dialog.classList.remove('visible');
+      const cb = this._dialogOnClose;
+      this._dialogOnClose = null;
+      cb?.();
+      return;
+    }
+    this.dialogText.textContent = this._dialogLines[this._dialogIdx];
+  }
 
   showToast(text, seconds = 3.2) {
     this.toast.innerHTML = text;
