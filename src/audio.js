@@ -547,6 +547,46 @@ export class SoundManager {
     }
   }
 
+  // Riesenspinnen (W6) im Aggro: EIN Node-Set, schnelle Noise-Ticks (Scharren/
+  // Rascheln) statt der langsamen Dementor-Atem-Rhythmik — Square-LFO gattert
+  // hochpassgefiltertes Rauschen im Skitter-Takt.
+  _ensureSpiderSkitter() {
+    if (this.spiderSkitterGain || !this.ctx) return;
+    const ctx = this.ctx;
+    const out = ctx.createGain();
+    out.gain.value = 0;
+    out.connect(this.master);
+
+    const src = ctx.createBufferSource();
+    src.buffer = this.noiseBuf;
+    src.loop = true;
+    const f = ctx.createBiquadFilter();
+    f.type = 'highpass';
+    f.frequency.value = 2200;
+
+    const lfo = ctx.createOscillator();
+    lfo.type = 'square';
+    lfo.frequency.value = 13;
+    const lfoGain = ctx.createGain();
+    lfoGain.gain.value = 0.5;
+    const tickGain = ctx.createGain();
+    tickGain.gain.value = 0.5;
+    lfo.connect(lfoGain).connect(tickGain.gain);
+
+    src.connect(f).connect(tickGain).connect(out);
+    src.start(); lfo.start();
+    this.spiderSkitterGain = out;
+  }
+
+  setSpiderSkitter(proximity) {
+    if (!this.ctx) return;
+    this._ensureSpiderSkitter();
+    if (this.spiderSkitterGain) {
+      const target = Math.max(0, Math.min(1, proximity)) * 0.3;
+      this.spiderSkitterGain.gain.setTargetAtTime(target, this.ctx.currentTime, 0.3);
+    }
+  }
+
   // Zauber verpufft wirkungslos an einem immunen Ziel: kraftloser, leiser Plopp
   spellFizzle() {
     if (!this.ctx || this.muted) return;

@@ -27,6 +27,7 @@ import { buildTrain } from './train.js';
 import { buildWillow } from './willow.js';
 import { InteractSystem } from './interact.js';
 import { buildNpcs } from './npc.js';
+import { buildGrove } from './grove.js';
 
 // Der Schlüsselname trägt noch "v1" aus Phase 0 — umbenennen würde alle
 // bestehenden Spielstände verwaisen lassen. Die eigentliche Versionierung
@@ -89,7 +90,7 @@ post.setQuality(save.grafik);
 post.onDegrade = () => hud.showToast('Grafik automatisch reduziert (Bloom aus)', 3.5);
 
 let sky, water, castle, structures, moor, life, collectibles, player;
-let fx, wand, spells, health, creatures, puzzles, dementors, weather, village, train, willow, interact, npc;
+let fx, wand, spells, health, creatures, puzzles, dementors, weather, village, train, willow, interact, npc, grove;
 let lanternWasCollected = false; // erkennt den Moment, in dem die Laterne live geborgen wird
 let natureSwayMaterials = [];
 const glowTex = makeGlowTexture();
@@ -200,6 +201,18 @@ const buildSteps = [
     npc.restore(save.quests);
     npc.onQuestChange = () => persist();
   }],
+  ['Spinnennest', () => {
+    grove = buildGrove(scene, glowTex, hud, audio, fx, health);
+    grove.restore(save.pz?.spinnerChest);
+    grove.onChestOpen = () => persist();
+    grove.nets.forEach((net, i) => {
+      spells.registerTarget({
+        kind: 'web', radius: 1.6, accepts: ['incendio'],
+        getPos: () => net,
+        onSpell: () => grove.burnNet(i),
+      });
+    });
+  }],
 ];
 
 const loadingBar = document.getElementById('loading-bar');
@@ -246,6 +259,7 @@ function persist() {
       trollChest: creatures ? creatures.troll.chest.collected : (save.pz?.trollChest || false),
       maxHearts: health ? health.maxHearts : (save.pz?.maxHearts || 5),
       willowChest: willow ? willow.chestOpened : (save.pz?.willowChest || false),
+      spinnerChest: grove ? grove.chestCollected : (save.pz?.spinnerChest || false),
     },
     moor: moor ? moor.save() : save.moor,
     quests: npc ? npc.save() : save.quests,
@@ -331,6 +345,7 @@ btnReset.addEventListener('click', () => {
   if (creatures) creatures.restoreTroll(false, false);
   if (moor) moor.restore({});
   if (willow) willow.restore(false);
+  if (grove) grove.restore(false);
   if (npc) npc.restore({});
   lanternWasCollected = false;
   if (health) {
@@ -444,6 +459,7 @@ function frame(dt) {
     village.update(dt, player);
     train.update(dt, player);
     willow.update(dt, player);
+    grove.update(dt, player);
     npc.update(dt, player, sky.state);
     interact.update(player);
     puzzles.update(dt, player, sky.state);
@@ -522,7 +538,7 @@ buildWorld().then(() => {
   // Debug-/Test-Zugriff (bewusst öffentlich, hilft bei Fehlersuche)
   window.__game = {
     player, sky, camera, renderer, scene,
-    wand, spells, fx, health, creatures, puzzles, moor, dementors, weather, post, village, train, willow, interact, npc, hud,
+    wand, spells, fx, health, creatures, puzzles, moor, dementors, weather, post, village, train, willow, interact, npc, hud, grove,
     get fps() { return fpsEMA; },
     get pixelRatio() { return pixelRatio; },
     collectibles,

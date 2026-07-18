@@ -34,6 +34,13 @@ export const TRASSE = [
   [-285, -185], [-215, -235], [-140, -255], [-40, -275], [60, -290], [115, -310],
 ];
 export const BAHNHOF = { x: -140, z: -255 };
+// Spinnennest-Hain: kein eigenes Terrain-Flatten (steht auf natürlichem
+// Waldboden, Muster wie Eulerei/Weide aus W4). Abstände geprüft: RAVINE-Band
+// |60-94|=34 > 27 (Einflussgrenze) ✓, STONES-Abstand 155 ✓, alle W4-Zonen
+// (Eulerei/Gewächshaus/Weide) > 100m entfernt ✓. r=20 ist der Hain selbst
+// (Bäume+Netze+Truhe), die Spinnen-Leine (r=35) reicht etwas weiter in den
+// umliegenden Wald hinein.
+export const GROVE = { x: 150, z: 60, r: 20 };
 
 // Wege als Polylinien (für Färbung + Freihalten von Bäumen)
 export const PATHS = [

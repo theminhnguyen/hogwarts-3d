@@ -6,7 +6,7 @@
 
 import * as THREE from 'three';
 import { GeoBatch } from './geo.js';
-import { terrainHeight } from './terrain.js';
+import { terrainHeight, GROVE } from './terrain.js';
 import { mulberry32 } from './noise.js';
 
 const TUNING = {
@@ -43,6 +43,18 @@ const TROLL_TUNING = {
   aggroRange: 16, leaveAggroRange: 22, slamRange: 3.5,
   telegraphDur: 0.8, slamDmg: 1.5, staggerDur: 0.6,
   attackCdMin: 2.5, attackCdMax: 4,
+};
+
+// 4 Riesenspinnen im Spinnennest-Hain (W6, grove.js) — je an einem der
+// dichten dunklen Bäume "lauernd" (Radien 11-15 passen zum Baumring).
+const SPIDER_SPAWNS = [
+  { x: 145, z: 50 }, { x: 160, z: 65 }, { x: 138, z: 68 }, { x: 158, z: 48 },
+];
+const SPIDER_TUNING = {
+  hp: 2, aggroRange: 9, leaveAggroRange: 13, chaseSpeed: 4.5,
+  touchRange: 1.1, dmg: 0.5, knockback: 6,
+  dyingDur: 0.7, respawnDur: 120,
+  leash: 35, // harter Positions-Clamp ab GROVE-Zentrum (Lehre 14/Dementor-Muster)
 };
 
 function rand(a, b) { return a + Math.random() * (b - a); }
@@ -908,6 +920,227 @@ class Troll {
   }
 }
 
+function buildSpiderParts(glowTex) {
+  const b = new GeoBatch();
+  const abdomen = new THREE.SphereGeometry(0.5, 8, 6);
+  abdomen.scale(1.15, 1.0, 1.3);
+  abdomen.translate(0, 0.42, -0.28);
+  b.addRaw(abdomen, 0x14100c);
+  const head = new THREE.SphereGeometry(0.3, 7, 5);
+  head.scale(1.0, 0.85, 1.05);
+  head.translate(0, 0.4, 0.38);
+  b.addRaw(head, 0x1c1712);
+  const bodyMat = new THREE.MeshLambertMaterial({ vertexColors: true, flatShading: true });
+  const bodyMesh = b.build(bodyMat, { castShadow: true, receiveShadow: false });
+
+  const legUpperGeo = new THREE.CylinderGeometry(0.05, 0.06, 0.55, 5);
+  const legLowerGeo = new THREE.CylinderGeometry(0.035, 0.05, 0.5, 5);
+  const legMat = new THREE.MeshLambertMaterial({ color: 0x14100c, flatShading: true });
+
+  const eyeMatTemplate = new THREE.SpriteMaterial({
+    map: glowTex, color: 0xff2020, transparent: true, opacity: 0.9,
+    blending: THREE.AdditiveBlending, depthWrite: false,
+  });
+
+  return { bodyGeo: bodyMesh.geometry, bodyMat, legUpperGeo, legLowerGeo, legMat, eyeMatTemplate };
+}
+
+// Riesenspinne (W6, Spinnennest-Hain): lauert bewegungslos an einem der
+// dichten dunklen Bäume, bis der Spieler zu nah kommt, dann schnelle Jagd.
+class GiantSpider {
+  constructor(system, parts, homePos, seed) {
+    this.system = system;
+    this.species = 'spider';
+    this.hp = SPIDER_TUNING.hp;
+    this.maxHp = SPIDER_TUNING.hp;
+    this.alive = true;
+    this.radius = 0.8;
+    this.hitY = 0.5;
+    this.state = 'lauern'; // lauern|aggro|dying|dead
+    this.stateT = 0;
+    this.homePos = homePos;
+    this.vel = new THREE.Vector3();
+    this.gaitT = Math.random() * 10;
+
+    this.group = new THREE.Group();
+    this.pos = this.group.position;
+    this.pos.set(homePos.x, terrainHeight(homePos.x, homePos.z), homePos.z);
+
+    const body = new THREE.Mesh(parts.bodyGeo, parts.bodyMat);
+    this.group.add(body);
+
+    // Augen-Glow deutlich VOR dem Kopf-Mesh (Lehre 7 — additives Blending
+    // ändert nur die Farbmischung, NICHT den Tiefentest der Kugel dahinter).
+    this.eyeMat = parts.eyeMatTemplate.clone();
+    for (const s of [-1, 1]) {
+      const eye = new THREE.Sprite(this.eyeMat);
+      eye.scale.setScalar(0.09);
+      eye.position.set(s * 0.09, 0.48, 0.68);
+      this.group.add(eye);
+    }
+
+    // 8 Bein-Ketten (je 2 Segmente) radial um den Körper, Astketten-Muster
+    // aus willow.js: Pivot-Gruppe → Ober-/Unterschenkel-Gruppe, damit
+    // rotation.x der Wurzelgruppe die ganze Kette mitschwingen lässt.
+    this.legs = [];
+    for (let i = 0; i < 8; i++) {
+      const side = i < 4 ? -1 : 1;
+      const idx = i % 4;
+      const root = new THREE.Group();
+      root.position.set(side * 0.28, 0.42, 0.18 - idx * 0.22);
+      root.rotation.y = side * (0.4 + idx * 0.3);
+      root.rotation.z = side * 0.55;
+      this.group.add(root);
+
+      const upper = new THREE.Mesh(parts.legUpperGeo, parts.legMat);
+      upper.position.y = -0.27;
+      root.add(upper);
+
+      const kneeGroup = new THREE.Group();
+      kneeGroup.position.y = -0.55;
+      kneeGroup.rotation.x = 0.9;
+      root.add(kneeGroup);
+      const lower = new THREE.Mesh(parts.legLowerGeo, parts.legMat);
+      lower.position.y = -0.25;
+      kneeGroup.add(lower);
+
+      this.legs.push({ root, phase: idx * 0.8 + (side > 0 ? 3.14 : 0) });
+    }
+
+    system.scene.add(this.group);
+  }
+
+  _steerXZ(tx, tz, speed, dt) {
+    const dx = tx - this.pos.x, dz = tz - this.pos.z;
+    const d = Math.hypot(dx, dz) || 1;
+    this.vel.x = (dx / d) * speed;
+    this.vel.z = (dz / d) * speed;
+    this.pos.x += this.vel.x * dt;
+    this.pos.z += this.vel.z * dt;
+  }
+
+  applyHit(spellId, _boltVel) {
+    if (!this.alive) return;
+    const dmg = spellId === 'incendio' ? 2 : spellId === 'stupor' ? 1 : 0;
+    if (dmg <= 0) return;
+    this.hp -= dmg;
+    this.system.fx.burst(this.pos, 0x1c1712, 8, 3, { gravity: -2, life: 0.35 });
+    if (this.hp <= 0) this._die();
+  }
+
+  _die() {
+    this.alive = false;
+    this.state = 'dying';
+    this.stateT = 0;
+    this.system.fx.burst(this.pos, 0x1c1712, 16, 3.5, { gravity: -1.5, life: 0.6 });
+    this.system.audio.chime?.();
+  }
+
+  update(dt, player) {
+    if (this.state === 'dead') {
+      this.stateT += dt;
+      if (this.stateT >= SPIDER_TUNING.respawnDur) this._respawn();
+      return;
+    }
+
+    // Sterbeanimation IMMER zu Ende, unabhängig vom Distanz-Culling (Lehre 6).
+    if (this.state === 'dying') {
+      this.stateT += dt;
+      const f = Math.min(1, this.stateT / SPIDER_TUNING.dyingDur);
+      this.group.scale.setScalar(Math.max(0, 1 - f));
+      for (const leg of this.legs) leg.root.rotation.x = f * 1.4; // Beine einklappen
+      this.eyeMat.opacity = 0.9 * (1 - f);
+      if (this.stateT >= SPIDER_TUNING.dyingDur) {
+        this.state = 'dead';
+        this.stateT = 0;
+        this.group.visible = false;
+      }
+      return;
+    }
+
+    // Harte Leine: nie weiter als 35m vom Hain-Zentrum — UNBEDINGT vor jedem
+    // Culling-Return (Lehre 6 generalisiert: ein Positions-Clamp darf nie
+    // hinter einem "return" bei zu großer Spieler-Distanz versteckt sein,
+    // sonst bleibt eine künstlich/durch einen Bug weit rausgezogene Spinne
+    // dort für immer stehen, sobald sie außer Sichtweite culled wird).
+    {
+      const ldx = this.pos.x - GROVE.x, ldz = this.pos.z - GROVE.z;
+      const ldist = Math.hypot(ldx, ldz);
+      if (ldist > SPIDER_TUNING.leash) {
+        const f = SPIDER_TUNING.leash / ldist;
+        this.pos.x = GROVE.x + ldx * f;
+        this.pos.z = GROVE.z + ldz * f;
+      }
+    }
+
+    const distSq = this.pos.distanceToSquared(player.pos);
+    if (distSq > CULL_HIDE * CULL_HIDE) { this.group.visible = false; return; }
+    this.group.visible = true;
+    if (distSq > CULL_FULL * CULL_FULL) return;
+
+    switch (this.state) {
+      case 'lauern': {
+        this.vel.set(0, 0, 0);
+        if (distSq < SPIDER_TUNING.aggroRange * SPIDER_TUNING.aggroRange) {
+          this.state = 'aggro';
+          this.stateT = 0;
+        }
+        break;
+      }
+      case 'aggro': {
+        this.stateT += dt;
+        const dist = Math.sqrt(distSq);
+        if (dist < this.system._nearestSpiderAggroDist) this.system._nearestSpiderAggroDist = dist;
+        this._steerXZ(player.pos.x, player.pos.z, SPIDER_TUNING.chaseSpeed, dt);
+        if (distSq < SPIDER_TUNING.touchRange * SPIDER_TUNING.touchRange) {
+          // Kontakt-Muster wie Dementor: Richtung vom Spieler weg für
+          // Schaden-Rückstoß UND den eigenen Rückteleport nutzen.
+          const ddx = this.pos.x - player.pos.x, ddz = this.pos.z - player.pos.z;
+          const d = Math.hypot(ddx, ddz) || 1;
+          const dirX = ddx / d, dirZ = ddz / d;
+          if (!this.system.peaceful) {
+            this.system.health.damage(SPIDER_TUNING.dmg, { x: dirX, y: 0, z: dirZ });
+            this.system.fx.shake(0.25);
+          }
+          this.pos.x = player.pos.x + dirX * SPIDER_TUNING.knockback;
+          this.pos.z = player.pos.z + dirZ * SPIDER_TUNING.knockback;
+        }
+        if (distSq > SPIDER_TUNING.leaveAggroRange * SPIDER_TUNING.leaveAggroRange) {
+          this.state = 'lauern';
+          this.stateT = 0;
+        }
+        break;
+      }
+    }
+
+    this.pos.y = terrainHeight(this.pos.x, this.pos.z);
+    const hSpeed = Math.hypot(this.vel.x, this.vel.z);
+    if (hSpeed > 0.1) {
+      const targetYaw = Math.atan2(this.vel.x, this.vel.z);
+      this.group.rotation.y = angleLerp(this.group.rotation.y, targetYaw, Math.min(1, dt * 5));
+    }
+
+    // Lauf-Animation: Beine schwingen per Phasenversatz, im Aggro viel schneller
+    this.gaitT += dt * (this.state === 'aggro' ? 8 : 1.2);
+    const gaitAmp = this.state === 'aggro' ? 0.5 : 0.06;
+    for (const leg of this.legs) {
+      leg.root.rotation.x = Math.sin(this.gaitT + leg.phase) * gaitAmp;
+    }
+  }
+
+  _respawn() {
+    this.hp = this.maxHp;
+    this.alive = true;
+    this.state = 'lauern';
+    this.stateT = 0;
+    this.group.scale.setScalar(1);
+    for (const leg of this.legs) leg.root.rotation.x = 0;
+    this.eyeMat.opacity = 0.9;
+    this.pos.set(this.homePos.x, terrainHeight(this.homePos.x, this.homePos.z), this.homePos.z);
+    this.group.visible = true;
+  }
+}
+
 export class CreatureSystem {
   constructor(scene, fx, audio, health, collectibles, hud, glowTex) {
     this.scene = scene;
@@ -941,6 +1174,13 @@ export class CreatureSystem {
 
     this.troll = new Troll(this, glowTex);
     this.list.push(this.troll);
+
+    const spiderParts = buildSpiderParts(glowTex);
+    seed = 1;
+    for (const spawn of SPIDER_SPAWNS) {
+      this.list.push(new GiantSpider(this, spiderParts, spawn, seed++));
+    }
+    this._nearestSpiderAggroDist = Infinity;
   }
 
   get trollDefeated() { return this.troll.state === 'dead'; }
@@ -956,6 +1196,7 @@ export class CreatureSystem {
   update(dt, player, skyState, lumosOn) {
     this.time += dt;
     this._nearestGhostDist = Infinity;
+    this._nearestSpiderAggroDist = Infinity;
     for (const c of this.list) c.update(dt, player, skyState, lumosOn);
 
     // Getragene Schnätze hängen unterm Wichtel — pro Frame nachziehen
@@ -970,5 +1211,10 @@ export class CreatureSystem {
     this.hud?.setCold?.(coldFrac);
     const droneFrac = nd < TUNING.ghost.aggroRange ? Math.max(0, 1 - nd / TUNING.ghost.aggroRange) : 0;
     this.audio?.setGhostDrone?.(droneFrac);
+
+    // Skitter-Rascheln: EIN Node-Set, Gain nach Nähe der nächsten JAGENDEN Spinne.
+    const nsd = this._nearestSpiderAggroDist;
+    const skitterFrac = nsd < 20 ? Math.max(0, 1 - nsd / 20) : 0;
+    this.audio?.setSpiderSkitter?.(skitterFrac);
   }
 }

@@ -212,6 +212,51 @@ export function makeGlowTexture() {
   return finish(c, { repeat: false });
 }
 
+// ---------- Spinnennetz (radiale Speichen + Spiralfäden, transparent) ----------
+export function makeWebTexture() {
+  const S = 256;
+  const [c, ctx] = canvas(S);
+  const rng = mulberry32(97);
+  ctx.clearRect(0, 0, S, S);
+  const cx = S / 2, cy = S / 2, maxR = S * 0.48;
+  const spokes = 9;
+  ctx.strokeStyle = 'rgba(235,238,242,0.55)';
+  ctx.lineWidth = 1.3;
+  for (let i = 0; i < spokes; i++) {
+    const a = (i / spokes) * Math.PI * 2 + rng() * 0.05;
+    ctx.beginPath();
+    ctx.moveTo(cx, cy);
+    ctx.lineTo(cx + Math.cos(a) * maxR, cy + Math.sin(a) * maxR);
+    ctx.stroke();
+  }
+  // Spiralfäden zwischen den Speichen
+  const rings = 7;
+  ctx.strokeStyle = 'rgba(230,234,240,0.4)';
+  ctx.lineWidth = 1;
+  for (let ring = 1; ring <= rings; ring++) {
+    const r = (ring / rings) * maxR;
+    ctx.beginPath();
+    for (let i = 0; i <= spokes; i++) {
+      const a = (i / spokes) * Math.PI * 2;
+      const jr = r + (rng() - 0.5) * 4;
+      const x = cx + Math.cos(a) * jr, y = cy + Math.sin(a) * jr;
+      if (i === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
+    }
+    ctx.stroke();
+  }
+  // ein paar eingesponnene Fasern/Risse fürs unheimliche Detail
+  for (let i = 0; i < 14; i++) {
+    ctx.strokeStyle = `rgba(220,224,230,${0.15 + rng() * 0.2})`;
+    ctx.lineWidth = 0.8;
+    const a = rng() * Math.PI * 2, r0 = rng() * maxR * 0.9;
+    ctx.beginPath();
+    ctx.moveTo(cx + Math.cos(a) * r0, cy + Math.sin(a) * r0);
+    ctx.lineTo(cx + Math.cos(a) * (r0 + 10 + rng() * 20), cy + Math.sin(a) * (r0 + 10 + rng() * 20));
+    ctx.stroke();
+  }
+  return finish(c, { repeat: false });
+}
+
 // ---------- Mond mit Kratern ----------
 export function makeMoonTexture() {
   const S = 128;
