@@ -16,6 +16,13 @@ const LENA_ROBE = 0x3a3350;
 const BARNABY_ROBE = 0x4a3323;
 
 const STUDENT_PATHS = [PATHS[0], PATHS[1], PATHS[3], PATHS[4]];
+// Hexer-Route (S2): verkettete Wildmark-PATHS-Segmente aus S1 (Index 9-13,
+// Steinkreis→Hügelgrab→Silberauen→Fahlholz→Kate→Waldlichtung) zu EINER
+// langen Patrouille zusammengefügt (jeder Folge-Punkt lässt den doppelten
+// Übergangspunkt weg, da die Segmente exakt aneinander anschließen).
+const WIZARD_PATH = [
+  ...PATHS[9], ...PATHS[10].slice(1), ...PATHS[11].slice(1), ...PATHS[12].slice(1), ...PATHS[13].slice(1),
+];
 const LENA_POS = { x: 14, z: 20 };
 const BARNABY_POS = { x: GASTHAUS.x, z: GASTHAUS.z + GASTHAUS.d / 2 - 1.7 };
 const CAT_POS = { x: -95, z: 165 };
@@ -31,7 +38,9 @@ const PUZZLE_HINTS = {
 function clamp01(v) { return Math.max(0, Math.min(1, v)); }
 
 // ---------- Figur: Robe (Kegel) + Kopf (Kugel) + Haar (Halbkugel) + Schal (Torus-Segment) ----------
-function buildFigure(scarfColor, hairColor, robeColor = ROBE_DARK) {
+// hatColor (S2, optional): setzt zusätzlich einen Spitzhut auf — einziger
+// visueller Unterschied zu Schülern, macht die wandernden Hexer erkennbar.
+function buildFigure(scarfColor, hairColor, robeColor = ROBE_DARK, hatColor = null) {
   const group = new THREE.Group();
 
   const robeMat = new THREE.MeshLambertMaterial({ color: robeColor, flatShading: true, transparent: true });
@@ -59,7 +68,19 @@ function buildFigure(scarfColor, hairColor, robeColor = ROBE_DARK) {
   scarf.rotation.y = Math.random() * Math.PI * 2;
   group.add(scarf);
 
-  return { group, robe, head, mats: [robeMat, headMat, hairMat, scarfMat], t: Math.random() * 10 };
+  const mats = [robeMat, headMat, hairMat, scarfMat];
+  if (hatColor) {
+    const hatMat = new THREE.MeshLambertMaterial({ color: hatColor, flatShading: true, transparent: true });
+    const brim = new THREE.Mesh(new THREE.CylinderGeometry(0.17, 0.17, 0.025, 9), hatMat);
+    brim.position.y = 1.41;
+    group.add(brim);
+    const cone = new THREE.Mesh(new THREE.ConeGeometry(0.1, 0.42, 8), hatMat);
+    cone.position.y = 1.63;
+    group.add(cone);
+    mats.push(hatMat);
+  }
+
+  return { group, robe, head, mats, t: Math.random() * 10 };
 }
 
 function animateFigure(fig, dt, walking) {
@@ -127,6 +148,63 @@ class Student {
   }
 }
 
+// ---------- Wandernde Hexer (S2): reine Atmosphäre, gleiche Wander-/Tag-
+// Fade-Logik wie Student, aber Spitzhut + eigene Route durch die Wildmark.
+// Bewusst eine EIGENE (kurze) Klasse statt Student zu parametrisieren —
+// die Duell-KI in S4 (wilderer.js-Umfeld) wird sie um Kampfzustände
+// erweitern, die bei Schülern nie vorkommen sollen.
+const WIZARD_HAT_COLORS = [0x3a2f52, 0x4a2318];
+class Wizard {
+  constructor(scene, pathPts, idx) {
+    const fig = buildFigure(HOUSE_COLORS[(idx + 2) % 4], HAIR_COLORS[(idx + 1) % 4], ROBE_DARK, WIZARD_HAT_COLORS[idx % 2]);
+    for (const m of fig.mats) m.opacity = 1;
+    this.fig = fig;
+    this.group = fig.group;
+    this.path = pathPts;
+    this.idx = 1;
+    this.dir = 1;
+    this.speed = 1.1;
+    this.state = 'walk';
+    this.stateT = 0;
+    this.pauseDur = 0;
+    this.fade = 1;
+    const [sx, sz] = pathPts[0];
+    this.group.position.set(sx, terrainHeight(sx, sz), sz);
+    scene.add(this.group);
+  }
+
+  update(dt, nightGlow) {
+    if (nightGlow > 0.55) this.fade = Math.max(0, this.fade - dt / 2.5);
+    else if (nightGlow < 0.35) this.fade = Math.min(1, this.fade + dt / 2.5);
+    setFigureOpacity(this.fig, this.fade);
+    if (this.fade <= 0.01) return;
+
+    if (this.state === 'pause') {
+      this.stateT += dt;
+      animateFigure(this.fig, dt, false);
+      if (this.stateT >= this.pauseDur) { this.state = 'walk'; this.stateT = 0; }
+      return;
+    }
+
+    const [tx, tz] = this.path[this.idx];
+    const dx = tx - this.group.position.x, dz = tz - this.group.position.z;
+    const d = Math.hypot(dx, dz);
+    if (d < 0.4) {
+      this.idx += this.dir;
+      if (this.idx >= this.path.length) { this.idx = this.path.length - 2; this.dir = -1; }
+      else if (this.idx < 0) { this.idx = 1; this.dir = 1; }
+      if (Math.random() < 0.3) { this.state = 'pause'; this.stateT = 0; this.pauseDur = 6 + Math.random() * 6; }
+    } else {
+      const nx = dx / d, nz = dz / d;
+      this.group.position.x += nx * this.speed * dt;
+      this.group.position.z += nz * this.speed * dt;
+      this.group.position.y = terrainHeight(this.group.position.x, this.group.position.z);
+      this.group.rotation.y = Math.atan2(-nx, -nz);
+      animateFigure(this.fig, dt, true);
+    }
+  }
+}
+
 // ---------- Katze Musch ----------
 function buildCat(scene) {
   const mat = new THREE.MeshLambertMaterial({ color: 0x38363a, flatShading: true });
@@ -180,6 +258,13 @@ function buildGeist(scene, glowTex) {
 export function buildNpcs(scene, glowTex, hud, audio, fx, health, interact, deps) {
   // deps = { collectibles, puzzles, spells, moor, dementors }
   const students = STUDENT_PATHS.map((p, i) => new Student(scene, p, i));
+  // 2 wandernde Hexer (S2): eine läuft die Route vorwärts, die andere rückwärts
+  // los (idx=1 wie Student, aber entgegengesetzte Startrichtung), damit sie
+  // sich nicht die ganze Zeit auf demselben Wegabschnitt begegnen.
+  const wizards = [new Wizard(scene, WIZARD_PATH, 0), new Wizard(scene, WIZARD_PATH, 1)];
+  wizards[1].idx = WIZARD_PATH.length - 2;
+  wizards[1].dir = -1;
+  wizards[1].group.position.set(WIZARD_PATH[WIZARD_PATH.length - 1][0], terrainHeight(WIZARD_PATH[WIZARD_PATH.length - 1][0], WIZARD_PATH[WIZARD_PATH.length - 1][1]), WIZARD_PATH[WIZARD_PATH.length - 1][1]);
 
   const lenaFig = buildFigure(0x8a4a6a, 0x3a2412, LENA_ROBE);
   for (const m of lenaFig.mats) m.opacity = 1;
@@ -355,6 +440,7 @@ export function buildNpcs(scene, glowTex, hud, audio, fx, health, interact, deps
     update(dt, player, skyState) {
       currentPlayer = player;
       for (const s of students) s.update(dt, skyState.nightGlow);
+      for (const w of wizards) w.update(dt, skyState.nightGlow);
 
       animateFigure(lenaFig, dt, false);
       animateFigure(barnabyFig, dt, false);

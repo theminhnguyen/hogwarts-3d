@@ -55,7 +55,16 @@ const SPIDER_TUNING = {
   touchRange: 1.1, dmg: 0.5, knockback: 6,
   dyingDur: 0.7, respawnDur: 120,
   leash: 35, // harter Positions-Clamp ab GROVE-Zentrum (Lehre 14/Dementor-Muster)
+  // S2-Akromantula-Kopplung: Füchse/Hasen aus fauna.js jagen (Ökosystem-
+  // Kette Akromantula>Fuchs>Hase), solange die Beute innerhalb der Leine
+  // erreichbar bleibt — danach 120s satt (ignoriert den Spieler dabei).
+  huntRange: 25, huntSpeed: 5, huntTouchRange: 1.3, satiatedDur: 120,
 };
+
+// Von main.js gesetzt, sobald fauna.js gebaut ist (Füchse+Hasen — NIEMALS
+// Niffler/Bowtruckle, K1 gilt sinngemäß auch hier: nur echte Beutetiere).
+let faunaPrey = [];
+export function setFaunaPrey(list) { faunaPrey = list; }
 
 function rand(a, b) { return a + Math.random() * (b - a); }
 
@@ -960,11 +969,13 @@ class GiantSpider {
     this.alive = true;
     this.radius = 0.8;
     this.hitY = 0.5;
-    this.state = 'lauern'; // lauern|aggro|dying|dead
+    this.state = 'lauern'; // lauern|aggro|jagen|dying|dead
     this.stateT = 0;
     this.homePos = homePos;
     this.vel = new THREE.Vector3();
     this.gaitT = Math.random() * 10;
+    this.huntTarget = null; // fauna.js-Beute (Fuchs/Hase) während 'jagen'
+    this.satiatedT = 0;
 
     this.group = new THREE.Group();
     this.pos = this.group.position;
@@ -1082,11 +1093,50 @@ class GiantSpider {
     this.group.visible = true;
     if (distSq > CULL_FULL * CULL_FULL) return;
 
+    if (this.satiatedT > 0) this.satiatedT -= dt;
+
     switch (this.state) {
       case 'lauern': {
         this.vel.set(0, 0, 0);
-        if (distSq < SPIDER_TUNING.aggroRange * SPIDER_TUNING.aggroRange) {
+        // Satt nach einem Fang (S2): ignoriert den Spieler komplett, bis
+        // die Sättigung abgelaufen ist — "greift Spieler dann nicht an".
+        if (this.satiatedT > 0) break;
+        // Beute aus fauna.js hat Vorrang vor Spieler-Aggro (Ökosystem-Kette
+        // Akromantula>Fuchs>Hase) — nur wenn sie innerhalb der Leine bleibt.
+        let bestPrey = null, bestD = SPIDER_TUNING.huntRange;
+        for (const prey of faunaPrey) {
+          if (prey.state === 'hidden') continue;
+          const ld = Math.hypot(prey.pos.x - GROVE.x, prey.pos.z - GROVE.z);
+          if (ld > SPIDER_TUNING.leash) continue; // Beute schon außerhalb der Spinnen-Leine
+          const d = Math.hypot(prey.pos.x - this.pos.x, prey.pos.z - this.pos.z);
+          if (d < bestD) { bestD = d; bestPrey = prey; }
+        }
+        if (bestPrey) {
+          this.huntTarget = bestPrey;
+          this.state = 'jagen';
+          this.stateT = 0;
+        } else if (distSq < SPIDER_TUNING.aggroRange * SPIDER_TUNING.aggroRange) {
           this.state = 'aggro';
+          this.stateT = 0;
+        }
+        break;
+      }
+      case 'jagen': {
+        this.stateT += dt;
+        if (!this.huntTarget || this.huntTarget.state === 'hidden') {
+          this.huntTarget = null;
+          this.state = 'lauern';
+          this.stateT = 0;
+          break;
+        }
+        this._steerXZ(this.huntTarget.pos.x, this.huntTarget.pos.z, SPIDER_TUNING.huntSpeed, dt);
+        const hdx = this.huntTarget.pos.x - this.pos.x, hdz = this.huntTarget.pos.z - this.pos.z;
+        if (hdx * hdx + hdz * hdz < SPIDER_TUNING.huntTouchRange * SPIDER_TUNING.huntTouchRange) {
+          this.system.fx.burst(this.pos, 0x1c1712, 10, 2.5, { gravity: -1, life: 0.5 });
+          this.huntTarget.huntedDespawn();
+          this.huntTarget = null;
+          this.satiatedT = SPIDER_TUNING.satiatedDur;
+          this.state = 'lauern';
           this.stateT = 0;
         }
         break;

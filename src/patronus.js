@@ -3,14 +3,23 @@
 // Jeder Aufruf baut eine eigenständige Instanz mit eigenen Materialien —
 // es gibt nie mehr als zwei gleichzeitig (Ambient + max. 1 Charge), Teilen
 // lohnt sich hier nicht.
+//
+// S2 (fauna.js) nutzt dieselbe Geometrie für die Wild-Rehe der Silberauen —
+// `opts.solid=true` liefert dieselbe Form mit einem normalen, blickdichten
+// Fell-Material statt des geisterhaften Glow-Looks (kein Sprite, kein
+// Additive-Blending). Ohne `opts` bleibt das Verhalten für die bestehenden
+// beiden Aufrufer exakt wie zuvor.
 
 import * as THREE from 'three';
 
-export function buildPatronusModel(glowTex) {
-  const mat = new THREE.MeshBasicMaterial({
-    color: 0xbcd4ff, transparent: true, opacity: 0.55,
-    blending: THREE.AdditiveBlending, depthWrite: false,
-  });
+export function buildPatronusModel(glowTex, opts = {}) {
+  const { solid = false, color = 0xbcd4ff } = opts;
+  const mat = solid
+    ? new THREE.MeshLambertMaterial({ color, flatShading: true })
+    : new THREE.MeshBasicMaterial({
+        color, transparent: true, opacity: 0.55,
+        blending: THREE.AdditiveBlending, depthWrite: false,
+      });
   const group = new THREE.Group();
   const body = new THREE.Mesh(new THREE.SphereGeometry(1, 8, 6), mat);
   body.scale.set(1.1, 0.9, 2.2);
@@ -34,14 +43,17 @@ export function buildPatronusModel(glowTex) {
     group.add(leg);
     legs.push(leg);
   }
-  const glowMat = new THREE.SpriteMaterial({
-    map: glowTex, color: 0xbcd4ff, transparent: true, opacity: 0.4,
-    blending: THREE.AdditiveBlending, depthWrite: false,
-  });
-  const glow = new THREE.Sprite(glowMat);
-  glow.scale.set(6, 6, 1);
-  glow.position.set(0, 1.6, 0);
-  group.add(glow);
+  let glowMat = null;
+  if (!solid) {
+    glowMat = new THREE.SpriteMaterial({
+      map: glowTex, color, transparent: true, opacity: 0.4,
+      blending: THREE.AdditiveBlending, depthWrite: false,
+    });
+    const glow = new THREE.Sprite(glowMat);
+    glow.scale.set(6, 6, 1);
+    glow.position.set(0, 1.6, 0);
+    group.add(glow);
+  }
   group.visible = false;
 
   return { group, legs, mat, glowMat };

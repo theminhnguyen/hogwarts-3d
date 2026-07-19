@@ -16,7 +16,7 @@ import { FxSystem } from './fx.js';
 import { WandSystem, SPELLS, SPELL_ORDER } from './wand.js';
 import { SpellSystem } from './spells.js';
 import { HealthSystem } from './health.js';
-import { CreatureSystem } from './creatures.js';
+import { CreatureSystem, setFaunaPrey } from './creatures.js';
 import { DementorSystem } from './dementor.js';
 import { PuzzleSystem } from './puzzles.js';
 import { buildMoor } from './moor.js';
@@ -30,6 +30,7 @@ import { buildNpcs } from './npc.js';
 import { buildGrove } from './grove.js';
 import { buildBroom } from './broom.js';
 import { buildFahlholz, buildHuegelgrab, buildKate } from './wildmark.js';
+import { buildFauna } from './fauna.js';
 
 // Der Schlüsselname trägt noch "v1" aus Phase 0 — umbenennen würde alle
 // bestehenden Spielstände verwaisen lassen. Die eigentliche Versionierung
@@ -111,9 +112,10 @@ post.setQuality(save.grafik);
 post.onDegrade = () => hud.showToast('Grafik automatisch reduziert (Bloom aus)', 3.5);
 
 let sky, water, castle, structures, moor, life, collectibles, player;
-let fx, wand, spells, health, creatures, puzzles, dementors, weather, village, train, willow, interact, npc, grove, broom, fahlholz;
+let fx, wand, spells, health, creatures, puzzles, dementors, weather, village, train, willow, interact, npc, grove, broom, fahlholz, fauna;
 let lanternWasCollected = false; // erkennt den Moment, in dem die Laterne live geborgen wird
 let natureSwayMaterials = [];
+let natureTreeSpots = []; // S2: echte Baum-Positionen für Bowtruckles (fauna.js)
 const glowTex = makeGlowTexture();
 
 // ---------- Kürbis-Gag: Incendio auf die Kürbisse vor Hagrids Hütte ----------
@@ -167,7 +169,11 @@ const buildSteps = [
   ['See', () => { water = buildWater(); scene.add(water.mesh); }],
   ['Schloss', () => { castle = buildCastle(scene); castle.setGlowTexture(glowTex); }],
   ['Bootshaus, Hütte & Feld', () => { structures = buildStructures(scene); }],
-  ['Wälder & Wiesen', () => { natureSwayMaterials = buildNature(scene).swayMaterials; }],
+  ['Wälder & Wiesen', () => {
+    const nature = buildNature(scene);
+    natureSwayMaterials = nature.swayMaterials;
+    natureTreeSpots = nature.treeSpots;
+  }],
   ['Leben & Magie', () => {
     life = new LifeSystem(scene, glowTex, [...castle.flames, ...structures.flames], structures.owlPerches);
     collectibles = new Collectibles(scene, glowTex, save.collected || []);
@@ -242,11 +248,23 @@ const buildSteps = [
     broom.onFinish = () => { if (broom.ace) showAceWon(); persist(); };
   }],
   ['Wildmark', () => {
-    // S1: reine Deko/Terrain-Dressing (Fauna erst S2, Grabkammer-Öffnung
-    // erst S10, Kate-Einrichtung erst S7) — kein Save-Zustand nötig.
+    // S1: reine Deko/Terrain-Dressing (Grabkammer-Öffnung erst S10,
+    // Kate-Einrichtung erst S7) — kein Save-Zustand nötig.
     fahlholz = buildFahlholz(scene);
     buildHuegelgrab(scene);
     buildKate(scene);
+  }],
+  ['Fauna', () => {
+    fauna = buildFauna(scene, fx, audio, natureTreeSpots, () => {
+      const gold = 1 + Math.floor(Math.random() * 3);
+      save.gold += gold;
+      save.heim.zutaten.glitzer += 1;
+      hud.showToast(`✨ Glitzerstaub gefunden! +${gold} Gold, +1 Glitzerstaub`, 2.5);
+      persist();
+    });
+    // Akromantula-Kopplung (creatures.js, S2): Füchse+Hasen werden für
+    // Riesenspinnen jagdbare Beute (Ökosystem-Kette Akromantula>Fuchs>Hase).
+    setFaunaPrey(fauna.huntableBySpiders);
   }],
 ];
 
@@ -545,6 +563,7 @@ function frame(dt) {
     npc.update(dt, player, sky.state);
     broom.update(dt, player);
     fahlholz.update(dt);
+    fauna.update(dt, player, spells.lumosOn, move.sprinting);
     interact.update(player);
     puzzles.update(dt, player, sky.state);
     fx.update(dt);
@@ -624,7 +643,7 @@ buildWorld().then(() => {
   // Debug-/Test-Zugriff (bewusst öffentlich, hilft bei Fehlersuche)
   window.__game = {
     player, sky, camera, renderer, scene,
-    wand, spells, fx, health, creatures, puzzles, moor, dementors, weather, post, village, train, willow, interact, npc, hud, grove, broom, fahlholz,
+    wand, spells, fx, health, creatures, puzzles, moor, dementors, weather, post, village, train, willow, interact, npc, hud, grove, broom, fahlholz, fauna,
     get fps() { return fpsEMA; },
     get pixelRatio() { return pixelRatio; },
     collectibles,
