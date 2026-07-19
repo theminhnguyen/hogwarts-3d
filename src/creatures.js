@@ -225,6 +225,9 @@ class Pixie {
     this.group.visible = true;
     if (distSq > CULL_FULL * CULL_FULL) return; // eingefroren, aber sichtbar
 
+    // Besenflug (W7): hoch fliegende Spieler werden ignoriert (>6m über Grund).
+    const highFlying = player.flying && (player.pos.y - terrainHeight(player.pos.x, player.pos.z)) > 6;
+
     switch (this.state) {
       case 'wander': {
         const t = this.system.time;
@@ -255,7 +258,7 @@ class Pixie {
           this.system.audio.pixieGiggle?.();
           this.giggleT = rand(TUNING.pixie.giggleMin, TUNING.pixie.giggleMax);
         }
-        if (!this.system.peaceful) {
+        if (!this.system.peaceful && !highFlying) {
           this.attackT -= dt;
           if (this.attackT <= 0) { this.state = 'attack'; this.stateT = 0; }
         }
@@ -266,6 +269,7 @@ class Pixie {
         break;
       }
       case 'attack': {
+        if (highFlying) { this.state = 'aggro'; this.stateT = 0; break; }
         this.stateT += dt;
         const hx = player.pos.x, hy = player.pos.y + 1.7, hz = player.pos.z;
         this._steerTo(hx, hy, hz, TUNING.pixie.diveSpeed, dt);

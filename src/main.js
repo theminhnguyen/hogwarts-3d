@@ -28,6 +28,7 @@ import { buildWillow } from './willow.js';
 import { InteractSystem } from './interact.js';
 import { buildNpcs } from './npc.js';
 import { buildGrove } from './grove.js';
+import { buildBroom } from './broom.js';
 
 // Der Schlüsselname trägt noch "v1" aus Phase 0 — umbenennen würde alle
 // bestehenden Spielstände verwaisen lassen. Die eigentliche Versionierung
@@ -45,6 +46,9 @@ function loadSave() {
     pz: raw.pz || {},
     moor: raw.moor || { lichter: [], laterne: 0 },
     quests: raw.quests || {},
+    besen: raw.besen || 0,
+    bestzeit: raw.bestzeit || 0,
+    ace: raw.ace || 0,
     muted: raw.muted === true,
     peaceful: raw.peaceful === true,
     grafik: raw.grafik === 'schnell' ? 'schnell' : 'schoen',
@@ -90,7 +94,7 @@ post.setQuality(save.grafik);
 post.onDegrade = () => hud.showToast('Grafik automatisch reduziert (Bloom aus)', 3.5);
 
 let sky, water, castle, structures, moor, life, collectibles, player;
-let fx, wand, spells, health, creatures, puzzles, dementors, weather, village, train, willow, interact, npc, grove;
+let fx, wand, spells, health, creatures, puzzles, dementors, weather, village, train, willow, interact, npc, grove, broom;
 let lanternWasCollected = false; // erkennt den Moment, in dem die Laterne live geborgen wird
 let natureSwayMaterials = [];
 const glowTex = makeGlowTexture();
@@ -213,6 +217,13 @@ const buildSteps = [
       });
     });
   }],
+  ['Besenflug', () => {
+    broom = buildBroom(scene, camera, glowTex, hud, audio, fx, interact, wand);
+    broom.restore(save);
+    if (broom.ace) showAceWon();
+    broom.onUnlock = () => persist();
+    broom.onFinish = () => { if (broom.ace) showAceWon(); persist(); };
+  }],
 ];
 
 const loadingBar = document.getElementById('loading-bar');
@@ -222,6 +233,8 @@ const hauspokalStatus = document.getElementById('hauspokal-status');
 function showHauspokalWon() { hauspokalStatus.classList.remove('hidden'); }
 const lanternStatus = document.getElementById('lantern-status');
 function showLanternWon() { lanternStatus.classList.remove('hidden'); hud.showLanternIcon(); }
+const aceStatus = document.getElementById('ace-status');
+function showAceWon() { aceStatus.classList.remove('hidden'); }
 
 async function buildWorld() {
   for (let i = 0; i < buildSteps.length; i++) {
@@ -263,6 +276,7 @@ function persist() {
     },
     moor: moor ? moor.save() : save.moor,
     quests: npc ? npc.save() : save.quests,
+    ...(broom ? broom.save() : { besen: save.besen, bestzeit: save.bestzeit, ace: save.ace }),
     muted: audio.muted,
     t: sky ? sky.timeOfDay : undefined,
     peaceful: creatures ? creatures.peaceful : (save.peaceful === true),
@@ -347,6 +361,8 @@ btnReset.addEventListener('click', () => {
   if (willow) willow.restore(false);
   if (grove) grove.restore(false);
   if (npc) npc.restore({});
+  if (broom) broom.restore({});
+  if (player) player.flying = false;
   lanternWasCollected = false;
   if (health) {
     health.maxHearts = 5;
@@ -355,6 +371,7 @@ btnReset.addEventListener('click', () => {
   }
   hauspokalStatus.classList.add('hidden');
   lanternStatus.classList.add('hidden');
+  aceStatus.classList.add('hidden');
   persist();
   hud.showToast('Fortschritt zurückgesetzt');
 });
@@ -394,6 +411,11 @@ window.addEventListener('keydown', (e) => {
   } else if (e.code === 'KeyE') {
     if (hud.dialogOpen) hud.advanceDialog();
     else interact.trigger();
+  } else if (e.code === 'KeyB') {
+    if (broom.besenUnlocked && !player.swimming) {
+      player.flying = !player.flying;
+      hud.showToast(player.flying ? '🧹 Aufgestiegen!' : '🧹 Abgestiegen.', 1.4);
+    }
   }
 });
 
@@ -461,6 +483,7 @@ function frame(dt) {
     willow.update(dt, player);
     grove.update(dt, player);
     npc.update(dt, player, sky.state);
+    broom.update(dt, player);
     interact.update(player);
     puzzles.update(dt, player, sky.state);
     fx.update(dt);
@@ -488,7 +511,9 @@ function frame(dt) {
     const owlProximity = Math.max(0, 1 - owlDist / 40);
     audio.update(sky.state.daylight, weather.gloom, owlProximity);
     if (audio.windGain) {
-      const target = (0.04 + (move.hSpeed / 12) * 0.05 + (player.pos.y / 60) * 0.03)
+      // Besenflug (W7): Fluggeschwindigkeit treibt zusätzliches Windrauschen.
+      const flyTerm = player.flying ? (move.speed3D / 18) * 0.25 : 0;
+      const target = (0.04 + (move.hSpeed / 12) * 0.05 + (player.pos.y / 60) * 0.03 + flyTerm)
         * (0.6 + weather.windStrength * 1.4);
       audio.windGain.gain.value += (target - audio.windGain.gain.value) * 0.02;
     }
@@ -496,7 +521,7 @@ function frame(dt) {
 
     hud.setClock(sky.clockText);
     hud.setHeading(player.heading);
-    hud.setTracker(collectibles.nearest(player.pos), player.heading);
+    hud.setTracker(broom.getTrackerInfo(player) || collectibles.nearest(player.pos), player.heading);
     hud.setSpell(wand.activeSpell, spells.cooldowns);
     hud.setHearts(health.hearts, health.maxHearts);
     const troll = creatures.troll;
@@ -538,7 +563,7 @@ buildWorld().then(() => {
   // Debug-/Test-Zugriff (bewusst öffentlich, hilft bei Fehlersuche)
   window.__game = {
     player, sky, camera, renderer, scene,
-    wand, spells, fx, health, creatures, puzzles, moor, dementors, weather, post, village, train, willow, interact, npc, hud, grove,
+    wand, spells, fx, health, creatures, puzzles, moor, dementors, weather, post, village, train, willow, interact, npc, hud, grove, broom,
     get fps() { return fpsEMA; },
     get pixelRatio() { return pixelRatio; },
     collectibles,

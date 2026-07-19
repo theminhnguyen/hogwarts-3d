@@ -144,11 +144,13 @@ export function buildWillow(scene, glowTex, audio, fx, health) {
       const dx = player.pos.x - x, dz = player.pos.z - z;
       const dist = Math.hypot(dx, dz);
       let target = TUNING.restAngle;
+      // Besenflug (W7): hoch fliegende Spieler werden ignoriert (>6m über Grund).
+      const highFlying = player.flying && (player.pos.y - terrainHeight(player.pos.x, player.pos.z)) > 6;
 
       switch (this.state) {
         case 'idle': {
           target = TUNING.restAngle + Math.sin(this.time * 0.6) * 0.05;
-          if (dist < TUNING.aggroRange) {
+          if (dist < TUNING.aggroRange && !highFlying) {
             this.state = 'telegraph';
             this.stateT = 0;
             audio.willowCreak?.();

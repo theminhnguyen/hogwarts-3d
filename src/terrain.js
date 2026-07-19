@@ -292,11 +292,17 @@ export function buildWater() {
         float spec = pow(max(dot(refl, viewDir), 0.0), 90.0);
         float sparkle = 0.6 + 0.4 * sin(vWorld.x * 2.1 + vWorld.z * 1.7 + uTime * 2.4);
         col += uSunColor * spec * sparkle * (1.2 - uNight * 0.5);
-        // Uferschaum: wandernde helle Säume nahe der Schilfkante
-        float foamBand = smoothstep(uR * 0.86, uR * 0.99, shoreDist);
-        float foamWave = 0.55 + 0.45 * sin(shoreDist * 2.6 - uTime * 1.3
+        // Uferschaum: schmaler, wandernder heller Saum direkt an der
+        // Schilfkante. War ursprünglich 16m breit mit hoher Wellen-Frequenz
+        // (2.6 rad/m) — aus flachem Blickwinkel (z.B. vom Bootshaus-Ufer aus)
+        // projizierten die vielen Wellenzüge zu harten, parallelen Streifen
+        // über einen Großteil der sichtbaren Wasserfläche statt eines
+        // dezenten Schaumsaums. Jetzt schmaler (halb so breit) und mit
+        // niedrigerer Frequenz + geringerem Kontrast.
+        float foamBand = smoothstep(uR * 0.93, uR * 0.995, shoreDist);
+        float foamWave = 0.55 + 0.45 * sin(shoreDist * 1.1 - uTime * 1.3
                           + sin(vWorld.x * 0.35 + uTime * 0.6) * 1.2);
-        col = mix(col, vec3(0.88, 0.92, 0.94), foamBand * foamWave * (0.55 - uNight * 0.3));
+        col = mix(col, vec3(0.88, 0.92, 0.94), foamBand * foamWave * (0.35 - uNight * 0.2));
         col *= (1.0 - uNight * 0.72);
         gl_FragColor = vec4(col, 0.88);
       }

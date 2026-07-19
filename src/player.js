@@ -13,6 +13,12 @@ const JUMP_V = 8.6;
 const WALK = 6.4;
 const SPRINT = 11.5;
 
+const FLY_SPEED = 12;
+const FLY_BOOST = 18;
+const FLY_CLIMB = 4;
+const FLY_MAX_ABS_Y = 75;
+const FLY_MAX_ABOVE_GROUND = 50;
+
 export class Player {
   constructor(camera) {
     this.camera = camera;
@@ -24,6 +30,9 @@ export class Player {
     this.swimming = false;
     this.enabled = false;
     this.slowFactor = 1; // Frost-Aura der Dementoren setzt dies auf 0.75
+    this.flying = false; // Besenflug (W7) — Taste B, nur wenn besen freigeschaltet
+    this._noAscendT = 0;
+    this.onLandFlight = null; // Callback: Auto-Abstieg beendet den Flug
 
     this.keys = new Set();
     this.bobPhase = 0;
@@ -88,27 +97,53 @@ export class Player {
     const dirZ = -cosY * fwd - sinY * strafe;
     const dLen = Math.hypot(dirX, dirZ) || 1;
 
-    let speed = sprinting ? SPRINT : WALK;
-    if (this.swimming) speed *= 0.45;
-    speed *= this.slowFactor;
-    const targetVX = (dirX / dLen) * speed * (fwd || strafe ? 1 : 0);
-    const targetVZ = (dirZ / dLen) * speed * (fwd || strafe ? 1 : 0);
+    if (this.flying) {
+      // Blickrichtungsflug (inkl. Pitch): W treibt entlang der vollen 3D-
+      // Kamerarichtung, S bremst/rückwärts, Leertaste = sanft steigen,
+      // Shift = Boost. Träge Beschleunigung wie am Boden.
+      const cosP = Math.cos(this.pitch), sinP = Math.sin(this.pitch);
+      const fwd3X = -sinY * cosP, fwd3Y = sinP, fwd3Z = -cosY * cosP;
+      const flySpeed = (sprinting ? FLY_BOOST : FLY_SPEED) * this.slowFactor;
+      const throttle = fwd; // W=1 vorwärts, S=-1 rückwärts/bremsen
+      const targetFX = fwd3X * flySpeed * throttle;
+      const targetFY = fwd3Y * flySpeed * throttle + (keys.has('Space') ? FLY_CLIMB : 0);
+      const targetFZ = fwd3Z * flySpeed * throttle;
+      const flyAccel = 1 - Math.exp(-3 * dt);
+      this.vel.x += (targetFX - this.vel.x) * flyAccel;
+      this.vel.y += (targetFY - this.vel.y) * flyAccel;
+      this.vel.z += (targetFZ - this.vel.z) * flyAccel;
 
-    // sanfte Beschleunigung
-    const accel = this.grounded || this.swimming ? 1 - Math.exp(-11 * dt) : 1 - Math.exp(-3.5 * dt);
-    this.vel.x += (targetVX - this.vel.x) * accel;
-    this.vel.z += (targetVZ - this.vel.z) * accel;
-
-    // Springen / Schwerkraft
-    if (this.swimming) {
-      this.vel.y = 0;
-    } else {
-      if (keys.has('Space') && this.grounded) {
-        this.vel.y = JUMP_V;
-        this.grounded = false;
-        if (this.onJump) this.onJump();
+      // Automatischer Abstieg: am Boden UND (rückwärts ODER untätig) 1s lang
+      const idleOrBack = fwd <= 0;
+      this._noAscendT = this.grounded && idleOrBack ? this._noAscendT + dt : 0;
+      if (this._noAscendT >= 1) {
+        this.flying = false;
+        this._noAscendT = 0;
+        this.onLandFlight?.();
       }
-      this.vel.y -= GRAVITY * dt;
+    } else {
+      let speed = sprinting ? SPRINT : WALK;
+      if (this.swimming) speed *= 0.45;
+      speed *= this.slowFactor;
+      const targetVX = (dirX / dLen) * speed * (fwd || strafe ? 1 : 0);
+      const targetVZ = (dirZ / dLen) * speed * (fwd || strafe ? 1 : 0);
+
+      // sanfte Beschleunigung
+      const accel = this.grounded || this.swimming ? 1 - Math.exp(-11 * dt) : 1 - Math.exp(-3.5 * dt);
+      this.vel.x += (targetVX - this.vel.x) * accel;
+      this.vel.z += (targetVZ - this.vel.z) * accel;
+
+      // Springen / Schwerkraft
+      if (this.swimming) {
+        this.vel.y = 0;
+      } else {
+        if (keys.has('Space') && this.grounded) {
+          this.vel.y = JUMP_V;
+          this.grounded = false;
+          if (this.onJump) this.onJump();
+        }
+        this.vel.y -= GRAVITY * dt;
+      }
     }
 
     // Bewegung anwenden
@@ -138,6 +173,8 @@ export class Player {
       this.swimming = true;
       this.pos.y = WATER_LEVEL - 1.05 + Math.sin(performance.now() * 0.0021) * 0.07;
       this.grounded = true;
+      // Schwimmen + Fliegen schließen sich aus — Wasser erzwingt den Abstieg.
+      if (this.flying) { this.flying = false; this._noAscendT = 0; this.onLandFlight?.(); }
     } else {
       this.swimming = false;
       const wasAir = !this.grounded;
@@ -151,6 +188,13 @@ export class Player {
         this.grounded = false;
       }
       this._fallSpeed = -Math.min(0, this.vel.y);
+    }
+
+    // Flughöhen-Clamp: terrainHeight+50 UND absolut y<=75 — als Positions-
+    // Clamp UNBEDINGT am Ende der Bewegungslogik (Lehre 14/24), kein Zurücksteuern.
+    if (this.flying) {
+      const maxY = Math.min(FLY_MAX_ABS_Y, terr + FLY_MAX_ABOVE_GROUND);
+      if (this.pos.y > maxY) { this.pos.y = maxY; if (this.vel.y > 0) this.vel.y = 0; }
     }
 
     // Kopfwippen + Schritt-Events
@@ -178,11 +222,13 @@ export class Player {
     );
     this.camera.rotation.set(this.pitch, this.yaw, 0, 'YXZ');
 
-    // FOV-Kick beim Sprinten
-    const targetFov = this._baseFov + (sprinting && hSpeed > 7 ? 7 : 0);
+    // FOV-Kick beim Sprinten ODER schnellem Flug
+    const speed3D = Math.hypot(this.vel.x, this.vel.y, this.vel.z);
+    const flyKick = this.flying ? Math.min(6, (speed3D / FLY_BOOST) * 6) : 0;
+    const targetFov = this._baseFov + (sprinting && hSpeed > 7 ? 7 : 0) + flyKick;
     this.camera.fov += (targetFov - this.camera.fov) * Math.min(1, 6 * dt);
     this.camera.updateProjectionMatrix();
 
-    return { hSpeed, sprinting };
+    return { hSpeed, sprinting, speed3D };
   }
 }
