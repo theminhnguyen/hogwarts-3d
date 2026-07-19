@@ -42,6 +42,34 @@ export const BAHNHOF = { x: -140, z: -255 };
 // umliegenden Wald hinein.
 export const GROVE = { x: 150, z: 60, r: 20 };
 
+// ---------- Die Wildmark (S1, PLAN-SCHATTEN-UND-SCHWINGEN.md Abschnitt 4) ----------
+// Erschließt den bereits vorhandenen, fast leeren Gürtel zwischen den
+// äußersten Alt-Zonen (|x|≈285) und WORLD_BOUND (430) — kein WORLD_SIZE-
+// Umbau. Alle Abstände gegen die ECHTEN obigen Zonen-Konstanten nachgerechnet
+// (nicht nur gegen die Plan-Kopfrechnung): Silberauen↔STONES 215.7,
+// Silberauen↔MOOR 242.5, Silberauen↔GROVE exakt 150, Fahlholz↔Silberauen
+// 90.6, Hügelgrab↔Silberauen 86.0, Hügelgrab↔MOOR 198.3, Kate↔Fahlholz 60.8,
+// Kate↔GROVE 113.1 — alle stimmen mit der Plan-Tabelle überein (max. 1m
+// Rundungs-Differenz), keine Repositionierung nötig.
+// Silberauen: offene Kreaturen-Ebene (S2-Fauna), SANFTES Flatten (blend 30,
+// kein hartes Plateau wie Dorf/Quidditch) — "einzelne Solitärbäume" bleiben
+// dadurch möglich, nur der Kern (r) wird eben.
+export const SILBERAUEN = { x: 300, z: 60, r: 40, blend: 30, h: 7 };
+// Fahlholz: dunkler Hain, KEIN Flatten (Muster GROVE) — steht auf
+// natürlichem Waldboden, r ist nur die Streu-/Ausschlusszone für die
+// eigenen dichten Bäume (wildmark.js) und die generische Vegetation.
+export const FAHLHOLZ = { x: 290, z: 150, r: 22 };
+// Hügelgrab: kleine Grabhügel-Erhebung (Muster STONES, aber niedriger und
+// enger). d0 vom Weltursprung ≈350 liegt knapp jenseits des Bergring-Starts
+// (330) — der daraus resultierende minimale Grat-Einschlag (t≈0.14) liest
+// sich bei einem Hügelgrab am Wildmark-Rand eher wie ein natürlicher
+// Übergang zum Gebirge als wie ein Fehler (gleiche Lehre wie beim Moor).
+export const HUEGELGRAB = { x: 350, z: -10, r: 12, h: 9 };
+// Wispernde Kate: verlassenes Gebäude an einem Hang, KEIN Flatten (Muster
+// GROVE/Fahlholz) — die Hang-Lage ist gewollt, die Wände gleichen kleine
+// Bodenunterschiede selbst aus (wildmark.js).
+export const KATE = { x: 230, z: 140, r: 10 };
+
 // Wege als Polylinien (für Färbung + Freihalten von Bäumen)
 export const PATHS = [
   [[0, 46], [0, 168]],                       // Tor → Kreuzung (über Viadukt)
@@ -53,6 +81,11 @@ export const PATHS = [
   [[140, -98], [190, -140], [240, -175]],    // Steinkreis-Rundweg → Nebelmoor
   [[-90, 100], [-80, -160], [-70, -230]],    // Rundweg → Dorf
   [[-70, -230], [-140, -255]],               // Dorf → Bahnhof
+  [[140, -98], [260, -60], [350, -10]],      // Steinkreis-Rundweg → Hügelgrab (Wildmark)
+  [[350, -10], [300, 60]],                   // Hügelgrab → Silberauen
+  [[300, 60], [290, 150]],                   // Silberauen → Fahlholz
+  [[290, 150], [230, 140]],                  // Fahlholz → Wispernde Kate
+  [[230, 140], [95, 105]],                   // Kate → zurück zur Waldlichtung
 ];
 
 // Kürzester Abstand zu EINER Polylinie (nicht dem gesamten PATHS-Bestand) —
@@ -174,6 +207,23 @@ export function terrainHeight(x, z) {
     const d = Math.sqrt((x - MOOR.x) ** 2 + (z - MOOR.z) ** 2);
     const m = 1 - smoothstep(MOOR.r, MOOR.r + MOOR.blend, d);
     h = lerp(h, MOOR.h + fbm(x * 0.08, z * 0.08, 2) * 0.5, m);
+  }
+
+  // Silberauen (Wildmark-Kreaturen-Ebene, S1) — sanftes Flatten mit breitem
+  // Blend, KEIN hartes Plateau (Muster MOOR, nicht Dorf/Quidditch), damit
+  // die "einzelnen Solitärbäume" außerhalb des Kerns natürlich wirken.
+  {
+    const d = Math.sqrt((x - SILBERAUEN.x) ** 2 + (z - SILBERAUEN.z) ** 2);
+    const m = 1 - smoothstep(SILBERAUEN.r, SILBERAUEN.r + SILBERAUEN.blend, d);
+    h = lerp(h, SILBERAUEN.h + fbm(x * 0.04, z * 0.04, 2) * 1.2, m);
+  }
+
+  // Hügelgrab (Wildmark, S1) — kleine Erhebung, Muster Steinkreis-Hügel
+  // aber niedriger/enger (r=12 statt 24).
+  {
+    const d = Math.sqrt((x - HUEGELGRAB.x) ** 2 + (z - HUEGELGRAB.z) ** 2);
+    const m = 1 - smoothstep(HUEGELGRAB.r, HUEGELGRAB.r * 2.6, d);
+    h = lerp(h, HUEGELGRAB.h + fbm(x * 0.06, z * 0.06, 2) * 1, m * 0.9);
   }
 
   return h;

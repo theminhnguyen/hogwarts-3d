@@ -29,6 +29,7 @@ import { InteractSystem } from './interact.js';
 import { buildNpcs } from './npc.js';
 import { buildGrove } from './grove.js';
 import { buildBroom } from './broom.js';
+import { buildFahlholz, buildHuegelgrab, buildKate } from './wildmark.js';
 
 // Der Schlüsselname trägt noch "v1" aus Phase 0 — umbenennen würde alle
 // bestehenden Spielstände verwaisen lassen. Die eigentliche Versionierung
@@ -38,8 +39,13 @@ const SAVE_KEY = 'hogwarts3d-save-v1';
 function loadSave() {
   let raw = {};
   try { raw = JSON.parse(localStorage.getItem(SAVE_KEY)) || {}; } catch { raw = {}; }
-  // v4: + Grafik-Qualität (Post-FX Schön/Schnell). Fehlt `v` (alter Save)
+  // v5 (S1, PLAN-SCHATTEN-UND-SCHWINGEN.md Abschnitt 2): komplettes Schema
+  // für ALLE 12 Phasen vorab angelegt — spätere Phasen füllen nur bereits
+  // definierte Felder, kein Migrations-Wildwuchs. Fehlt `v` (alter Save)
   // oder fehlen einzelne Felder: nie crashen, immer auf Default zurückfallen.
+  const seenDeath = raw.seenDeath === 1 ? 1
+    // Sonderregel: der Troll-Sieg zählt rückwirkend als miterlebter Tod.
+    : (raw.pz?.troll === true ? 1 : 0);
   return {
     collected: raw.collected || [],
     art: raw.art || [],
@@ -54,10 +60,20 @@ function loadSave() {
     peaceful: raw.peaceful === true,
     grafik: raw.grafik === 'schnell' ? 'schnell' : 'schoen',
     t: raw.t,
+    gold: raw.gold || 0,
+    ruf: raw.ruf || 0,
+    seenDeath,
+    wild: raw.wild || { aktivCamp: -1, befreit: 0, geerntet: 0 },
+    mounts: raw.mounts || { hippo: 0, thestral: 0, sattel: 0 },
+    dunkel: raw.dunkel || { buch: 0, pfad: 'hell', male: 0 },
+    heim: raw.heim || { kate: 0, zutaten: { glitzer: 0, seide: 0, stern: 0, essenz: 0 }, trank: { id: '', restT: 0 } },
+    begleiter: raw.begleiter || { aktiv: '', frei: [] },
+    hallows: raw.hallows || { stab: 0, umhang: 0, stein: 0, steinCd: 0 },
+    animagus: raw.animagus || { gelernt: 0, form: 'rabe' },
   };
 }
 function writeSave(data) {
-  try { localStorage.setItem(SAVE_KEY, JSON.stringify({ v: 4, ...data })); } catch { /* privat-modus etc. */ }
+  try { localStorage.setItem(SAVE_KEY, JSON.stringify({ v: 5, ...data })); } catch { /* privat-modus etc. */ }
 }
 
 // ---------- Renderer & Szene ----------
@@ -95,7 +111,7 @@ post.setQuality(save.grafik);
 post.onDegrade = () => hud.showToast('Grafik automatisch reduziert (Bloom aus)', 3.5);
 
 let sky, water, castle, structures, moor, life, collectibles, player;
-let fx, wand, spells, health, creatures, puzzles, dementors, weather, village, train, willow, interact, npc, grove, broom;
+let fx, wand, spells, health, creatures, puzzles, dementors, weather, village, train, willow, interact, npc, grove, broom, fahlholz;
 let lanternWasCollected = false; // erkennt den Moment, in dem die Laterne live geborgen wird
 let natureSwayMaterials = [];
 const glowTex = makeGlowTexture();
@@ -225,6 +241,13 @@ const buildSteps = [
     broom.onUnlock = () => persist();
     broom.onFinish = () => { if (broom.ace) showAceWon(); persist(); };
   }],
+  ['Wildmark', () => {
+    // S1: reine Deko/Terrain-Dressing (Fauna erst S2, Grabkammer-Öffnung
+    // erst S10, Kate-Einrichtung erst S7) — kein Save-Zustand nötig.
+    fahlholz = buildFahlholz(scene);
+    buildHuegelgrab(scene);
+    buildKate(scene);
+  }],
 ];
 
 const loadingBar = document.getElementById('loading-bar');
@@ -291,6 +314,20 @@ function persist() {
     t: sky ? sky.timeOfDay : undefined,
     peaceful: creatures ? creatures.peaceful : (save.peaceful === true),
     grafik: post.quality,
+    // v5-Felder (S1): noch ohne eigenes Live-System (kommt erst S3-S11),
+    // daher unverändert durchgereicht — AUSSER seenDeath (K7/Abschnitt 2):
+    // ein Troll-Sieg zählt als miterlebter Tod, sobald er diese Session
+    // passiert (nicht erst nach Reload wie bei der Alt-Save-Migration).
+    gold: save.gold,
+    ruf: save.ruf,
+    seenDeath: save.seenDeath || (creatures?.trollDefeated ? 1 : 0),
+    wild: save.wild,
+    mounts: save.mounts,
+    dunkel: save.dunkel,
+    heim: save.heim,
+    begleiter: save.begleiter,
+    hallows: save.hallows,
+    animagus: save.animagus,
   });
 }
 
@@ -383,6 +420,18 @@ btnReset.addEventListener('click', () => {
   hauspokalStatus.classList.add('hidden');
   lanternStatus.classList.add('hidden');
   aceStatus.classList.add('hidden');
+  // v5-Felder (S1): noch ohne Live-System, daher direkt im in-memory
+  // save-Objekt zurückgesetzt (persist() reicht sie sonst unverändert durch).
+  save.gold = 0;
+  save.ruf = 0;
+  save.seenDeath = 0;
+  save.wild = { aktivCamp: -1, befreit: 0, geerntet: 0 };
+  save.mounts = { hippo: 0, thestral: 0, sattel: 0 };
+  save.dunkel = { buch: 0, pfad: 'hell', male: 0 };
+  save.heim = { kate: 0, zutaten: { glitzer: 0, seide: 0, stern: 0, essenz: 0 }, trank: { id: '', restT: 0 } };
+  save.begleiter = { aktiv: '', frei: [] };
+  save.hallows = { stab: 0, umhang: 0, stein: 0, steinCd: 0 };
+  save.animagus = { gelernt: 0, form: 'rabe' };
   persist();
   hud.showToast('Fortschritt zurückgesetzt');
 });
@@ -495,6 +544,7 @@ function frame(dt) {
     grove.update(dt, player);
     npc.update(dt, player, sky.state);
     broom.update(dt, player);
+    fahlholz.update(dt);
     interact.update(player);
     puzzles.update(dt, player, sky.state);
     fx.update(dt);
@@ -574,7 +624,7 @@ buildWorld().then(() => {
   // Debug-/Test-Zugriff (bewusst öffentlich, hilft bei Fehlersuche)
   window.__game = {
     player, sky, camera, renderer, scene,
-    wand, spells, fx, health, creatures, puzzles, moor, dementors, weather, post, village, train, willow, interact, npc, hud, grove, broom,
+    wand, spells, fx, health, creatures, puzzles, moor, dementors, weather, post, village, train, willow, interact, npc, hud, grove, broom, fahlholz,
     get fps() { return fpsEMA; },
     get pixelRatio() { return pixelRatio; },
     collectibles,

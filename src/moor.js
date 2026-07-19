@@ -4,7 +4,7 @@
 // Ausbau) ergänzt Seelenlichter, Tor-Öffnung, Truhe und Laterne-Effekte.
 
 import * as THREE from 'three';
-import { GeoBatch, addCircleBlocker, addBoxBlocker } from './geo.js';
+import { GeoBatch, addCircleBlocker, addBoxBlocker, tint } from './geo.js';
 import { terrainHeight, MOOR } from './terrain.js';
 import { smoothstep, mulberry32, lerp } from './noise.js';
 import { getMaterials } from './materials.js';
@@ -139,7 +139,12 @@ export function buildMoor(scene, glowTex, hud, audio, fx) {
   addBoxBlocker(CRYPT.x - 0.5, CRYPT.x + 4.5 + 0.35, cy, cy + 3.4, CRYPT.z + 2.25, CRYPT.z + 2.95);
 
   // Torplatte — öffnet, sobald alle 5 Seelenlichter abgegeben sind.
-  const slabGeo = new THREE.BoxGeometry(0.6, 3.4, 5.6);
+  // tint() ist Pflicht: mats.stone hat vertexColors:true — eine Geometrie
+  // ohne 'color'-Attribut rendert dann SCHWARZ statt neutral (WebGL liest
+  // ein fehlendes generic-vertex-attribute als (0,0,0,0), das multipliziert
+  // die Textur auf Null). Weiß = Textur unverändert durchscheinen lassen.
+  // (S1-Fund in wildmark.js — identisches Muster, hier nachträglich behoben.)
+  const slabGeo = tint(new THREE.BoxGeometry(0.6, 3.4, 5.6), 0xffffff);
   const doorMesh = new THREE.Mesh(slabGeo, mats.stone);
   doorMesh.castShadow = true; doorMesh.receiveShadow = true;
   const doorClosedX = CRYPT.x;

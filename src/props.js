@@ -6,6 +6,7 @@ import { tint, addCircleBlocker } from './geo.js';
 import {
   terrainHeight, distToPaths, distToPolyline, WATER_LEVEL,
   PLATEAU, LAKE, QUIDDITCH, HAGRID, STONES, BOATHOUSE, MOOR, DORF, TRASSE,
+  SILBERAUEN, FAHLHOLZ, HUEGELGRAB, KATE,
 } from './terrain.js';
 import { fbm, mulberry32 } from './noise.js';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
@@ -153,6 +154,13 @@ function spotFree(x, z, h) {
   if (Math.hypot(x - MOOR.x, z - MOOR.z) < MOOR.r + 10) return false; // totes Moor
   if (Math.hypot(x - DORF.x, z - DORF.z) < DORF.r + 10) return false; // Dorfplatz
   if (distToPolyline(x, z, TRASSE) < 8) return false; // Gleis-Trasse
+  // Silberauen: nur der Kern bleibt frei ("einzelne Solitärbäume" entstehen
+  // von selbst außerhalb — der bereits vorhandene 14%-Sparse-Zweig oben
+  // reicht dafür, keine eigene Dichte-Logik nötig).
+  if (Math.hypot(x - SILBERAUEN.x, z - SILBERAUEN.z) < SILBERAUEN.r * 0.45) return false;
+  if (Math.hypot(x - FAHLHOLZ.x, z - FAHLHOLZ.z) < FAHLHOLZ.r + 5) return false; // eigener Mini-Batch
+  if (Math.hypot(x - HUEGELGRAB.x, z - HUEGELGRAB.z) < HUEGELGRAB.r + 8) return false; // Grashügel frei
+  if (Math.hypot(x - KATE.x, z - KATE.z) < KATE.r + 6) return false; // Gebäude-Grundstück
   return true;
 }
 
@@ -237,6 +245,12 @@ export function buildNature(scene) {
     if (Math.hypot(x - MOOR.x, z - MOOR.z) < MOOR.r + 10) continue;
     if (Math.hypot(x - DORF.x, z - DORF.z) < DORF.r + 10) continue;
     if (distToPolyline(x, z, TRASSE) < 8) continue;
+    // Silberauen: freies Grasland (keine Felsbrocken im Kern); Fahlholz/
+    // Hügelgrab/Kate: Grundstück/Steinkranz-Fläche freihalten.
+    if (Math.hypot(x - SILBERAUEN.x, z - SILBERAUEN.z) < SILBERAUEN.r * 0.45) continue;
+    if (Math.hypot(x - FAHLHOLZ.x, z - FAHLHOLZ.z) < FAHLHOLZ.r + 5) continue;
+    if (Math.hypot(x - HUEGELGRAB.x, z - HUEGELGRAB.z) < HUEGELGRAB.r + 5) continue;
+    if (Math.hypot(x - KATE.x, z - KATE.z) < KATE.r + 6) continue;
     const s = 0.5 + rng() * rng() * 2.2;
     rocks.push({ x, y: h + s * 0.2, z, ry: rng() * Math.PI * 2, s, tint: rng() });
     if (s > 1.0) addCircleBlocker(x, z, s * 0.85, h - 1, h + s);
@@ -253,6 +267,11 @@ export function buildNature(scene) {
     if (Math.hypot(x - MOOR.x, z - MOOR.z) < MOOR.r + 10) continue;
     if (Math.hypot(x - DORF.x, z - DORF.z) < DORF.r + 10) continue;
     if (distToPolyline(x, z, TRASSE) < 8) continue;
+    // Silberauen ("weites Grasland") und Hügelgrab ("Grashügel") bekommen
+    // BEWUSST kein Gras-Ausschluss — nur Fahlholz (dunkler Waldboden ohne
+    // Wiese) und Kate (staubiges Grundstück) bleiben grasfrei.
+    if (Math.hypot(x - FAHLHOLZ.x, z - FAHLHOLZ.z) < FAHLHOLZ.r + 5) continue;
+    if (Math.hypot(x - KATE.x, z - KATE.z) < KATE.r + 6) continue;
     grass.push({ x, y: h, z, ry: rng() * Math.PI, s: 0.7 + rng() * 0.7, tint: rng() });
   }
 
@@ -263,9 +282,16 @@ export function buildNature(scene) {
   buildChunkedInstances(scene, rockGeo(), rocks);
   buildChunkedInstances(scene, grassGeo(), grass, { castShadow: false, sway: { amp: 0.35, height: 0.55 }, swayMaterials });
 
+  // Baum-Positionen exportieren (S2-Bowtruckles brauchen echte Stämme, an
+  // denen sie sitzen können — die Instanzen selbst sind gemergt/nicht
+  // einzeln adressierbar, siehe W4-Kürbis-Lehre).
+  const treeSpots = [];
+  for (const p of conifers) treeSpots.push({ x: p.x, z: p.z });
+  for (const p of broadleaf) treeSpots.push({ x: p.x, z: p.z });
+
   return {
     treeCount: conifers.length + broadleaf.length, rockCount: rocks.length, grassCount: grass.length,
-    swayMaterials,
+    swayMaterials, treeSpots,
   };
 }
 
