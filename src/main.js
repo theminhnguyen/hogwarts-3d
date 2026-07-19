@@ -50,6 +50,7 @@ function loadSave() {
     bestzeit: raw.bestzeit || 0,
     ace: raw.ace || 0,
     muted: raw.muted === true,
+    music: raw.music === true,
     peaceful: raw.peaceful === true,
     grafik: raw.grafik === 'schnell' ? 'schnell' : 'schoen',
     t: raw.t,
@@ -253,6 +254,7 @@ async function buildWorld() {
 const menu = document.getElementById('menu');
 const btnStart = document.getElementById('btn-start');
 const btnSound = document.getElementById('btn-sound');
+const btnMusic = document.getElementById('btn-music');
 const btnReset = document.getElementById('btn-reset');
 
 let playing = false;
@@ -260,6 +262,13 @@ let started = false;
 
 audio.setMuted(save.muted === true);
 btnSound.textContent = `Ton: ${audio.muted ? 'aus' : 'an'}`;
+audio.setMusic(save.music === true);
+btnMusic.textContent = `Musik: ${audio.musicOn ? 'an' : 'aus'}`;
+btnMusic.addEventListener('click', () => {
+  audio.setMusic(!audio.musicOn);
+  btnMusic.textContent = `Musik: ${audio.musicOn ? 'an' : 'aus'}`;
+  persist();
+});
 
 function persist() {
   const pdata = puzzles ? puzzles.save() : { art: save.art, pz: save.pz };
@@ -278,6 +287,7 @@ function persist() {
     quests: npc ? npc.save() : save.quests,
     ...(broom ? broom.save() : { besen: save.besen, bestzeit: save.bestzeit, ace: save.ace }),
     muted: audio.muted,
+    music: audio.musicOn,
     t: sky ? sky.timeOfDay : undefined,
     peaceful: creatures ? creatures.peaceful : (save.peaceful === true),
     grafik: post.quality,
@@ -304,6 +314,7 @@ function setPlaying(on) {
 
 btnStart.addEventListener('click', () => {
   audio.init();
+  audio.setMusic(audio.musicOn); // AudioContext existiert jetzt erst — Pads ggf. nachträglich aufbauen
   let locked = false;
   const onChange = () => { locked = document.pointerLockElement === canvas; };
   document.addEventListener('pointerlockchange', onChange, { once: true });

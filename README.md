@@ -32,6 +32,8 @@ Oder lokal: Ordner klonen und `node dev-server.mjs` starten → http://localhost
 | Maustaste | Zaubern (bei Leviosa: gedrückt halten zum Tragen, loslassen zum Fallenlassen) |
 | Mausrad / `1`–`4` | Zauber wechseln |
 | `5` | Expecto Patronum (erst nach dem Hauspokal) |
+| `E` | Interagieren (mit NPCs sprechen, Gegenstände nehmen) |
+| `B` | Besen auf-/absteigen (erst nach dem Besen-Fund) |
 | `T` | Tageszeit vorspulen |
 | `L` | Lumos (Lichtzauber) |
 | `M` | Ton an/aus |
@@ -84,8 +86,44 @@ Oder lokal: Ordner klonen und `node dev-server.mjs` starten → http://localhost
   Dementoren-Gefahr
 - ✨ 12 goldene Schnätze mit HUD-Kompass, kompletter Fortschritt
   (Schnätze, Artefakte, Rätselzustände, Nebelmoor-Fortschritt) wird gespeichert
+- 🌦️ Lebendiges Wetter: vier Zustände (klar, bewölkt, Regen, Sturm) mit
+  15 Sekunden sanftem Übergang, 700 Regentropfen, Blitz+Donner im Sturm
+  (Licht vor Schall), fallende Blätter im Wind — Gras und Bäume schwanken
+  spürbar mit der Windstärke
+- 🎨 Grafik-Modus „Schön"/„Schnell" (Menü-Button): handgerollter
+  Bloom+Farbkorrektur+Kantenglättung-Stack, mit automatischer
+  Qualitätsabsenkung bei niedriger Bildrate
+- 🏘️ Dorf **Eulenbrück** mit Gasthaus „Zum Singenden Kessel" (begehbar,
+  Kamin heilt alle 60 Sekunden), Brunnen, Laternen und Marktständen — dazu
+  eine Dampfeisenbahn mit echtem Fahrplan (4 Minuten Umlauf, 2 Tunnel
+  durch den Bergring) und ein Wanderhändler, der nur während des
+  Bahnhof-Halts dort steht
+- 🪴 Gewächshaus mit wippenden Fantasie-Pflanzen und Leuchtkräutern, sowie
+  eine Eulerei: ein runder Turm mit vier Eulen, die tagsüber auf ihren
+  Sitzstangen dösen und nachts mit glühenden Augen um den Turm kreisen
+- 🌳 Die Peitschende Weide auf ihrem Hügel: schlägt bei Annäherung
+  telegraphiert zu (sichtbar rechtzeitig ausweichbar) und bewacht eine
+  Truhe, die alle Herzen komplett auffrischt
+- 🗣️ NPCs mit Dialogen (Taste `E`): vier wandernde Schüler (verschwinden
+  nachts), Lena und Wirt Barnaby als Questgeber, ein Schlossgeist mit
+  Hinweisen, die sich live nach deinem Spielstand richten, und die Katze
+  Musch, die dir folgt, wenn du sie findest. Zwei Nebenquests: *Die
+  verlorene Katze* (volle Herzen) und *Kräuter für den Kessel*
+  (dauerhafter Frostschutz, verstärkt sich mit der Seelenlaterne)
+- 🕷️ Das Spinnennest im Ostwald: vier Riesenspinnen lauern lautlos an
+  dichten dunklen Bäumen und jagen bei Annäherung, fünf Spinnennetze
+  versperren die Lichtung (drei brennen per Incendio weg) — dahinter eine
+  Truhe mit einem weiteren Herz-Upgrade
+- 🧹 Ein Rennbesen (Schuppen am Quidditch-Feld) macht dich flugfähig:
+  volle Blickrichtungssteuerung, Höhenlimit, automatische Landung über
+  Wasser. Ein 12-Ringe-Parcours ums Feld, über die Tribünen und Richtung
+  Seeufer belohnt eine Bestzeit unter 75 Sekunden mit dem Titel
+  „Quidditch-Ass" und einem goldenen Flug-Schweif
 - 🔊 Prozeduraler Sound: Wind, Schritte, Vogelgezwitscher, Grillen,
-  Zauber-Sounds, Kreaturen-Geräusche, Feuerwerk — alles über WebAudio
+  Zauber-Sounds, Kreaturen-Geräusche, Feuerwerk, Regen/Donner, Zug- und
+  Kaminklänge — alles über WebAudio
+- 🎵 Optionale Ambient-Musik (Menü-Button, Standard: aus): zwei sanft
+  ineinander überblendende Akkordflächen aus reinen Sinustönen
 - 🏊 Schwimmen im See, Springen, Rennen, Kollisionen, Glühwürmchen, Vögel
 - ⚡ Performance: gemergte Meshes, Instancing mit Regionen-Culling,
   Objekt-Pools für Zauber/Partikel/Kreaturen, automatische

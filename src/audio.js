@@ -547,6 +547,68 @@ export class SoundManager {
     }
   }
 
+  // Ambiente Musik (W8, optional, Menü-Schalter, Default AUS): zwei sanfte
+  // Dur/Moll-Akkorde aus reinen Sinustönen (D-Dur ↔ h-Moll, gemeinsamer Ton
+  // d4 fürs weiche Überblenden), EIN globales Node-Set (Muster: Schatten-
+  // Drone) — die Akkord-Überblendung läuft über eine selbstplanende
+  // setTimeout-Kette dauerhaft im Hintergrund, nur die Ausgangs-Gain wird
+  // von setMusic() ein-/ausgeblendet.
+  _ensureMusic() {
+    if (this.musicGain || !this.ctx) return;
+    const ctx = this.ctx;
+    const out = ctx.createGain();
+    out.gain.value = 0;
+    const filter = ctx.createBiquadFilter();
+    filter.type = 'lowpass';
+    filter.frequency.value = 1100;
+    filter.connect(out);
+    out.connect(this.master);
+
+    const busA = ctx.createGain(); busA.gain.value = 1; busA.connect(filter);
+    const busB = ctx.createGain(); busB.gain.value = 0; busB.connect(filter);
+
+    const chordA = [146.83, 220.00, 293.66, 369.99]; // D3 A3 D4 Fis4 (D-Dur)
+    const chordB = [123.47, 185.00, 246.94, 293.66]; // H2 Fis3 H3 D4 (h-Moll)
+    const makeVoice = (freq, bus) => {
+      const o = ctx.createOscillator();
+      o.type = 'sine';
+      o.frequency.value = freq;
+      o.detune.value = (Math.random() - 0.5) * 6; // leichte Schwebung
+      const g = ctx.createGain();
+      g.gain.value = 0.15;
+      o.connect(g).connect(bus);
+      o.start();
+    };
+    chordA.forEach((f) => makeVoice(f, busA));
+    chordB.forEach((f) => makeVoice(f, busB));
+
+    this.musicGain = out;
+    this.musicBusA = busA;
+    this.musicBusB = busB;
+    this._musicActive = 'A';
+    this._scheduleMusicSwap();
+  }
+
+  _scheduleMusicSwap() {
+    const holdMs = 22000, fadeS = 2.5;
+    setTimeout(() => {
+      if (!this.ctx || !this.musicGain) return;
+      const t = this.ctx.currentTime;
+      const toA = this._musicActive === 'B';
+      this.musicBusA.gain.setTargetAtTime(toA ? 1 : 0, t, fadeS);
+      this.musicBusB.gain.setTargetAtTime(toA ? 0 : 1, t, fadeS);
+      this._musicActive = toA ? 'A' : 'B';
+      this._scheduleMusicSwap();
+    }, holdMs);
+  }
+
+  setMusic(on) {
+    this.musicOn = on;
+    if (!this.ctx) return;
+    this._ensureMusic();
+    this.musicGain.gain.setTargetAtTime(on ? 0.1 : 0, this.ctx.currentTime, 1.5);
+  }
+
   // Riesenspinnen (W6) im Aggro: EIN Node-Set, schnelle Noise-Ticks (Scharren/
   // Rascheln) statt der langsamen Dementor-Atem-Rhythmik — Square-LFO gattert
   // hochpassgefiltertes Rauschen im Skitter-Takt.
