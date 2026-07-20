@@ -438,6 +438,36 @@ export class SoundManager {
     src.start(t, Math.random() * 1.5, 0.35);
   }
 
+  // Wilderer (S4): Bolzen-Abschuss — kurzer, scharfer Zap-Ton
+  wildererBolt() {
+    if (!this.ctx || this.muted) return;
+    const ctx = this.ctx, t = ctx.currentTime;
+    const o = ctx.createOscillator();
+    o.type = 'sawtooth';
+    o.frequency.setValueAtTime(650, t);
+    o.frequency.exponentialRampToValueAtTime(220, t + 0.12);
+    const f = ctx.createBiquadFilter();
+    f.type = 'bandpass'; f.frequency.value = 900; f.Q.value = 2;
+    const g = ctx.createGain();
+    this._env(g, t, 0.002, 0.1, 0.16);
+    o.connect(f).connect(g).connect(this.master);
+    o.start(t); o.stop(t + 0.14);
+  }
+
+  // Wilderer gibt auf (3. Stupor-Treffer): fallender, resignierter Ton
+  wildererSurrender() {
+    if (!this.ctx || this.muted) return;
+    const ctx = this.ctx, t = ctx.currentTime;
+    const o = ctx.createOscillator();
+    o.type = 'triangle';
+    o.frequency.setValueAtTime(340, t);
+    o.frequency.exponentialRampToValueAtTime(140, t + 0.5);
+    const g = ctx.createGain();
+    this._env(g, t, 0.01, 0.4, 0.22);
+    o.connect(g).connect(this.master);
+    o.start(t); o.stop(t + 0.55);
+  }
+
   _bird() {
     const ctx = this.ctx, t = ctx.currentTime;
     const n = 2 + Math.floor(Math.random() * 3);

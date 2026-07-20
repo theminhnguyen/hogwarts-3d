@@ -117,7 +117,9 @@ class Deer {
 // ============================================================ Hase ============
 const RABBIT_TUNING = { hopSpeed: 2.2, wanderR: 10, respawnDur: 60 };
 
-function buildRabbitModel() {
+// Exportiert (S4): der Wilderer-Käfig braucht eine der 4 Modelle als reine
+// Deko-Kreatur (kein AI-Zustand) — Extraktion statt Duplikat.
+export function buildRabbitModel() {
   const mat = new THREE.MeshLambertMaterial({ color: 0x9a8265, flatShading: true });
   const group = new THREE.Group();
   const body = new THREE.Mesh(new THREE.SphereGeometry(0.11, 6, 5), mat);
@@ -216,7 +218,7 @@ class Rabbit {
 // ============================================================ Fuchs ============
 const FOX_TUNING = { speed: 2.0, huntSpeed: 4.8, huntRange: 20, touchRange: 1.4, satiatedDur: 90, respawnDur: 60 };
 
-function buildFoxModel() {
+export function buildFoxModel() {
   const mat = new THREE.MeshLambertMaterial({ color: 0xc06a30, flatShading: true });
   const darkMat = new THREE.MeshLambertMaterial({ color: 0x2a221c, flatShading: true });
   const group = new THREE.Group();
@@ -360,7 +362,7 @@ class Fox {
 // ============================================================ Niffler ============
 const NIFFLER_TUNING = { pickupRange: 2.5, cooldown: 25 };
 
-function buildNifflerModel() {
+export function buildNifflerModel() {
   const mat = new THREE.MeshLambertMaterial({ color: 0x1c1a1e, flatShading: true });
   const billMat = new THREE.MeshLambertMaterial({ color: 0x3a3238, flatShading: true });
   const group = new THREE.Group();
@@ -414,7 +416,7 @@ class Niffler {
 }
 
 // ============================================================ Bowtruckle ============
-function buildBowtruckleModel() {
+export function buildBowtruckleModel() {
   const mat = new THREE.MeshLambertMaterial({ color: 0x3c5a2e, flatShading: true });
   const eyeMat = new THREE.MeshLambertMaterial({ color: 0x1c2418, flatShading: true });
   const group = new THREE.Group();

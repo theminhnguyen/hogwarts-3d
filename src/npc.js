@@ -41,9 +41,12 @@ const PUZZLE_HINTS = {
 function clamp01(v) { return Math.max(0, Math.min(1, v)); }
 
 // ---------- Figur: Robe (Kegel) + Kopf (Kugel) + Haar (Halbkugel) + Schal (Torus-Segment) ----------
-// hatColor (S2, optional): setzt zusätzlich einen Spitzhut auf — einziger
-// visueller Unterschied zu Schülern, macht die wandernden Hexer erkennbar.
-function buildFigure(scarfColor, hairColor, robeColor = ROBE_DARK, hatColor = null) {
+// Exportiert (S4): wilderer.js braucht dieselbe Basis für Wilderer (Kapuze)
+// und Ondra — Extraktion statt Duplikat, da die Geometrie WIRKLICH identisch
+// ist (anders als Wizard/Student, deren KI-Verhalten bewusst auseinanderläuft).
+// hatColor (S2, optional): Spitzhut (Hexer). hooded (S4, optional): Kapuze
+// über dem Kopf STATT Haar — für Wilderer, verdeckt das Gesicht bewusst.
+export function buildFigure(scarfColor, hairColor, robeColor = ROBE_DARK, hatColor = null, hooded = false) {
   const group = new THREE.Group();
 
   const robeMat = new THREE.MeshLambertMaterial({ color: robeColor, flatShading: true, transparent: true });
@@ -57,11 +60,16 @@ function buildFigure(scarfColor, hairColor, robeColor = ROBE_DARK, hatColor = nu
   head.position.y = 1.28;
   group.add(head);
 
-  const hairMat = new THREE.MeshLambertMaterial({ color: hairColor, flatShading: true, transparent: true });
-  const hairGeo = new THREE.SphereGeometry(0.2, 8, 5, 0, Math.PI * 2, 0, Math.PI * 0.55);
-  const hair = new THREE.Mesh(hairGeo, hairMat);
-  hair.position.y = 1.3;
-  group.add(hair);
+  const mats = [robeMat, headMat];
+  let hair = null;
+  if (!hooded) {
+    const hairMat = new THREE.MeshLambertMaterial({ color: hairColor, flatShading: true, transparent: true });
+    const hairGeo = new THREE.SphereGeometry(0.2, 8, 5, 0, Math.PI * 2, 0, Math.PI * 0.55);
+    hair = new THREE.Mesh(hairGeo, hairMat);
+    hair.position.y = 1.3;
+    group.add(hair);
+    mats.push(hairMat);
+  }
 
   const scarfMat = new THREE.MeshLambertMaterial({ color: scarfColor, flatShading: true, transparent: true });
   const scarfGeo = new THREE.TorusGeometry(0.16, 0.05, 5, 10, Math.PI * 1.5);
@@ -70,8 +78,8 @@ function buildFigure(scarfColor, hairColor, robeColor = ROBE_DARK, hatColor = nu
   scarf.position.y = 1.08;
   scarf.rotation.y = Math.random() * Math.PI * 2;
   group.add(scarf);
+  mats.push(scarfMat);
 
-  const mats = [robeMat, headMat, hairMat, scarfMat];
   if (hatColor) {
     const hatMat = new THREE.MeshLambertMaterial({ color: hatColor, flatShading: true, transparent: true });
     const brim = new THREE.Mesh(new THREE.CylinderGeometry(0.17, 0.17, 0.025, 9), hatMat);
@@ -83,10 +91,23 @@ function buildFigure(scarfColor, hairColor, robeColor = ROBE_DARK, hatColor = nu
     mats.push(hatMat);
   }
 
-  return { group, robe, head, mats, t: Math.random() * 10 };
+  if (hooded) {
+    // Kapuze: geräumigere Kugel über Kopf+Schultern, Muster wie der
+    // Schattengeist-Hood aus creatures.js (dort r0.22 an y1.52) — hier
+    // etwas größer, damit sie den Kopf sichtbar VERSCHLUCKT statt nur
+    // aufzuliegen. Vorderes Gesichts-Sichtfeld bleibt frei (kein Ring).
+    const hoodMat = new THREE.MeshLambertMaterial({ color: robeColor, flatShading: true, transparent: true, side: THREE.DoubleSide });
+    const hoodGeo = new THREE.SphereGeometry(0.26, 8, 6, 0, Math.PI * 2, 0, Math.PI * 0.75);
+    const hood = new THREE.Mesh(hoodGeo, hoodMat);
+    hood.position.y = 1.32;
+    group.add(hood);
+    mats.push(hoodMat);
+  }
+
+  return { group, robe, head, hair, mats, t: Math.random() * 10 };
 }
 
-function animateFigure(fig, dt, walking) {
+export function animateFigure(fig, dt, walking) {
   fig.t += dt;
   const freq = walking ? 6 : 1.4;
   const bobAmp = walking ? 0.035 : 0.015;
@@ -94,7 +115,7 @@ function animateFigure(fig, dt, walking) {
   fig.robe.rotation.z = Math.sin(fig.t * freq) * (walking ? 0.14 : 0.03);
 }
 
-function setFigureOpacity(fig, f) {
+export function setFigureOpacity(fig, f) {
   for (const m of fig.mats) m.opacity = f;
   fig.group.visible = f > 0.01;
 }

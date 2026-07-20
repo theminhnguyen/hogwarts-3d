@@ -32,6 +32,7 @@ import { buildBroom } from './broom.js';
 import { buildFahlholz, buildHuegelgrab, buildKate } from './wildmark.js';
 import { buildFauna } from './fauna.js';
 import { EconomySystem } from './economy.js';
+import { buildWilderer } from './wilderer.js';
 
 // Der Schlüsselname trägt noch "v1" aus Phase 0 — umbenennen würde alle
 // bestehenden Spielstände verwaisen lassen. Die eigentliche Versionierung
@@ -113,7 +114,7 @@ post.setQuality(save.grafik);
 post.onDegrade = () => hud.showToast('Grafik automatisch reduziert (Bloom aus)', 3.5);
 
 let sky, water, castle, structures, moor, life, collectibles, player;
-let fx, wand, spells, health, creatures, puzzles, dementors, weather, village, train, willow, interact, npc, grove, broom, fahlholz, fauna, economy;
+let fx, wand, spells, health, creatures, puzzles, dementors, weather, village, train, willow, interact, npc, grove, broom, fahlholz, fauna, economy, wilderer;
 let lanternWasCollected = false; // erkennt den Moment, in dem die Laterne live geborgen wird
 let natureSwayMaterials = [];
 let natureTreeSpots = []; // S2: echte Baum-Positionen für Bowtruckles (fauna.js)
@@ -273,6 +274,14 @@ const buildSteps = [
     // Riesenspinnen jagdbare Beute (Ökosystem-Kette Akromantula>Fuchs>Hase).
     setFaunaPrey(fauna.huntableBySpiders);
   }],
+  ['Wilderer & Duell', () => {
+    wilderer = buildWilderer(scene, glowTex, hud, audio, fx, health, interact, economy, {
+      heim: save.heim, dunkel: save.dunkel, wild: save.wild,
+    });
+    wilderer.restore(save.wild);
+    if (save.peaceful) wilderer.peaceful = true;
+    wilderer.onWildChange = () => persist();
+  }],
 ];
 
 const loadingBar = document.getElementById('loading-bar');
@@ -405,6 +414,7 @@ btnPeaceful.addEventListener('click', () => {
   creatures.peaceful = !creatures.peaceful;
   dementors.peaceful = creatures.peaceful;
   willow.peaceful = creatures.peaceful;
+  wilderer.peaceful = creatures.peaceful;
   btnPeaceful.textContent = `Kreaturen: ${creatures.peaceful ? 'zahm' : 'wild'}`;
   persist();
 });
@@ -435,6 +445,7 @@ btnReset.addEventListener('click', () => {
   if (grove) grove.restore(false);
   if (npc) npc.restore({});
   if (broom) broom.restore({});
+  if (wilderer) wilderer.restore({ aktivCamp: -1, befreit: 0, geerntet: 0 });
   if (player) player.flying = false;
   lanternWasCollected = false;
   if (health) {
@@ -445,19 +456,27 @@ btnReset.addEventListener('click', () => {
   hauspokalStatus.classList.add('hidden');
   lanternStatus.classList.add('hidden');
   aceStatus.classList.add('hidden');
-  // v5-Felder (S1): noch ohne Live-System, daher direkt im in-memory
-  // save-Objekt zurückgesetzt (persist() reicht sie sonst unverändert durch).
+  // v5-Felder (S1): direkt im in-memory save-Objekt zurückgesetzt (persist()
+  // reicht sie sonst unverändert durch). WICHTIG: Objekt-Felder werden IN
+  // PLACE mutiert (Object.assign), nicht neu zugewiesen (save.x = {...}) —
+  // economy.js/npc.js(Fero)/wilderer.js halten direkte Referenzen auf
+  // save.heim/mounts/dunkel/wild (Muster S3/S4, spart eigene save()/
+  // restore()-Objekte). Eine Neuzuweisung würde diese Referenzen von
+  // save.heim usw. lösen: künftige Käufe/Ernten würden dann in ein
+  // verwaistes Objekt schreiben, das persist() nie wieder liest.
   save.gold = 0;
   save.ruf = 0;
   hud.setGold(0);
   save.seenDeath = 0;
-  save.wild = { aktivCamp: -1, befreit: 0, geerntet: 0 };
-  save.mounts = { hippo: 0, thestral: 0, sattel: 0 };
-  save.dunkel = { buch: 0, pfad: 'hell', male: 0 };
-  save.heim = { kate: 0, zutaten: { glitzer: 0, seide: 0, stern: 0, essenz: 0 }, trank: { id: '', restT: 0 } };
-  save.begleiter = { aktiv: '', frei: [] };
-  save.hallows = { stab: 0, umhang: 0, stein: 0, steinCd: 0 };
-  save.animagus = { gelernt: 0, form: 'rabe' };
+  Object.assign(save.wild, { aktivCamp: -1, befreit: 0, geerntet: 0 });
+  Object.assign(save.mounts, { hippo: 0, thestral: 0, sattel: 0 });
+  Object.assign(save.dunkel, { buch: 0, pfad: 'hell', male: 0 });
+  save.heim.kate = 0;
+  Object.assign(save.heim.zutaten, { glitzer: 0, seide: 0, stern: 0, essenz: 0 });
+  Object.assign(save.heim.trank, { id: '', restT: 0 });
+  Object.assign(save.begleiter, { aktiv: '', frei: [] });
+  Object.assign(save.hallows, { stab: 0, umhang: 0, stein: 0, steinCd: 0 });
+  Object.assign(save.animagus, { gelernt: 0, form: 'rabe' });
   persist();
   hud.showToast('Fortschritt zurückgesetzt');
 });
@@ -549,7 +568,8 @@ function frame(dt) {
     wand.update(dt, player, move, spells.lumosOn, spells.isHoldingLeviosa);
     // Dementoren sind immun, aber trotzdem gültige Bolzen-Ziele (fürs
     // Verpuffen-Feedback) — daher zusammen mit creatures.list übergeben.
-    spells.update(dt, camera, creatures.list.concat(dementors.list));
+    // Wilderer (S4) ebenso: eigene applyHit()-Logik, gleiche Ziel-Liste.
+    spells.update(dt, camera, creatures.list.concat(dementors.list).concat(wilderer.list));
     // sky.update() läuft weiter unten, aber creatures braucht den Tag/Nacht-
     // Stand vom LETZTEN Frame — nightGlow ändert sich nur sehr langsam
     // (300s/Zyklus), eine Frame Verzögerung ist unmerklich.
@@ -569,6 +589,7 @@ function frame(dt) {
     willow.update(dt, player);
     grove.update(dt, player);
     npc.update(dt, player, sky.state, economy.ruf);
+    wilderer.update(dt, player, sky);
     broom.update(dt, player);
     fahlholz.update(dt);
     fauna.update(dt, player, spells.lumosOn, move.sprinting);
@@ -651,7 +672,7 @@ buildWorld().then(() => {
   // Debug-/Test-Zugriff (bewusst öffentlich, hilft bei Fehlersuche)
   window.__game = {
     player, sky, camera, renderer, scene,
-    wand, spells, fx, health, creatures, puzzles, moor, dementors, weather, post, village, train, willow, interact, npc, hud, grove, broom, fahlholz, fauna, economy,
+    wand, spells, fx, health, creatures, puzzles, moor, dementors, weather, post, village, train, willow, interact, npc, hud, grove, broom, fahlholz, fauna, economy, wilderer,
     get fps() { return fpsEMA; },
     get pixelRatio() { return pixelRatio; },
     collectibles,
