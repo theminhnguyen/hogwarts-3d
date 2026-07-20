@@ -124,7 +124,11 @@ function buildStation(stoneBatch, woodBatch, roofBatch, windowBatch) {
     const lx = platCx + Math.sin(ang) * platLen * (t - 0.5), lz = platCz + Math.cos(ang) * platLen * (t - 0.5);
     woodBatch.add(new THREE.CylinderGeometry(0.05, 0.07, 2.2, 6), 0x2a2a30, lx, sy + platH + 1.1, lz);
   }
-  return { platCx, platCz, lanternGlows };
+  // Fero-Standplatz (S3): Bahnsteig-Mitte, etwas zur Gleisseite versetzt,
+  // damit er beim Halt weder im Stationshaus noch im Gleis-Lichtraum steht.
+  const feroX = platCx - perpX * (platW / 2 - 0.5);
+  const feroZ = platCz - perpZ * (platW / 2 - 0.5);
+  return { platCx, platCz, lanternGlows, ang, feroX, feroZ };
 }
 
 // ---------- Lok & Wagen (Front = lokale +Z, passend zur lookAt()-Konvention) ----------
@@ -208,7 +212,7 @@ export function buildTrain(scene, glowTex, audio) {
   const blackBatch = new GeoBatch();
 
   buildTrack(railBatch, sleeperBatch);
-  buildStation(stoneBatch, woodBatch, roofBatch, windowBatch);
+  const station = buildStation(stoneBatch, woodBatch, roofBatch, windowBatch);
 
   const angStart = segAngle(TRASSE[0][0], TRASSE[0][1], TRASSE[1][0], TRASSE[1][1]);
   const angEnd = segAngle(TRASSE[TRASSE.length - 2][0], TRASSE[TRASSE.length - 2][1], TRASSE[TRASSE.length - 1][0], TRASSE[TRASSE.length - 1][1]);
@@ -264,6 +268,7 @@ export function buildTrain(scene, glowTex, audio) {
     stationProgress: T_AT_STATION,
     _prevMainProgress: 0,
     _time: 0,
+    station, // { platCx, platCz, ang, feroX, feroZ } — Fero (S3) braucht den Standplatz
 
     update(dt, player) {
       this._time += dt;

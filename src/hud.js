@@ -19,6 +19,8 @@ export class Hud {
     this.artifacts = el('artifacts');
     this.puzzleStatus = el('puzzle-status');
     this._artifactsShown = false;
+    this.gold = el('gold');
+    this._goldShown = false;
     this.soullights = el('soullights');
     this.lanternIcon = el('lantern-icon');
     this.spellbar = el('spellbar');
@@ -97,6 +99,13 @@ export class Hud {
   setArtifacts(n, total) {
     this.artifacts.textContent = `🏆 ${n} / ${total}`;
     if (!this._artifactsShown && n > 0) { this._artifactsShown = true; this.artifacts.style.display = 'block'; }
+  }
+
+  // Dezent: erscheint erst beim ersten Gold (Niffler-Glitzer, S2), bleibt
+  // danach dauerhaft sichtbar — wie die Artefakt-Zeile.
+  setGold(n) {
+    this.gold.textContent = `💰 ${n}`;
+    if (!this._goldShown && n > 0) { this._goldShown = true; this.gold.style.display = 'block'; }
   }
 
   // total=null blendet die Zeile aus (kein Grund, sie gerade zu zeigen)

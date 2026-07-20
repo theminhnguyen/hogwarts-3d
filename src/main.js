@@ -31,6 +31,7 @@ import { buildGrove } from './grove.js';
 import { buildBroom } from './broom.js';
 import { buildFahlholz, buildHuegelgrab, buildKate } from './wildmark.js';
 import { buildFauna } from './fauna.js';
+import { EconomySystem } from './economy.js';
 
 // Der Schlüsselname trägt noch "v1" aus Phase 0 — umbenennen würde alle
 // bestehenden Spielstände verwaisen lassen. Die eigentliche Versionierung
@@ -112,7 +113,7 @@ post.setQuality(save.grafik);
 post.onDegrade = () => hud.showToast('Grafik automatisch reduziert (Bloom aus)', 3.5);
 
 let sky, water, castle, structures, moor, life, collectibles, player;
-let fx, wand, spells, health, creatures, puzzles, dementors, weather, village, train, willow, interact, npc, grove, broom, fahlholz, fauna;
+let fx, wand, spells, health, creatures, puzzles, dementors, weather, village, train, willow, interact, npc, grove, broom, fahlholz, fauna, economy;
 let lanternWasCollected = false; // erkennt den Moment, in dem die Laterne live geborgen wird
 let natureSwayMaterials = [];
 let natureTreeSpots = []; // S2: echte Baum-Positionen für Bowtruckles (fauna.js)
@@ -214,6 +215,11 @@ const buildSteps = [
     train = buildTrain(scene, glowTex, audio);
     train.onSmoke = (pos) => fx.trail(pos, 0x9aa0a8);
   }],
+  // Braucht nur hud+save — bewusst früh, damit 'Fauna' (Niffler-Gold) und
+  // 'NPCs & Quests' (Fero) beide bereits darauf zugreifen können.
+  ['Wirtschaft', () => {
+    economy = new EconomySystem(hud, save);
+  }],
   ['Peitschende Weide', () => {
     willow = buildWillow(scene, glowTex, audio, fx, health);
     willow.restore(save.pz?.willowChest);
@@ -224,6 +230,7 @@ const buildSteps = [
     npc = buildNpcs(scene, glowTex, hud, audio, fx, health, interact, {
       collectibles, puzzles, spells, moor, dementors,
       leuchtkraeuter: structures.leuchtkraeuter,
+      train, economy, heim: save.heim, mounts: save.mounts,
     });
     npc.restore(save.quests);
     npc.onQuestChange = () => persist();
@@ -257,7 +264,7 @@ const buildSteps = [
   ['Fauna', () => {
     fauna = buildFauna(scene, fx, audio, natureTreeSpots, () => {
       const gold = 1 + Math.floor(Math.random() * 3);
-      save.gold += gold;
+      economy.addGold(gold);
       save.heim.zutaten.glitzer += 1;
       hud.showToast(`✨ Glitzerstaub gefunden! +${gold} Gold, +1 Glitzerstaub`, 2.5);
       persist();
@@ -442,6 +449,7 @@ btnReset.addEventListener('click', () => {
   // save-Objekt zurückgesetzt (persist() reicht sie sonst unverändert durch).
   save.gold = 0;
   save.ruf = 0;
+  hud.setGold(0);
   save.seenDeath = 0;
   save.wild = { aktivCamp: -1, befreit: 0, geerntet: 0 };
   save.mounts = { hippo: 0, thestral: 0, sattel: 0 };
@@ -560,7 +568,7 @@ function frame(dt) {
     train.update(dt, player);
     willow.update(dt, player);
     grove.update(dt, player);
-    npc.update(dt, player, sky.state);
+    npc.update(dt, player, sky.state, economy.ruf);
     broom.update(dt, player);
     fahlholz.update(dt);
     fauna.update(dt, player, spells.lumosOn, move.sprinting);
@@ -643,7 +651,7 @@ buildWorld().then(() => {
   // Debug-/Test-Zugriff (bewusst öffentlich, hilft bei Fehlersuche)
   window.__game = {
     player, sky, camera, renderer, scene,
-    wand, spells, fx, health, creatures, puzzles, moor, dementors, weather, post, village, train, willow, interact, npc, hud, grove, broom, fahlholz, fauna,
+    wand, spells, fx, health, creatures, puzzles, moor, dementors, weather, post, village, train, willow, interact, npc, hud, grove, broom, fahlholz, fauna, economy,
     get fps() { return fpsEMA; },
     get pixelRatio() { return pixelRatio; },
     collectibles,

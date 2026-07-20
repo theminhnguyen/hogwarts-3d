@@ -7,6 +7,9 @@ import { terrainHeight, PATHS } from './terrain.js';
 import { mulberry32 } from './noise.js';
 import { GASTHAUS } from './village.js';
 import { ARTIFACT_ORDER } from './puzzles.js';
+import { GeoBatch } from './geo.js';
+import { getMaterials } from './materials.js';
+import { RUF_HIGH, RUF_LOW } from './economy.js';
 
 const HOUSE_COLORS = [0xa62b2b, 0x2b6b35, 0x2b4b9b, 0xbfa32b];
 const HAIR_COLORS = [0x2a1c10, 0x1a1a1a, 0x5a3c22, 0x8a7050];
@@ -96,6 +99,11 @@ function setFigureOpacity(fig, f) {
   fig.group.visible = f > 0.01;
 }
 
+// Ruf-Reaktion (S3): reine Verhaltens-Variation, sperrt nichts (Ruf ist
+// FLAVOR, K12). Ab RUF_LOW weichen Schüler dem Spieler aus, ab RUF_HIGH
+// grüßen sie kurz (Blick zum Spieler), statt einfach vorbeizulaufen.
+const RUF_FLEE_RANGE = 6, RUF_GREET_RANGE = 4, RUF_FLEE_SPEED = 2.6;
+
 // ---------- Wandernde Schüler: reine Deko, kein Interakt ----------
 class Student {
   constructor(scene, pathPts, idx) {
@@ -111,17 +119,47 @@ class Student {
     this.stateT = 0;
     this.pauseDur = 0;
     this.fade = 1;
+    this._greeted = false;
     const [sx, sz] = pathPts[0];
     this.group.position.set(sx, terrainHeight(sx, sz), sz);
     scene.add(this.group);
   }
 
-  update(dt, nightGlow) {
+  update(dt, nightGlow, player, ruf) {
     if (nightGlow > 0.55) this.fade = Math.max(0, this.fade - dt / 2.5);
     else if (nightGlow < 0.35) this.fade = Math.min(1, this.fade + dt / 2.5);
     setFigureOpacity(this.fig, this.fade);
     if (this.fade <= 0.01) return;
 
+    let dPlayer = Infinity;
+    if (player) dPlayer = Math.hypot(player.pos.x - this.group.position.x, player.pos.z - this.group.position.z);
+
+    if (ruf <= RUF_LOW && dPlayer < RUF_FLEE_RANGE) this.state = 'flee';
+    else if (this.state === 'flee' && dPlayer >= RUF_FLEE_RANGE * 1.3) { this.state = 'walk'; }
+    else if (ruf >= RUF_HIGH && dPlayer < RUF_GREET_RANGE && this.state === 'walk' && !this._greeted) {
+      this.state = 'greet'; this.stateT = 0; this._greeted = true;
+    }
+    if (dPlayer >= RUF_GREET_RANGE * 1.5) this._greeted = false;
+
+    if (this.state === 'flee') {
+      const dx = this.group.position.x - player.pos.x, dz = this.group.position.z - player.pos.z;
+      const d = Math.hypot(dx, dz) || 1;
+      const nx = dx / d, nz = dz / d;
+      this.group.position.x += nx * RUF_FLEE_SPEED * dt;
+      this.group.position.z += nz * RUF_FLEE_SPEED * dt;
+      this.group.position.y = terrainHeight(this.group.position.x, this.group.position.z);
+      this.group.rotation.y = Math.atan2(-nx, -nz);
+      animateFigure(this.fig, dt, true);
+      return;
+    }
+    if (this.state === 'greet') {
+      this.stateT += dt;
+      const dx = player.pos.x - this.group.position.x, dz = player.pos.z - this.group.position.z;
+      this.group.rotation.y = Math.atan2(-dx, -dz);
+      animateFigure(this.fig, dt, false);
+      if (this.stateT >= 1.6) { this.state = 'walk'; this.stateT = 0; }
+      return;
+    }
     if (this.state === 'pause') {
       this.stateT += dt;
       animateFigure(this.fig, dt, false);
@@ -255,8 +293,168 @@ function buildGeist(scene, glowTex) {
   return { group, cloak, head, t: 0 };
 }
 
+// ---------- Fero der Wanderhändler (S3): reist mit dem Zug, steht nur
+// während der Bahnhofs-Haltephase am Bahnsteig (Figur + Karren). Kein
+// Shop-UI (K-Vorgabe aus dem Plan) — jeder Kauf ist eine eigene Interakt-
+// Stelle am Karren (Muster Leuchtkraut-Pickup aus Q2), Fero selbst gibt
+// nur eine kurze Begrüßung per Dialog.
+const FERO_ZUTATEN = ['glitzer', 'seide', 'stern'];
+const ZUTAT_NAMES = { glitzer: 'Glitzerstaub', seide: 'Spinnenseide', stern: 'Sternsplitter', essenz: 'Dunkle Essenz' };
+// Tagesangebot (Plan-Flavor): welche Zutat Fero gerade führt, wechselt alle
+// paar Minuten — an sky.js' DAY_LENGTH (300s) angelehnt, aber bewusst ohne
+// Import (rein kosmetisch, keine echte Tageszeit-Kopplung nötig).
+const FERO_OFFER_CYCLE = 300;
+
+function buildFeroCart() {
+  const batch = new GeoBatch();
+  const body = new THREE.BoxGeometry(1.0, 0.9, 1.6);
+  body.translate(0, 0.75, 0);
+  batch.addRaw(body, 0x4a3323);
+  const board = new THREE.BoxGeometry(1.1, 0.08, 1.7);
+  board.translate(0, 1.22, 0);
+  batch.addRaw(board, 0x5a3f28);
+  // Zutaten-Kiste, Fischfass, Sattel-Kiste — Deko, deren Weltposition
+  // unten via denselben Local-Z-Versatz für die Interakt-Punkte genutzt wird.
+  const crate = new THREE.BoxGeometry(0.4, 0.4, 0.4);
+  crate.translate(0, 1.42, -0.6);
+  batch.addRaw(crate, 0x8a6b45);
+  const barrelGeo = new THREE.CylinderGeometry(0.22, 0.22, 0.5, 8);
+  barrelGeo.translate(0, 1.47, 0);
+  batch.addRaw(barrelGeo, 0x5a3a20);
+  const saddleGeo = new THREE.BoxGeometry(0.32, 0.28, 0.5);
+  saddleGeo.translate(0, 1.36, 0.6);
+  batch.addRaw(saddleGeo, 0x6b3a26);
+  const mesh = batch.build(getMaterials().deco);
+  const group = new THREE.Group();
+  if (mesh) group.add(mesh);
+
+  const wheelMat = new THREE.MeshLambertMaterial({ color: 0x1a1a1a, flatShading: true });
+  const wheelGeo = new THREE.CylinderGeometry(0.32, 0.32, 0.14, 10);
+  wheelGeo.rotateZ(Math.PI / 2);
+  for (const side of [-0.55, 0.55]) {
+    for (const z of [-0.5, 0.5]) {
+      const wheel = new THREE.Mesh(wheelGeo, wheelMat);
+      wheel.position.set(side, 0.32, z);
+      group.add(wheel);
+    }
+  }
+  return group;
+}
+
+function buildFero(scene, hud, audio, interact, deps) {
+  const { train, economy, heim, mounts } = deps;
+  const st = train.station;
+  const perpX = Math.cos(st.ang), perpZ = -Math.sin(st.ang);
+  const alongX = Math.sin(st.ang), alongZ = Math.cos(st.ang);
+  const stallPos = (z) => ({ x: cartX + alongX * z, z: cartZ + alongZ * z });
+
+  const fig = buildFigure(0x8a6a2a, 0x3a2412, 0x5a3d22, 0x6b4a2a);
+  for (const m of fig.mats) m.opacity = 1;
+  fig.group.scale.setScalar(1.08);
+  fig.group.position.set(st.feroX, terrainHeight(st.feroX, st.feroZ), st.feroZ);
+  fig.group.rotation.y = Math.atan2(-perpX, -perpZ); // Blick weg vom Karren, zum Gleis hin
+  fig.group.visible = false;
+  scene.add(fig.group);
+
+  const cartX = st.feroX - perpX * 1.5, cartZ = st.feroZ - perpZ * 1.5;
+  const cart = buildFeroCart();
+  cart.rotation.y = st.ang;
+  cart.position.set(cartX, terrainHeight(cartX, cartZ), cartZ);
+  cart.visible = false;
+  scene.add(cart);
+
+  let visible = false;
+  let feroGreeted = false;
+  let onChange = null;
+  const feroState = { frischfisch: 0 };
+  let offerT = Math.random() * FERO_OFFER_CYCLE;
+  let offerItem = FERO_ZUTATEN[Math.floor(Math.random() * FERO_ZUTATEN.length)];
+  let zutatPrice = 5 + Math.floor(Math.random() * 6);
+
+  const feroEntry = interact.register({
+    x: st.feroX, z: st.feroZ, r: 2.2, prompt: 'E — Mit Fero sprechen', enabled: false,
+    onInteract: () => {
+      const lines = feroGreeted
+        ? ['Immer noch auf Reisen, wie du siehst.', 'Schau am Karren vorbei, wenn du etwas brauchst.']
+        : ['Fero, fahrender Händler, zu deinen Diensten!',
+           'Zutaten, Frischfisch, sogar ein Sattel — alles gegen Gold.',
+           'Der Zug hält nicht lange — sei zügig!'];
+      feroGreeted = true;
+      hud.showDialog('Fero', lines);
+    },
+  });
+
+  const zutatenPos = stallPos(-0.6);
+  const zutatenEntry = interact.register({
+    x: zutatenPos.x, z: zutatenPos.z, r: 1.3, enabled: false,
+    get prompt() {
+      const item = economy.rufLow ? 'essenz' : offerItem;
+      return `E — ${ZUTAT_NAMES[item]} kaufen (${Math.round(zutatPrice * economy.priceMul)} Gold)`;
+    },
+    onInteract: () => {
+      const item = economy.rufLow ? 'essenz' : offerItem;
+      if (!economy.spendGold(zutatPrice)) { hud.showToast('Nicht genug Gold.', 2); return; }
+      heim.zutaten[item]++;
+      audio.chime();
+      hud.showToast(`✦ ${ZUTAT_NAMES[item]} gekauft (${heim.zutaten[item]}×)`, 2.5);
+      onChange?.();
+    },
+  });
+
+  const fischPos = stallPos(0);
+  const fischEntry = interact.register({
+    x: fischPos.x, z: fischPos.z, r: 1.3, prompt: 'E — Frischfisch kaufen (8 Gold)', enabled: false,
+    onInteract: () => {
+      if (!economy.spendGold(8)) { hud.showToast('Nicht genug Gold.', 2); return; }
+      feroState.frischfisch++;
+      audio.chime();
+      hud.showToast(`🐟 Frischfisch gekauft (${feroState.frischfisch}× — nützlich für Zähmungen)`, 2.5);
+      onChange?.();
+    },
+  });
+
+  const sattelPos = stallPos(0.6);
+  const sattelEntry = interact.register({
+    x: sattelPos.x, z: sattelPos.z, r: 1.3, enabled: false,
+    get prompt() { return mounts.sattel ? 'Sattel bereits gekauft' : 'E — Sattel kaufen (40 Gold)'; },
+    onInteract: () => {
+      if (mounts.sattel) return;
+      if (!economy.spendGold(40)) { hud.showToast('Nicht genug Gold.', 2); return; }
+      mounts.sattel = 1;
+      audio.chime('fanfare');
+      hud.showToast('🐴 Sattel gekauft — Mounts sprinten jetzt schneller!', 3);
+      onChange?.();
+    },
+  });
+
+  return {
+    feroState,
+    set onChange(fn) { onChange = fn; },
+    update(dt) {
+      offerT += dt;
+      if (offerT >= FERO_OFFER_CYCLE) {
+        offerT = 0;
+        offerItem = FERO_ZUTATEN[Math.floor(Math.random() * FERO_ZUTATEN.length)];
+      }
+      const halt = train.phase === 'halt';
+      if (halt !== visible) {
+        visible = halt;
+        fig.group.visible = visible;
+        cart.visible = visible;
+        if (visible) zutatPrice = 5 + Math.floor(Math.random() * 6);
+        else feroGreeted = false;
+      }
+      feroEntry.enabled = visible;
+      zutatenEntry.enabled = visible;
+      fischEntry.enabled = visible;
+      sattelEntry.enabled = visible && !mounts.sattel;
+    },
+  };
+}
+
 export function buildNpcs(scene, glowTex, hud, audio, fx, health, interact, deps) {
-  // deps = { collectibles, puzzles, spells, moor, dementors }
+  // deps = { collectibles, puzzles, spells, moor, dementors, train, economy,
+  //          heim, mounts, leuchtkraeuter }
   const students = STUDENT_PATHS.map((p, i) => new Student(scene, p, i));
   // 2 wandernde Hexer (S2): eine läuft die Route vorwärts, die andere rückwärts
   // los (idx=1 wie Student, aber entgegengesetzte Startrichtung), damit sie
@@ -282,8 +480,11 @@ export function buildNpcs(scene, glowTex, hud, audio, fx, health, interact, deps
   let catFollowing = false;
   let currentPlayer = null;
 
+  const fero = buildFero(scene, hud, audio, interact, deps);
+
   const quests = { katze: 0, kraeuter: 0, kraeuterDone: 0, kraeuterStarted: 0 };
   let onQuestChange = null; // von main.js gesetzt, ruft persist()
+  fero.onChange = () => onQuestChange?.();
 
   const leuchtkraeuter = deps.leuchtkraeuter || [];
   const kraeuterEntries = [];
@@ -418,6 +619,7 @@ export function buildNpcs(scene, glowTex, hud, audio, fx, health, interact, deps
 
   return {
     quests,
+    fero,
     set onQuestChange(fn) { onQuestChange = fn; },
 
     save() { return { ...quests }; },
@@ -437,10 +639,11 @@ export function buildNpcs(scene, glowTex, hud, audio, fx, health, interact, deps
       }
     },
 
-    update(dt, player, skyState) {
+    update(dt, player, skyState, ruf = 0) {
       currentPlayer = player;
-      for (const s of students) s.update(dt, skyState.nightGlow);
+      for (const s of students) s.update(dt, skyState.nightGlow, player, ruf);
       for (const w of wizards) w.update(dt, skyState.nightGlow);
+      fero.update(dt);
 
       animateFigure(lenaFig, dt, false);
       animateFigure(barnabyFig, dt, false);
