@@ -226,6 +226,28 @@ export function terrainHeight(x, z) {
     h = lerp(h, HUEGELGRAB.h + fbm(x * 0.06, z * 0.06, 2) * 1, m * 0.9);
   }
 
+  // Sicherheitsnetz gegen unsichtbares "Phantom-Wasser": das Grund-Rauschen
+  // (Skala 0.0052, Wellenlänge ~190m) kann UNABHÄNGIG vom See irgendwo auf
+  // der Karte unter die Schwimm-Schwelle (WATER_LEVEL-1.2) absacken, ohne
+  // dass dort ein Wasser-Mesh liegt — player.js löst "Schwimmen" rein über
+  // terrainHeight() aus. Gefunden: so eine Senke ~70-95m östlich des Sees,
+  // bis dicht an Hagrids Hütte heran (kein Zusammenhang mit der See-Senke
+  // oben — die endet bereits bei dl=LAKE.r=125, der Bug lag bei dl≈180-265).
+  // Fix ist rein von h abhängig (nicht vom Ort) → keine Kante im Gelände,
+  // nur echte Unterwasser-Höhen werden angehoben, alles ab h≥0.3 bleibt
+  // unangetastet. dl-Schutz stellt sicher, dass die eigentliche Seefläche
+  // (dort deckt ohnehin das Wasser-Mesh ab) nie betroffen ist.
+  {
+    const dl = Math.sqrt((x - LAKE.x) ** 2 + (z - LAKE.z) ** 2);
+    if (dl > LAKE.r + 55) {
+      const m = 1 - smoothstep(-0.8, 0.3, h);
+      if (m > 0) {
+        const floor = WATER_LEVEL + 0.6 + fbm(x * 0.05, z * 0.05, 2) * 0.6; // ~1.0–1.6
+        h = lerp(h, floor, m);
+      }
+    }
+  }
+
   return h;
 }
 
