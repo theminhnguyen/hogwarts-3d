@@ -480,7 +480,9 @@ class Bowtruckle {
 // ============================================================ Hippogreif (wild) ============
 const HIPPO_TUNING = { speed: 1.8, fleeSpeed: 6, fleeRange: 12, wanderR: 16 };
 
-function buildWildHippoModel() {
+// Exportiert (S5): mount.js baut den gerittenen Hippogreif aus DERSELBEN
+// Geometrie (gezähmt ist er kein neues Modell, nur ein neuer Zustand).
+export function buildWildHippoModel() {
   const bodyMat = new THREE.MeshLambertMaterial({ color: 0x8a7860, flatShading: true });
   const featherMat = new THREE.MeshLambertMaterial({ color: 0x5a4a38, flatShading: true, side: THREE.DoubleSide });
   const beakMat = new THREE.MeshLambertMaterial({ color: 0x3a3228, flatShading: true });
@@ -542,10 +544,20 @@ class WildHippogriff {
     this.stateT = rand(0, 4);
     this.gaitT = seed;
     this.rng = mulberry32(seed);
+    this.tamed = false; // S5: gezähmte Tiere verlassen den wilden Bestand dauerhaft
     scene.add(this.group);
   }
 
+  // S5: von mount.js nach erfolgreicher Zähmung aufgerufen — verschwindet
+  // dauerhaft aus der Silberauen-Wildpopulation (er ist jetzt DEIN Mount,
+  // der eigene, unabhängige "kein Weltstandort"-Zustand lebt in mount.js).
+  tame() {
+    this.tamed = true;
+    this.group.visible = false;
+  }
+
   update(dt, player, sprinting) {
+    if (this.tamed) { this.group.visible = false; return; }
     const distSq = this.pos.distanceToSquared(player.pos);
     if (distSq > CULL_HIDE * CULL_HIDE) { this.group.visible = false; return; }
     this.group.visible = true;

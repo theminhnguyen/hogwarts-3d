@@ -468,6 +468,13 @@ export class SoundManager {
     o.start(t); o.stop(t + 0.55);
   }
 
+  // Mount-Tritt (S5): kurzer, harter Wums — anders timbriert als hurt()
+  // (Spieler-Schaden), damit beide nicht verwechselt klingen.
+  mountKick() {
+    if (!this.ctx || this.muted) return;
+    this._thump(95, 0.22);
+  }
+
   _bird() {
     const ctx = this.ctx, t = ctx.currentTime;
     const n = 2 + Math.floor(Math.random() * 3);

@@ -21,6 +21,7 @@ export class Hud {
     this._artifactsShown = false;
     this.gold = el('gold');
     this._goldShown = false;
+    this.tameRing = el('tame-ring');
     this.soullights = el('soullights');
     this.lanternIcon = el('lantern-icon');
     this.spellbar = el('spellbar');
@@ -106,6 +107,13 @@ export class Hud {
   setGold(n) {
     this.gold.textContent = `💰 ${n}`;
     if (!this._goldShown && n > 0) { this._goldShown = true; this.gold.style.display = 'block'; }
+  }
+
+  // Zähm-Fortschrittsring (S5): frac null blendet ihn aus.
+  setTameRing(frac) {
+    if (frac === null) { this.tameRing.classList.remove('visible'); return; }
+    this.tameRing.classList.add('visible');
+    this.tameRing.style.setProperty('--tame', Math.max(0, Math.min(1, frac)).toFixed(3));
   }
 
   // total=null blendet die Zeile aus (kein Grund, sie gerade zu zeigen)

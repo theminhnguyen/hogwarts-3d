@@ -213,7 +213,8 @@ export function buildBroom(scene, camera, glowTex, hud, audio, fx, interact, wan
 
     update(dt, player) {
       flightBroom.visible = besenUnlocked && player.flying;
-      wand.root.visible = !player.flying;
+      // wand.root.visible wird zentral in main.js gesetzt (S5: muss zusätzlich
+      // player.riding kennen) — hier nicht mehr redundant zuweisen.
       startEntry.enabled = besenUnlocked && race.state === 'idle';
 
       if (player.flying) {

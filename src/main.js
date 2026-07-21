@@ -33,6 +33,7 @@ import { buildFahlholz, buildHuegelgrab, buildKate } from './wildmark.js';
 import { buildFauna } from './fauna.js';
 import { EconomySystem } from './economy.js';
 import { buildWilderer } from './wilderer.js';
+import { buildMount } from './mount.js';
 
 // Der Schlüsselname trägt noch "v1" aus Phase 0 — umbenennen würde alle
 // bestehenden Spielstände verwaisen lassen. Die eigentliche Versionierung
@@ -114,7 +115,7 @@ post.setQuality(save.grafik);
 post.onDegrade = () => hud.showToast('Grafik automatisch reduziert (Bloom aus)', 3.5);
 
 let sky, water, castle, structures, moor, life, collectibles, player;
-let fx, wand, spells, health, creatures, puzzles, dementors, weather, village, train, willow, interact, npc, grove, broom, fahlholz, fauna, economy, wilderer;
+let fx, wand, spells, health, creatures, puzzles, dementors, weather, village, train, willow, interact, npc, grove, broom, fahlholz, fauna, economy, wilderer, mount;
 let lanternWasCollected = false; // erkennt den Moment, in dem die Laterne live geborgen wird
 let natureSwayMaterials = [];
 let natureTreeSpots = []; // S2: echte Baum-Positionen für Bowtruckles (fauna.js)
@@ -282,6 +283,13 @@ const buildSteps = [
     if (save.peaceful) wilderer.peaceful = true;
     wilderer.onWildChange = () => persist();
   }],
+  ['Mount', () => {
+    mount = buildMount(scene, camera, glowTex, hud, audio, fx, health, interact, player, {
+      hippos: fauna.hippos, mounts: save.mounts, feroState: npc.fero.feroState,
+    });
+    mount.restore(save.mounts);
+    mount.onMountChange = () => persist();
+  }],
 ];
 
 const loadingBar = document.getElementById('loading-bar');
@@ -446,7 +454,8 @@ btnReset.addEventListener('click', () => {
   if (npc) npc.restore({});
   if (broom) broom.restore({});
   if (wilderer) wilderer.restore({ aktivCamp: -1, befreit: 0, geerntet: 0 });
-  if (player) player.flying = false;
+  if (mount) mount.restore({ hippo: 0, thestral: 0, sattel: 0 });
+  if (player) { player.flying = false; player.riding = false; }
   lanternWasCollected = false;
   if (health) {
     health.maxHearts = 5;
@@ -521,6 +530,8 @@ window.addEventListener('keydown', (e) => {
       player.flying = !player.flying;
       hud.showToast(player.flying ? '🧹 Aufgestiegen!' : '🧹 Abgestiegen.', 1.4);
     }
+  } else if (e.code === 'KeyR') {
+    if (!player.swimming) mount.whistle();
   }
 });
 
@@ -591,6 +602,10 @@ function frame(dt) {
     npc.update(dt, player, sky.state, economy.ruf);
     wilderer.update(dt, player, sky);
     broom.update(dt, player);
+    // Tritt-Ziele (S5): kreatur.list + wilderer.list — Dementoren bewusst
+    // NICHT dabei (immateriell, K6 aus dem Plan).
+    mount.update(dt, player, creatures.list.concat(wilderer.list));
+    wand.root.visible = !player.flying && !player.riding;
     fahlholz.update(dt);
     fauna.update(dt, player, spells.lumosOn, move.sprinting);
     interact.update(player);
@@ -672,7 +687,7 @@ buildWorld().then(() => {
   // Debug-/Test-Zugriff (bewusst öffentlich, hilft bei Fehlersuche)
   window.__game = {
     player, sky, camera, renderer, scene,
-    wand, spells, fx, health, creatures, puzzles, moor, dementors, weather, post, village, train, willow, interact, npc, hud, grove, broom, fahlholz, fauna, economy, wilderer,
+    wand, spells, fx, health, creatures, puzzles, moor, dementors, weather, post, village, train, willow, interact, npc, hud, grove, broom, fahlholz, fauna, economy, wilderer, mount,
     get fps() { return fpsEMA; },
     get pixelRatio() { return pixelRatio; },
     collectibles,

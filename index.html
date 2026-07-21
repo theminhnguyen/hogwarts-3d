@@ -82,6 +82,22 @@
     width: 6px; height: 6px; border-radius: 50%;
     background: rgba(255,255,255,0.55); box-shadow: 0 0 4px rgba(0,0,0,0.8);
   }
+  /* Zähm-Fortschrittsring (S5, Hippogreif-Verbeugung) — Muster wie der
+     Spruch-Cooldown-Sweep (conic-gradient), hier als Ring statt Kreisscheibe
+     per Radial-Masken-Trick, mittig um das Fadenkreuz. */
+  #tame-ring {
+    position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%);
+    width: 56px; height: 56px; border-radius: 50%;
+    border: 2px solid rgba(255,217,122,0.3);
+    opacity: 0; transition: opacity 0.2s; pointer-events: none;
+  }
+  #tame-ring.visible { opacity: 1; }
+  #tame-ring::before {
+    content: ""; position: absolute; inset: -2px; border-radius: 50%;
+    background: conic-gradient(#ffd97a calc(var(--tame, 0) * 360deg), transparent 0);
+    -webkit-mask: radial-gradient(farthest-side, transparent calc(100% - 5px), #000 calc(100% - 4px));
+    mask: radial-gradient(farthest-side, transparent calc(100% - 5px), #000 calc(100% - 4px));
+  }
   #counter {
     position: absolute; top: 18px; right: 22px;
     font-size: 20px; letter-spacing: 1px;
@@ -281,6 +297,7 @@
     <div id="whiteout"></div>
     <div id="lightning-flash"></div>
     <div id="crosshair"></div>
+    <div id="tame-ring"></div>
     <div id="compass">N</div>
     <div id="bossbar"><i></i></div>
     <div id="counter">✦ 0 / 12</div>
@@ -325,6 +342,7 @@
         <b>Maustaste</b><span>Zaubern</span>
         <b>E</b><span>Interagieren</span>
         <b>B</b><span>Besen auf-/absteigen</span>
+        <b>R</b><span>Hippogreif rufen/aufsitzen/absitzen</span>
         <b>Rad / 1-4</b><span>Zauber wechseln</span>
         <b>5</b><span>Expecto Patronum (nach dem Hauspokal)</span>
         <b>T</b><span>Tageszeit vorspulen</span>

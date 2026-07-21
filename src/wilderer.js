@@ -139,7 +139,7 @@ class WildererMage {
   applyHit(spellId, _boltVel) {
     if (!this.alive || this.state === 'inactive' || this.state === 'gone') return;
     if (this.state === 'kneel' || this.state === 'fliehen') return; // gibt schon auf
-    const dmg = spellId === 'incendio' ? 2 : spellId === 'stupor' ? 1 : 0;
+    const dmg = spellId === 'incendio' ? 2 : (spellId === 'stupor' || spellId === 'kick') ? 1 : 0;
     if (dmg <= 0) return;
     this.hp -= dmg;
     this.system.fx.burst(this.pos, 0xd8c8a0, 8, 2.5, { gravity: -3, life: 0.35 });

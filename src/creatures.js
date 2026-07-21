@@ -179,7 +179,8 @@ class Pixie {
 
   applyHit(spellId, boltVel) {
     if (!this.alive) return;
-    const dmg = spellId === 'incendio' ? 2 : spellId === 'stupor' ? 1 : 0;
+    // 'kick' (S5): Mount-Tritt zählt wie Stupor als 1 dmg (kein eigener Spruch).
+    const dmg = spellId === 'incendio' ? 2 : (spellId === 'stupor' || spellId === 'kick') ? 1 : 0;
     if (dmg <= 0) return;
     this.hp -= dmg;
     const knock = boltVel.lengthSq() > 1e-6
@@ -472,7 +473,7 @@ class Ghost {
 
   applyHit(spellId, _boltVel) {
     if (!this.alive) return;
-    const dmg = (spellId === 'stupor' || spellId === 'incendio') ? 1 : 0;
+    const dmg = (spellId === 'stupor' || spellId === 'incendio' || spellId === 'kick') ? 1 : 0;
     if (dmg <= 0) return;
     this.hp -= dmg;
     if (this.hp <= 0) this._die();
@@ -734,7 +735,8 @@ class Troll {
 
   applyHit(spellId, _boltVel) {
     if (!this.alive) return;
-    const dmg = spellId === 'incendio' ? 2 : spellId === 'stupor' ? 1 : 0;
+    // 'kick' (S5): Mount-Tritt zählt wie Stupor als 1 dmg (kein eigener Spruch).
+    const dmg = spellId === 'incendio' ? 2 : (spellId === 'stupor' || spellId === 'kick') ? 1 : 0;
     if (dmg <= 0) return;
     this.hp -= dmg;
     this.system.fx.burst(this.pos, 0x8a9878, 10, 3, { gravity: -2, life: 0.4 });
@@ -1036,7 +1038,8 @@ class GiantSpider {
 
   applyHit(spellId, _boltVel) {
     if (!this.alive) return;
-    const dmg = spellId === 'incendio' ? 2 : spellId === 'stupor' ? 1 : 0;
+    // 'kick' (S5): Mount-Tritt zählt wie Stupor als 1 dmg (kein eigener Spruch).
+    const dmg = spellId === 'incendio' ? 2 : (spellId === 'stupor' || spellId === 'kick') ? 1 : 0;
     if (dmg <= 0) return;
     this.hp -= dmg;
     this.system.fx.burst(this.pos, 0x1c1712, 8, 3, { gravity: -2, life: 0.35 });

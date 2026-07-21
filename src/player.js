@@ -19,6 +19,11 @@ const FLY_CLIMB = 4;
 const FLY_MAX_ABS_Y = 75;
 const FLY_MAX_ABOVE_GROUND = 50;
 
+// Boden-Mount Hippogreif (S5) — "bewusst simpel" laut Plan: gleiche
+// Kollision/Sprung/Schwerkraft wie zu Fuß, nur andere Zielgeschwindigkeit.
+const RIDE_WALK = 15;
+const RIDE_SPRINT = 19;
+
 export class Player {
   constructor(camera) {
     this.camera = camera;
@@ -33,6 +38,9 @@ export class Player {
     this.flying = false; // Besenflug (W7) — Taste B, nur wenn besen freigeschaltet
     this._noAscendT = 0;
     this.onLandFlight = null; // Callback: Auto-Abstieg beendet den Flug
+    this.riding = false; // Boden-Mount (S5) — Taste R, nur wenn mounts.hippo
+    this.mountSpeedBoost = 0; // +2 mit Sattel (S3-Kauf), von mount.js gesetzt
+    this.onDismount = null; // Callback: Schwimmen erzwingt Absitzen
 
     this.keys = new Set();
     this.bobPhase = 0;
@@ -122,7 +130,12 @@ export class Player {
         this.onLandFlight?.();
       }
     } else {
-      let speed = sprinting ? SPRINT : WALK;
+      let speed;
+      if (this.riding) {
+        speed = sprinting ? RIDE_SPRINT + this.mountSpeedBoost : RIDE_WALK;
+      } else {
+        speed = sprinting ? SPRINT : WALK;
+      }
       if (this.swimming) speed *= 0.45;
       speed *= this.slowFactor;
       const targetVX = (dirX / dLen) * speed * (fwd || strafe ? 1 : 0);
@@ -175,6 +188,8 @@ export class Player {
       this.grounded = true;
       // Schwimmen + Fliegen schließen sich aus — Wasser erzwingt den Abstieg.
       if (this.flying) { this.flying = false; this._noAscendT = 0; this.onLandFlight?.(); }
+      // Schwimmen erzwingt auch das Absitzen vom Boden-Mount (S5-Plan-Vorgabe).
+      if (this.riding) { this.riding = false; this.onDismount?.(); }
     } else {
       this.swimming = false;
       const wasAir = !this.grounded;
