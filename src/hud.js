@@ -148,8 +148,11 @@ export class Hud {
   buildSpellbar(spells) {
     this.spellbar.innerHTML = spells.map((s, i) => {
       const hex = '#' + s.color.toString(16).padStart(6, '0');
+      // s.key (S8): feste Tastennummer statt Array-Position — die verbotenen
+      // Sprüche liegen immer auf 6/7/8, unabhängig davon, ob Patronum (Slot 5)
+      // schon freigeschaltet ist und damit die Positionen verschiebt.
       return `<div class="spell-chip" id="spell-${s.id}" style="--spell-color:${hex}">
-        <span class="spell-key">${i + 1}</span>
+        <span class="spell-key">${s.key || i + 1}</span>
         <span class="spell-emoji">${s.emoji}</span>
       </div>`;
     }).join('');

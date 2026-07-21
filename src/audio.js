@@ -145,6 +145,146 @@ export class SoundManager {
     }
   }
 
+  // S8 Avada Kedavra: harter Sägezahn-Sturz + scharfer Noise-Crack — dunkler
+  // und schneller als Stupor, kein Nachklingen (One-Shot-Charakter).
+  castAvada() {
+    if (!this.ctx || this.muted) return;
+    const ctx = this.ctx, t = ctx.currentTime;
+    const o = ctx.createOscillator();
+    o.type = 'sawtooth';
+    o.frequency.setValueAtTime(320, t);
+    o.frequency.exponentialRampToValueAtTime(35, t + 0.16);
+    const g = ctx.createGain();
+    this._env(g, t, 0.003, 0.2, 0.15);
+    o.connect(g).connect(this.master);
+    o.start(t); o.stop(t + 0.22);
+
+    const src = ctx.createBufferSource();
+    src.buffer = this.noiseBuf;
+    const f = ctx.createBiquadFilter();
+    f.type = 'highpass';
+    f.frequency.value = 3200;
+    const ng = ctx.createGain();
+    this._env(ng, t, 0.002, 0.14, 0.04);
+    src.connect(f).connect(ng).connect(this.master);
+    src.start(t, Math.random() * 1.5, 0.06);
+  }
+
+  // S8 Crucio: dissonanter Sinus-Chor mit schnellem Vibrato, läuft bis
+  // castCrucio(false) — Muster leviosaHold(), aber schriller/enger verstimmt.
+  castCrucio(on) {
+    if (!this.ctx) return;
+    const ctx = this.ctx, t = ctx.currentTime;
+    if (on) {
+      if (this._crucioNodes) return;
+      const g = ctx.createGain();
+      g.gain.value = 0;
+      g.connect(this.master);
+      const oscs = [220, 233, 415].map((freq) => {
+        const o = ctx.createOscillator();
+        o.type = 'sine'; o.frequency.value = freq;
+        const og = ctx.createGain();
+        og.gain.value = 0.05;
+        o.connect(og).connect(g);
+        const lfo = ctx.createOscillator();
+        lfo.frequency.value = 9 + Math.random() * 3;
+        const lfoGain = ctx.createGain();
+        lfoGain.gain.value = 10;
+        lfo.connect(lfoGain).connect(o.frequency);
+        o.start(); lfo.start();
+        return { o, lfo };
+      });
+      g.gain.setTargetAtTime(0.45, t, 0.1);
+      this._crucioNodes = { gain: g, oscs };
+    } else if (this._crucioNodes) {
+      const { gain, oscs } = this._crucioNodes;
+      gain.gain.setTargetAtTime(0, t, 0.12);
+      setTimeout(() => { for (const { o, lfo } of oscs) { o.stop(); lfo.stop(); } }, 350);
+      this._crucioNodes = null;
+    }
+  }
+
+  // S8 Imperio: verstimmter, "verdrehter" Aufschwung — zwei leicht
+  // gegeneinander verstimmte Oszillatoren gleiten gemeinsam nach oben.
+  castImperio() {
+    if (!this.ctx || this.muted) return;
+    const ctx = this.ctx, t = ctx.currentTime;
+    for (const detune of [0, 9]) {
+      const o = ctx.createOscillator();
+      o.type = 'triangle';
+      o.frequency.setValueAtTime(180, t);
+      o.frequency.exponentialRampToValueAtTime(520, t + 0.5);
+      o.detune.value = detune;
+      const g = ctx.createGain();
+      this._env(g, t, 0.02, 0.13, 0.45);
+      o.connect(g).connect(this.master);
+      o.start(t); o.stop(t + 0.6);
+    }
+  }
+
+  // S8 Dunkles Mal: tiefes Rumpeln (Lowpass-Rauschen anschwellend) + fallender
+  // Unterton — größere, bedrohlichere Version von Incendios Anschwellen.
+  malSummon() {
+    if (!this.ctx || this.muted) return;
+    const ctx = this.ctx, t = ctx.currentTime;
+    const src = ctx.createBufferSource();
+    src.buffer = this.noiseBuf;
+    src.loop = true;
+    const f = ctx.createBiquadFilter();
+    f.type = 'lowpass';
+    f.frequency.value = 250;
+    const g = ctx.createGain();
+    g.gain.setValueAtTime(0.0001, t);
+    g.gain.exponentialRampToValueAtTime(0.3, t + 0.6);
+    g.gain.exponentialRampToValueAtTime(0.0001, t + 1.8);
+    src.connect(f).connect(g).connect(this.master);
+    src.start(t, Math.random() * 1.5);
+    src.stop(t + 1.85);
+
+    const o = ctx.createOscillator();
+    o.type = 'sine';
+    o.frequency.setValueAtTime(90, t);
+    o.frequency.exponentialRampToValueAtTime(45, t + 1.4);
+    const og = ctx.createGain();
+    this._env(og, t, 0.05, 0.22, 1.2);
+    o.connect(og).connect(this.master);
+    o.start(t); o.stop(t + 1.5);
+  }
+
+  // Grimoire-Fund + Ritual sprechen: kurzer, tiefer Chor-Ton (Muster
+  // dementorRepel(), aber absteigend statt aufsteigend, dunkler timbriert).
+  ritualChant() {
+    if (!this.ctx || this.muted) return;
+    const ctx = this.ctx, t = ctx.currentTime;
+    [220, 277].forEach((freq, i) => {
+      const o = ctx.createOscillator();
+      o.type = 'sine';
+      o.frequency.setValueAtTime(freq * 1.5, t);
+      o.frequency.exponentialRampToValueAtTime(freq, t + 0.5);
+      const g = ctx.createGain();
+      this._env(g, t + i * 0.06, 0.02, 0.14, 0.55);
+      o.connect(g).connect(this.master);
+      o.start(t); o.stop(t + 0.7);
+    });
+  }
+
+  // Läuterung am Brunnen: heller, kurzer Aufwärts-Dreiklang (leichtere
+  // Variante von patronusCast() — kein Nachhall, reiner Moment-Chime).
+  purifyChime() {
+    if (!this.ctx || this.muted) return;
+    const ctx = this.ctx, t = ctx.currentTime;
+    [660, 880, 1320].forEach((freq, i) => {
+      const t0 = t + i * 0.09;
+      const o = ctx.createOscillator();
+      o.type = 'sine';
+      o.frequency.value = freq;
+      const g = ctx.createGain();
+      this._env(g, t0, 0.008, 0.14, 0.3);
+      o.connect(g).connect(this.master);
+      o.start(t0); o.stop(t0 + 0.35);
+    });
+  }
+
   // Leviosa halten: leiser Sinus-Chor mit Vibrato, läuft bis release(false)
   leviosaHold(on) {
     if (!this.ctx) return;

@@ -196,15 +196,24 @@ class Dementor {
       const distSq = dx * dx + dz * dz;
       switch (this.state) {
         case 'drift': {
-          const t = this.system.time;
-          const lx = this.homePos.x + Math.sin(t * 0.12 + this.phaseA) * 12;
-          const lz = this.homePos.z + Math.cos(t * 0.1 + this.phaseB) * 12;
-          this._steerXZ(lx, lz, TUNING.driftSpeed, dt);
+          // S8 Dunkles Mal: solange aktiv, driften Dementoren zum Mal statt
+          // zufällig ums eigene Zuhause — "taktisches Weglocken vom Moor-
+          // Pfad" (Plan). Kein harter Leash-Bruch: die MOOR-Leine unten
+          // klemmt trotzdem, das Mal muss also in Leash-Reichweite liegen.
+          if (this.system.malLureT > 0 && this.system.malLurePos) {
+            this._steerXZ(this.system.malLurePos.x, this.system.malLurePos.z, TUNING.driftSpeed * 1.6, dt);
+          } else {
+            const t = this.system.time;
+            const lx = this.homePos.x + Math.sin(t * 0.12 + this.phaseA) * 12;
+            const lz = this.homePos.z + Math.cos(t * 0.1 + this.phaseB) * 12;
+            this._steerXZ(lx, lz, TUNING.driftSpeed, dt);
+          }
           // Risiko-Spirale (N4): aggroRange wächst mit jedem getragenen
           // Seelenlicht, die Laterne halbiert sie wieder — main.js speist
-          // beide Werte aus moor.js.
+          // beide Werte aus moor.js. K4 (S8): im dunklen Pfad neutral, kein
+          // Aggro-Übergang — Dementoren gehören zu den Schatten wie der Spieler.
           const aggroR = (TUNING.aggroRange + this.system.aggroRangeExtra) * this.system.aggroRangeMul;
-          if (distSq < aggroR * aggroR) {
+          if (!this.system.playerIsDark && distSq < aggroR * aggroR) {
             this.state = 'aggro';
             this.stateT = 0;
           }
@@ -279,13 +288,28 @@ export class DementorSystem {
     this.aggroRangeMul = 1;   // ×0.5 sobald die Laterne geborgen ist
     this.frostRateMul = 1;    // ×0.5 sobald die Laterne geborgen ist
     this.frostImmune = false; // S7 Frostbann-Trank — von main.js aus heim.trank gesetzt
+    // S8: Dementoren sind neutral, solange der Spieler dem dunklen Pfad
+    // folgt (K4 — "der dunkle Weg ist bequem", von main.js aus dunkel.pfad
+    // gesetzt). malLurePos/malLureT (Dunkles Mal, Taste 9) lässt sie 30s
+    // zum Mal driften statt zufällig wandern.
+    this.playerIsDark = false;
+    this.malLurePos = null;
+    this.malLureT = 0;
 
     const parts = buildDementorParts(glowTex);
     this.list = SPAWNS.map((s, i) => new Dementor(this, parts, s, i + 1));
   }
 
+  // S8 Dunkles Mal: 30s lang driften alle nicht-vertriebenen Dementoren zum
+  // angegebenen Punkt statt zufällig zu wandern.
+  summonToMal(pos) {
+    this.malLurePos = { x: pos.x, z: pos.z };
+    this.malLureT = TUNING.repelDur; // dieselbe 30s-Dauer wie repel()
+  }
+
   update(dt, player) {
     this.time += dt;
+    if (this.malLureT > 0) this.malLureT = Math.max(0, this.malLureT - dt);
     let nearestDist = Infinity;
     let inAura = false;
     for (const d of this.list) {
@@ -294,7 +318,8 @@ export class DementorSystem {
       // Tiefflug nicht — zu Fuß ist die y-Differenz ohnehin ~0 (Regression).
       const dist = Math.hypot(d.pos.x - player.pos.x, d.pos.y - player.pos.y, d.pos.z - player.pos.z);
       if (dist < nearestDist) nearestDist = dist;
-      if (d.state !== 'repelled' && dist < TUNING.auraRange) inAura = true;
+      // K4 (S8): im dunklen Pfad auch keine Frost-Aura/Herz-Drain.
+      if (!this.playerIsDark && d.state !== 'repelled' && dist < TUNING.auraRange) inAura = true;
     }
 
     // Frost-Meter: baut sich über 4s auf, solange der Spieler in irgendeiner

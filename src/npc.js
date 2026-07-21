@@ -146,7 +146,7 @@ class Student {
     scene.add(this.group);
   }
 
-  update(dt, nightGlow, player, ruf) {
+  update(dt, nightGlow, player, ruf, isDark = false) {
     if (nightGlow > 0.55) this.fade = Math.max(0, this.fade - dt / 2.5);
     else if (nightGlow < 0.35) this.fade = Math.min(1, this.fade + dt / 2.5);
     setFigureOpacity(this.fig, this.fade);
@@ -155,7 +155,9 @@ class Student {
     let dPlayer = Infinity;
     if (player) dPlayer = Math.hypot(player.pos.x - this.group.position.x, player.pos.z - this.group.position.z);
 
-    if (ruf <= RUF_LOW && dPlayer < RUF_FLEE_RANGE) this.state = 'flee';
+    // S8: Schüler fliehen zusätzlich zum bestehenden Ruf-Trigger, sobald der
+    // Spieler dem dunklen Pfad folgt — Teil der Weltreaktion aus dem Plan.
+    if ((ruf <= RUF_LOW || isDark) && dPlayer < RUF_FLEE_RANGE) this.state = 'flee';
     else if (this.state === 'flee' && dPlayer >= RUF_FLEE_RANGE * 1.3) { this.state = 'walk'; }
     else if (ruf >= RUF_HIGH && dPlayer < RUF_GREET_RANGE && this.state === 'walk' && !this._greeted) {
       this.state = 'greet'; this.stateT = 0; this._greeted = true;
@@ -529,6 +531,13 @@ export function buildNpcs(scene, glowTex, hud, audio, fx, health, interact, deps
   interact.register({
     x: LENA_POS.x, z: LENA_POS.z, r: 2.4, prompt: 'E — Mit Lena sprechen',
     onInteract: () => {
+      // S8: im dunklen Pfad verweigert Lena ängstlich das Gespräch — die
+      // Quest PAUSIERT (kein onClose, quests.katze bleibt unverändert),
+      // geht aber nie verloren (Läuterung setzt sie einfach fort).
+      if (deps.dunkel?.pfad === 'dunkel') {
+        hud.showDialog('Lena', ['Lena weicht zurück, die Augen weit vor Angst. Sie bringt kein Wort heraus.']);
+        return;
+      }
       if (quests.katze === 0) {
         hud.showDialog('Lena', [
           'Hast du meine Katze gesehen? Musch ist weggelaufen…',
@@ -562,6 +571,11 @@ export function buildNpcs(scene, glowTex, hud, audio, fx, health, interact, deps
   interact.register({
     x: BARNABY_POS.x, z: BARNABY_POS.z, r: 2.4, prompt: 'E — Mit Barnaby sprechen',
     onInteract: () => {
+      // S8: siehe Lena — Quest pausiert, geht nie verloren.
+      if (deps.dunkel?.pfad === 'dunkel') {
+        hud.showDialog('Barnaby', ['Barnaby drückt sich hinter den Tresen und winkt hastig ab — kein Wort.']);
+        return;
+      }
       if (!quests.kraeuterStarted && !quests.kraeuterDone) {
         hud.showDialog('Barnaby', [
           'Ah, ein Abenteurer! Ich brauche etwas für meinen Kessel.',
@@ -658,6 +672,41 @@ export function buildNpcs(scene, glowTex, hud, audio, fx, health, interact, deps
     },
   });
 
+  // ---------- K2 (S8): Spruch-Schutzliste — Quest-NPCs, Schüler, Fero, Ondra
+  // sind gegen ALLE Sprüche immun (Auto-Fizzle + einmalige missbilligende
+  // Schlossgeist-Zeile). Ondra selbst hat schon keinen applyHit (wilderer.js
+  // — nie ein gültiges Bolzen-Ziel), braucht also keinen Eintrag hier.
+  // Kein `accepts`-Feld = akzeptiert JEDEN spellId (spells.js Default).
+  let shieldToastShown = false;
+  function registerShield(getPos, radius = 1.4) {
+    deps.spells.registerTarget({
+      kind: 'npc-shield', radius, getPos,
+      onSpell: () => {
+        audio.spellFizzle?.();
+        fx.burst({ x: getPos().x, y: getPos().y + 1, z: getPos().z }, 0x8a8fa0, 8, 2, { gravity: -1, life: 0.4 });
+        if (!shieldToastShown) {
+          shieldToastShown = true;
+          hud.showToast('👻 „Zauber gegen Freunde? Das lässt dieses Schloss nicht zu." — der Schlossgeist klingt missbilligend.', 4.5);
+        }
+      },
+    });
+  }
+  // +1.3 = Kopf/Brust-Höhe stehender buildFigure()-Figuren (Kopf sitzt bei
+  // lokal y=1.28, siehe animateFigure() oben) — Bolzen fliegen auf
+  // Augenhöhe (player.pos.y + ~1.7), ein Ziel auf reiner Bodenhöhe (y+0)
+  // läge außerhalb jedes Trefferradius und würde NIE getroffen.
+  const FIGURE_HIT_Y = 1.3;
+  registerShield(() => ({ x: LENA_POS.x, y: terrainHeight(LENA_POS.x, LENA_POS.z) + FIGURE_HIT_Y, z: LENA_POS.z }));
+  registerShield(() => ({ x: BARNABY_POS.x, y: terrainHeight(BARNABY_POS.x, BARNABY_POS.z) + FIGURE_HIT_Y, z: BARNABY_POS.z }));
+  registerShield(() => ({ x: GEIST_POS.x, y: terrainHeight(GEIST_POS.x, GEIST_POS.z) + 1.3, z: GEIST_POS.z }), 1.2);
+  registerShield(() => ({ x: cat.group.position.x, y: cat.group.position.y + 0.2, z: cat.group.position.z }), 0.6);
+  if (deps.train?.station) {
+    const st = deps.train.station;
+    registerShield(() => ({ x: st.feroX, y: terrainHeight(st.feroX, st.feroZ) + FIGURE_HIT_Y, z: st.feroZ }));
+  }
+  for (const s of students) registerShield(() => ({ x: s.group.position.x, y: s.group.position.y + FIGURE_HIT_Y, z: s.group.position.z }));
+  for (const w of wizards) registerShield(() => ({ x: w.group.position.x, y: w.group.position.y + FIGURE_HIT_Y, z: w.group.position.z }));
+
   return {
     quests,
     fero,
@@ -681,9 +730,9 @@ export function buildNpcs(scene, glowTex, hud, audio, fx, health, interact, deps
       }
     },
 
-    update(dt, player, skyState, ruf = 0) {
+    update(dt, player, skyState, ruf = 0, isDark = false) {
       currentPlayer = player;
-      for (const s of students) s.update(dt, skyState.nightGlow, player, ruf);
+      for (const s of students) s.update(dt, skyState.nightGlow, player, ruf, isDark);
       for (const w of wizards) w.update(dt, skyState.nightGlow);
       fero.update(dt);
 

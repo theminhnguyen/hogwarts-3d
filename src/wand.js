@@ -12,10 +12,20 @@ export const SPELLS = {
   leviosa:  { name: 'Leviosa',  emoji: '🪄', color: 0xb08cff, cooldown: 0.2 },
   lumos:    { name: 'Lumos',    emoji: '💡', color: 0x9fc4ff, cooldown: 0.3 },
   patronum: { name: 'Expecto Patronum', emoji: '🦌', color: 0xcfe8ff, cooldown: 8 },
+  // Verbotene Sprüche (S8): eigene dunkelgrüne/violette Chips, feste Taste
+  // 6/7/8 (siehe Plan Abschnitt 3) — der `key` überschreibt die sonst aus
+  // der SPELL_ORDER-Position abgeleitete Chip-Nummer (hud.js buildSpellbar),
+  // damit die Anzeige unabhängig davon stimmt, ob Patronum schon frei ist.
+  avada:    { name: 'Avada Kedavra', emoji: '💀', color: 0x2ecc55, cooldown: 8, key: 6 },
+  crucio:   { name: 'Crucio',        emoji: '⛓️', color: 0x9a1030, cooldown: 6, key: 7 },
+  imperio:  { name: 'Imperio',       emoji: '🌀', color: 0x8a3fd1, cooldown: 12, key: 8 },
 };
 // 'patronum' ist bewusst NICHT von Anfang an dabei — der Chip existiert erst
 // nach dem Hauspokal (spells.unlockPatronum() erweitert dieses Array live,
-// buildSpellbar wird danach neu aufgerufen).
+// buildSpellbar wird danach neu aufgerufen). Dieselbe Lazy-Erweiterung nutzt
+// dark.js für avada/crucio/imperio, sobald das Aschene Grimoire gefunden ist
+// (dark.js Z. unlockDarkSpells() — bleibt sichtbar, auch nach Läuterung, nur
+// nicht mehr wirksam: „Grimoire-Wissen bleibt").
 export const SPELL_ORDER = ['stupor', 'incendio', 'leviosa', 'lumos'];
 
 const BASE_POS = new THREE.Vector3(0.28, -0.24, -0.45);

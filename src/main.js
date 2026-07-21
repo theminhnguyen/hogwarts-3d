@@ -35,6 +35,7 @@ import { buildFauna } from './fauna.js';
 import { EconomySystem } from './economy.js';
 import { buildWilderer } from './wilderer.js';
 import { buildMount } from './mount.js';
+import { buildDark } from './dark.js';
 
 // Der Schlüsselname trägt noch "v1" aus Phase 0 — umbenennen würde alle
 // bestehenden Spielstände verwaisen lassen. Die eigentliche Versionierung
@@ -129,7 +130,7 @@ post.setQuality(save.grafik);
 post.onDegrade = () => hud.showToast('Grafik automatisch reduziert (Bloom aus)', 3.5);
 
 let sky, water, castle, structures, moor, life, collectibles, player;
-let fx, wand, spells, health, creatures, puzzles, dementors, weather, village, train, willow, interact, npc, grove, broom, fahlholz, fauna, economy, wilderer, mount, kate, home;
+let fx, wand, spells, health, creatures, puzzles, dementors, weather, village, train, willow, interact, npc, grove, broom, fahlholz, fauna, economy, wilderer, mount, kate, home, dark;
 let lanternWasCollected = false; // erkennt den Moment, in dem die Laterne live geborgen wird
 let natureSwayMaterials = [];
 let natureTreeSpots = []; // S2: echte Baum-Positionen für Bowtruckles (fauna.js)
@@ -200,7 +201,7 @@ const buildSteps = [
   ['Zauberstab', () => {
     fx = new FxSystem(scene, renderer);
     wand = new WandSystem(camera, glowTex);
-    spells = new SpellSystem(scene, wand, fx, audio, hud, glowTex, player);
+    spells = new SpellSystem(scene, wand, fx, audio, hud, glowTex, player, save.dunkel);
     hud.buildSpellbar(SPELL_ORDER.map(id => ({ id, ...SPELLS[id] })));
     buildPumpkinGlows();
   }],
@@ -246,7 +247,7 @@ const buildSteps = [
     npc = buildNpcs(scene, glowTex, hud, audio, fx, health, interact, {
       collectibles, puzzles, spells, moor, dementors,
       leuchtkraeuter: structures.leuchtkraeuter,
-      train, economy, heim: save.heim, mounts: save.mounts,
+      train, economy, heim: save.heim, mounts: save.mounts, dunkel: save.dunkel,
     });
     npc.restore(save.quests);
     npc.onQuestChange = () => persist();
@@ -310,6 +311,15 @@ const buildSteps = [
     });
     mount.restore(save.mounts);
     mount.onMountChange = () => persist();
+  }],
+  // Letzter Schritt: braucht spells/dementors/health/economy/interact —
+  // alle bereits gebaut.
+  ['Dunkler Pfad', () => {
+    dark = buildDark(scene, glowTex, hud, audio, fx, interact, economy, {
+      dunkel: save.dunkel, spells, dementors, health, sky,
+    });
+    dark.restore();
+    dark.onChange = () => persist();
   }],
 ];
 
@@ -508,9 +518,10 @@ btnReset.addEventListener('click', () => {
   // (das übliche Sync-Muster oben liefe sonst noch 1 Frame mit alten Werten).
   if (player) player.potionSpeedMul = 1;
   if (health) health.tempHeartsBonus = 0;
-  if (dementors) dementors.frostImmune = false;
+  if (dementors) { dementors.frostImmune = false; dementors.playerIsDark = false; }
   if (spells) spells.dmgMul = 1;
   if (home) home.restore();
+  if (dark) dark.restore();
   Object.assign(save.begleiter, { aktiv: '', frei: [] });
   Object.assign(save.hallows, { stab: 0, umhang: 0, stein: 0, steinCd: 0 });
   Object.assign(save.animagus, { gelernt: 0, form: 'rabe' });
@@ -528,7 +539,11 @@ document.addEventListener('pointerlockerror', () => {
 });
 
 // Nicht-Bewegungs-Tasten
-const DIGIT_SPELLS = { Digit1: 'stupor', Digit2: 'incendio', Digit3: 'leviosa', Digit4: 'lumos', Digit5: 'patronum' };
+const DIGIT_SPELLS = {
+  Digit1: 'stupor', Digit2: 'incendio', Digit3: 'leviosa', Digit4: 'lumos', Digit5: 'patronum',
+  Digit6: 'avada', Digit7: 'crucio', Digit8: 'imperio', // S8, nur nach Grimoire-Fund sichtbar/wirksam
+};
+const DARK_SPELL_IDS = new Set(['avada', 'crucio', 'imperio']);
 window.addEventListener('keydown', (e) => {
   if (!playing) return;
   if (e.code === 'Escape' && fallbackMode) {
@@ -547,9 +562,15 @@ window.addEventListener('keydown', (e) => {
     wand.selectSpell('lumos');
     spells.cast(camera);
     hud.showToast(spells.lumosOn ? '✨ Lumos!' : 'Nox.', 1.4);
+  } else if (e.code === 'Digit9') {
+    // Dunkles Mal: kein Spellbar-Slot, direkter Cast wie Lumos (K-Taste) —
+    // "beschwören" braucht kein Ziel/Anvisieren.
+    if (save.dunkel.pfad === 'dunkel') dark.summonMal(player);
   } else if (DIGIT_SPELLS[e.code]) {
     const id = DIGIT_SPELLS[e.code];
-    if (id !== 'patronum' || spells.epUnlocked) wand.selectSpell(id);
+    if (id === 'patronum' && !spells.epUnlocked) { /* noch nicht frei */ }
+    else if (DARK_SPELL_IDS.has(id) && !spells.darkUnlocked) { /* noch nicht frei */ }
+    else wand.selectSpell(id);
   } else if (e.code === 'KeyE') {
     if (hud.dialogOpen) hud.advanceDialog();
     else interact.trigger();
@@ -611,7 +632,9 @@ function frame(dt) {
     // Dementoren sind immun, aber trotzdem gültige Bolzen-Ziele (fürs
     // Verpuffen-Feedback) — daher zusammen mit creatures.list übergeben.
     // Wilderer (S4) ebenso: eigene applyHit()-Logik, gleiche Ziel-Liste.
-    spells.update(dt, camera, creatures.list.concat(dementors.list).concat(wilderer.list));
+    // fauna.foxes (S8): Imperio-Cone-Scan braucht Füchse separat (kein hp/
+    // applyHit, nicht Teil der Kreaturenliste — siehe fauna.js-Kommentar).
+    spells.update(dt, camera, creatures.list.concat(dementors.list).concat(wilderer.list), fauna.foxes);
     // sky.update() läuft weiter unten, aber creatures braucht den Tag/Nacht-
     // Stand vom LETZTEN Frame — nightGlow ändert sich nur sehr langsam
     // (300s/Zyklus), eine Frame Verzögerung ist unmerklich.
@@ -622,6 +645,8 @@ function frame(dt) {
     dementors.aggroRangeMul = moor.laterneCollected ? 0.5 : 1;
     // "Warm ums Herz" (Q2-Belohnung, W5): multipliziert sich mit der Laterne.
     dementors.frostRateMul = (moor.laterneCollected ? 0.5 : 1) * (npc.quests.kraeuterDone ? 0.75 : 1);
+    // K4 (S8): Dementoren sind neutral, solange der Spieler dem dunklen Pfad folgt.
+    dementors.playerIsDark = save.dunkel.pfad === 'dunkel';
     // S7 Trank-Effekte: EIN aktiver Trank (heim.trank.id), pro Frame in die
     // jeweils zuständigen Systeme gespiegelt (Muster: frostRateMul oben) —
     // home.js selbst tickt nur den Timer runter, kennt aber die Zielsysteme
@@ -642,8 +667,9 @@ function frame(dt) {
     train.update(dt, player);
     willow.update(dt, player);
     grove.update(dt, player);
-    npc.update(dt, player, sky.state, economy.ruf);
+    npc.update(dt, player, sky.state, economy.ruf, save.dunkel.pfad === 'dunkel');
     wilderer.update(dt, player, sky);
+    dark.update(dt, player, move.sprinting);
     broom.update(dt, player);
     // Tritt-Ziele (S5): kreatur.list + wilderer.list — Dementoren bewusst
     // NICHT dabei (immateriell, K6 aus dem Plan).
@@ -733,7 +759,7 @@ buildWorld().then(() => {
   // Debug-/Test-Zugriff (bewusst öffentlich, hilft bei Fehlersuche)
   window.__game = {
     player, sky, camera, renderer, scene,
-    wand, spells, fx, health, creatures, puzzles, moor, dementors, weather, post, village, train, willow, interact, npc, hud, grove, broom, fahlholz, fauna, economy, wilderer, mount, home,
+    wand, spells, fx, health, creatures, puzzles, moor, dementors, weather, post, village, train, willow, interact, npc, hud, grove, broom, fahlholz, fauna, economy, wilderer, mount, home, dark,
     get save() { return save; },
     get fps() { return fpsEMA; },
     get pixelRatio() { return pixelRatio; },

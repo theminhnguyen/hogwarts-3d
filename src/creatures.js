@@ -22,6 +22,17 @@ const TUNING = {
   },
 };
 
+// Imperio (S8): Pixie/Spinne (creatures.js) UND Fuchs/Wilderer (fauna.js/
+// wilderer.js) teilen sich dieselben Zeitkonstanten — "kämpft 20s für dich,
+// dann benommen" (Plan Abschnitt 8). Bewusst simpel gehalten (Muster Mount-
+// Reiten): Besessene folgen dem Spieler eng und poken den nächsten anderen
+// Feind in Reichweite, statt echte Kampf-Pfadfindung zu bauen.
+export const IMPERIO_DUR = 20;
+export const IMPERIO_DAZE_DUR = 4;
+const IMPERIO_POKE_RANGE = 6;
+const IMPERIO_POKE_INTERVAL = 1;
+const IMPERIO_FOLLOW_DIST = 2.2;
+
 const PIXIE_SWARMS = [
   { x: 95, z: 105 },
   { x: -30, z: 80 },
@@ -142,6 +153,8 @@ class Pixie {
     this.attackT = rand(TUNING.pixie.attackMin, TUNING.pixie.attackMax);
     this.giggleT = rand(TUNING.pixie.giggleMin, TUNING.pixie.giggleMax);
     this._flapT = seed * 3.1;
+    this.imperioT = 0; // S8: >0 während Besessenheit
+    this._pokeT = 0;
 
     const rng = mulberry32(seed * 977 + 1);
     this.phaseA = rng() * Math.PI * 2;
@@ -177,12 +190,19 @@ class Pixie {
     this.pos.z += this.vel.z * dt;
   }
 
-  applyHit(spellId, boltVel) {
+  applyHit(spellId, boltVel, dmgMul = 1) {
     if (!this.alive) return;
     // 'kick' (S5): Mount-Tritt zählt wie Stupor als 1 dmg (kein eigener Spruch).
-    const dmg = spellId === 'incendio' ? 2 : (spellId === 'stupor' || spellId === 'kick') ? 1 : 0;
+    // avada (S8): sofortiger Tod auf normale Kreaturen — trifft hier immer,
+    // egal wie viel hp noch übrig ist. crucio (S8): 0.5 dmg/s, in 0.5s-Ticks
+    // von spells.js aufgerufen (0.25 pro Tick). dmgMul (S8): Dunkler-Sud-
+    // Trank (heim.trank), von spells.js aus spells.dmgMul durchgereicht.
+    const dmg = spellId === 'avada' ? this.hp
+      : spellId === 'crucio' ? 0.25
+      : spellId === 'incendio' ? 2
+      : (spellId === 'stupor' || spellId === 'kick') ? 1 : 0;
     if (dmg <= 0) return;
-    this.hp -= dmg;
+    this.hp -= dmg * dmgMul;
     const knock = boltVel.lengthSq() > 1e-6
       ? boltVel.clone().normalize()
       : new THREE.Vector3(0, 1, 0);
@@ -194,6 +214,15 @@ class Pixie {
       this.vel.copy(knock).multiplyScalar(10);
       this.vel.y += 4;
     }
+  }
+
+  // S8 Imperio: von spells.js ausgelöst — kämpft für dich statt gegen dich.
+  startImperio() {
+    if (!this.alive) return;
+    this.state = 'imperio';
+    this.stateT = 0;
+    this.imperioT = IMPERIO_DUR;
+    this._pokeT = 0;
   }
 
   _die() {
@@ -329,6 +358,40 @@ class Pixie {
           this.state = 'dead';
           this.group.visible = false;
           this.respawnT = TUNING.pixie.respawn;
+        }
+        break;
+      }
+      // S8 Imperio: folgt dem Spieler eng, pokt den nächsten anderen Wichtel
+      // in Reichweite (bewusst simpel — kein echtes Ziel-Tracking über
+      // creatures.js hinaus). Danach benommen (Bewegungssperre), dann zurück
+      // zum normalen Wander-Verhalten.
+      case 'imperio': {
+        this.imperioT -= dt;
+        const tx = player.pos.x + Math.sin(this.system.time * 1.3 + this.phaseA) * IMPERIO_FOLLOW_DIST;
+        const tz = player.pos.z + Math.cos(this.system.time * 1.3 + this.phaseA) * IMPERIO_FOLLOW_DIST;
+        const ty = player.pos.y + TUNING.pixie.orbitY * 0.6;
+        this._steerTo(tx, ty, tz, TUNING.pixie.wanderSpeed * 1.4, dt);
+        this._pokeT -= dt;
+        if (this._pokeT <= 0) {
+          this._pokeT = IMPERIO_POKE_INTERVAL;
+          let best = null, bestD2 = IMPERIO_POKE_RANGE * IMPERIO_POKE_RANGE;
+          for (const c of this.system.list) {
+            if (c === this || !c.alive || c.state === 'imperio') continue;
+            const d2 = this.pos.distanceToSquared(c.pos);
+            if (d2 < bestD2) { bestD2 = d2; best = c; }
+          }
+          if (best) best.applyHit('stupor', new THREE.Vector3(best.pos.x - this.pos.x, 0.3, best.pos.z - this.pos.z));
+        }
+        if (this.imperioT <= 0) { this.state = 'benommen'; this.stateT = 0; }
+        break;
+      }
+      case 'benommen': {
+        this.stateT += dt;
+        this.vel.multiplyScalar(Math.max(0, 1 - dt * 4));
+        if (this.stateT >= IMPERIO_DAZE_DUR) {
+          this.state = 'wander';
+          this.stateT = 0;
+          this.attackT = rand(TUNING.pixie.attackMin, TUNING.pixie.attackMax);
         }
         break;
       }
@@ -471,11 +534,13 @@ class Ghost {
     this.glowMat.opacity = 0.3 * f;
   }
 
-  applyHit(spellId, _boltVel) {
+  applyHit(spellId, _boltVel, dmgMul = 1) {
     if (!this.alive) return;
-    const dmg = (spellId === 'stupor' || spellId === 'incendio' || spellId === 'kick') ? 1 : 0;
+    const dmg = spellId === 'avada' ? this.hp
+      : spellId === 'crucio' ? 0.25
+      : (spellId === 'stupor' || spellId === 'incendio' || spellId === 'kick') ? 1 : 0;
     if (dmg <= 0) return;
-    this.hp -= dmg;
+    this.hp -= dmg * dmgMul;
     if (this.hp <= 0) this._die();
   }
 
@@ -733,17 +798,23 @@ class Troll {
     this.pos.z += this.vel.z * dt;
   }
 
-  applyHit(spellId, _boltVel) {
+  applyHit(spellId, _boltVel, dmgMul = 1) {
     if (!this.alive) return;
     // 'kick' (S5): Mount-Tritt zählt wie Stupor als 1 dmg (kein eigener Spruch).
-    const dmg = spellId === 'incendio' ? 2 : (spellId === 'stupor' || spellId === 'kick') ? 1 : 0;
+    // avada (S8): NICHT One-Shot beim Troll — nur 4 dmg (Boss-Ausnahme aus
+    // dem Plan). crucio: 0.5 dmg/s in 0.5s-Ticks (0.25 pro Tick).
+    const dmg = spellId === 'avada' ? 4
+      : spellId === 'crucio' ? 0.25
+      : spellId === 'incendio' ? 2
+      : (spellId === 'stupor' || spellId === 'kick') ? 1 : 0;
     if (dmg <= 0) return;
-    this.hp -= dmg;
+    this.hp -= dmg * dmgMul;
     this.system.fx.burst(this.pos, 0x8a9878, 10, 3, { gravity: -2, life: 0.4 });
     if (this.hp <= 0) { this._die(); return; }
-    // Stupor unterbricht jede laufende Aktion (auch den Telegraph!) — der
-    // taktische Konter gegen den Keulenschlag.
-    if (spellId === 'stupor' && this.state !== 'dying') {
+    // Stupor UND Crucio unterbrechen jede laufende Aktion (auch den
+    // Telegraph!) — Crucio ist laut Plan der taktische Konter "gegen Troll/
+    // Wilderer", identischer Mechanismus wie Stupor.
+    if ((spellId === 'stupor' || spellId === 'crucio') && this.state !== 'dying') {
       this.state = 'stagger';
       this.stateT = 0;
     }
@@ -978,6 +1049,8 @@ class GiantSpider {
     this.gaitT = Math.random() * 10;
     this.huntTarget = null; // fauna.js-Beute (Fuchs/Hase) während 'jagen'
     this.satiatedT = 0;
+    this.imperioT = 0; // S8: >0 während Besessenheit
+    this._pokeT = 0;
 
     this.group = new THREE.Group();
     this.pos = this.group.position;
@@ -1036,14 +1109,27 @@ class GiantSpider {
     this.pos.z += this.vel.z * dt;
   }
 
-  applyHit(spellId, _boltVel) {
+  applyHit(spellId, _boltVel, dmgMul = 1) {
     if (!this.alive) return;
     // 'kick' (S5): Mount-Tritt zählt wie Stupor als 1 dmg (kein eigener Spruch).
-    const dmg = spellId === 'incendio' ? 2 : (spellId === 'stupor' || spellId === 'kick') ? 1 : 0;
+    const dmg = spellId === 'avada' ? this.hp
+      : spellId === 'crucio' ? 0.25
+      : spellId === 'incendio' ? 2
+      : (spellId === 'stupor' || spellId === 'kick') ? 1 : 0;
     if (dmg <= 0) return;
-    this.hp -= dmg;
+    this.hp -= dmg * dmgMul;
     this.system.fx.burst(this.pos, 0x1c1712, 8, 3, { gravity: -2, life: 0.35 });
     if (this.hp <= 0) this._die();
+  }
+
+  // S8 Imperio: von spells.js ausgelöst — kämpft für dich statt gegen dich.
+  startImperio() {
+    if (!this.alive) return;
+    this.state = 'imperio';
+    this.stateT = 0;
+    this.imperioT = IMPERIO_DUR;
+    this._pokeT = 0;
+    this.huntTarget = null;
   }
 
   _die() {
@@ -1173,6 +1259,33 @@ class GiantSpider {
           this.state = 'lauern';
           this.stateT = 0;
         }
+        break;
+      }
+      // S8 Imperio: siehe Pixie.update() für das Muster (folgt dem Spieler,
+      // pokt den nächsten anderen Feind in Reichweite, dann benommen).
+      case 'imperio': {
+        this.imperioT -= dt;
+        this._steerXZ(player.pos.x, player.pos.z, SPIDER_TUNING.chaseSpeed * 0.7, dt);
+        const fdx = player.pos.x - this.pos.x, fdz = player.pos.z - this.pos.z;
+        if (fdx * fdx + fdz * fdz < IMPERIO_FOLLOW_DIST * IMPERIO_FOLLOW_DIST) this.vel.set(0, 0, 0);
+        this._pokeT -= dt;
+        if (this._pokeT <= 0) {
+          this._pokeT = IMPERIO_POKE_INTERVAL;
+          let best = null, bestD2 = IMPERIO_POKE_RANGE * IMPERIO_POKE_RANGE;
+          for (const c of this.system.list) {
+            if (c === this || !c.alive || c.state === 'imperio') continue;
+            const d2 = this.pos.distanceToSquared(c.pos);
+            if (d2 < bestD2) { bestD2 = d2; best = c; }
+          }
+          if (best) best.applyHit('stupor', new THREE.Vector3(best.pos.x - this.pos.x, 0.3, best.pos.z - this.pos.z));
+        }
+        if (this.imperioT <= 0) { this.state = 'benommen'; this.stateT = 0; }
+        break;
+      }
+      case 'benommen': {
+        this.stateT += dt;
+        this.vel.set(0, 0, 0);
+        if (this.stateT >= IMPERIO_DAZE_DUR) { this.state = 'lauern'; this.stateT = 0; }
         break;
       }
     }

@@ -11,6 +11,11 @@ import { terrainHeight } from './terrain.js';
 import { getMaterials } from './materials.js';
 import { buildFigure, animateFigure, setFigureOpacity } from './npc.js';
 import { buildRabbitModel, buildFoxModel, buildNifflerModel, buildBowtruckleModel } from './fauna.js';
+import { IMPERIO_DUR, IMPERIO_DAZE_DUR } from './creatures.js';
+
+const IMPERIO_POKE_RANGE = 6;
+const IMPERIO_POKE_INTERVAL = 1;
+const IMPERIO_FOLLOW_DIST = 2.5;
 
 const CULL_FULL = 140;
 const CULL_HIDE = 160;
@@ -81,6 +86,8 @@ class WildererMage {
     this.attackCd = 0;
     this.vel = new THREE.Vector3();
     this.phaseA = Math.random() * Math.PI * 2;
+    this.imperioT = 0; // S8: >0 während Besessenheit
+    this._pokeT = 0;
 
     const idx = seed % CLOAK_COLORS.length;
     this.fig = buildFigure(0x5a4a3a, 0x2a2018, CLOAK_COLORS[idx], null, true);
@@ -136,14 +143,39 @@ class WildererMage {
     this.pos.z += this.vel.z * dt;
   }
 
-  applyHit(spellId, _boltVel) {
+  applyHit(spellId, _boltVel, dmgMul = 1) {
     if (!this.alive || this.state === 'inactive' || this.state === 'gone') return;
     if (this.state === 'kneel' || this.state === 'fliehen') return; // gibt schon auf
-    const dmg = spellId === 'incendio' ? 2 : (spellId === 'stupor' || spellId === 'kick') ? 1 : 0;
+    // avada (S8): sofortige Aufgabe (kein Tod, Wilderer sterben nie — siehe
+    // _surrender()). crucio: 0.5 dmg/s in 0.5s-Ticks (0.25 pro Tick) +
+    // unterbricht sofort einen laufenden Telegraph (Plan: "taktisch gegen
+    // Troll/Wilderer").
+    const dmg = spellId === 'avada' ? this.hp
+      : spellId === 'crucio' ? 0.25
+      : spellId === 'incendio' ? 2
+      : (spellId === 'stupor' || spellId === 'kick') ? 1 : 0;
     if (dmg <= 0) return;
-    this.hp -= dmg;
+    this.hp -= dmg * dmgMul;
     this.system.fx.burst(this.pos, 0xd8c8a0, 8, 2.5, { gravity: -3, life: 0.35 });
-    if (this.hp <= 0) this._surrender();
+    if (this.hp <= 0) { this._surrender(); return; }
+    if (spellId === 'crucio' && this.state === 'telegraph') {
+      this.sparkMat.opacity = 0;
+      this.state = 'aggro';
+      this.stateT = 0;
+    }
+  }
+
+  // S8 Imperio: kämpft für dich statt gegen dich (folgt dem Spieler, pokt
+  // den nächsten anderen Feind). Bei einem Lager-Wilderer öffnet das sofort
+  // den Käfig (Plan: "kann den Käfig öffnen lassen — Lager-Alternativlösung").
+  startImperio() {
+    if (!this.alive || this.state === 'inactive' || this.state === 'gone') return;
+    this.state = 'imperio';
+    this.stateT = 0;
+    this.imperioT = IMPERIO_DUR;
+    this._pokeT = 0;
+    this.sparkMat.opacity = 0;
+    if (!this.isDuelist) this.system.onCampMageImperio?.();
   }
 
   // Kein Tod — sie geben auf: knien kurz, fliehen dann (K-Vorgabe aus dem Plan).
@@ -246,6 +278,36 @@ class WildererMage {
       case 'cooldown': {
         this.stateT += dt;
         if (this.stateT >= 0.3) { this.state = 'aggro'; this.stateT = 0; }
+        break;
+      }
+      // S8 Imperio: siehe creatures.js Pixie.update() für dasselbe Muster
+      // (folgt dem Spieler, pokt den nächsten anderen Wilderer in
+      // Reichweite, dann benommen — kein echtes Ziel-Tracking).
+      case 'imperio': {
+        this.imperioT -= dt;
+        if (dist > IMPERIO_FOLLOW_DIST) {
+          this._steerXZ(player.pos.x, player.pos.z, TUNING.chaseSpeed * this.speedMul, dt);
+        } else {
+          this.vel.set(0, 0, 0);
+        }
+        this._pokeT -= dt;
+        if (this._pokeT <= 0) {
+          this._pokeT = IMPERIO_POKE_INTERVAL;
+          let best = null, bestD2 = IMPERIO_POKE_RANGE * IMPERIO_POKE_RANGE;
+          for (const m of this.system.list) {
+            if (m === this || !m.alive || m.state === 'imperio') continue;
+            const d2 = this.pos.distanceToSquared(m.pos);
+            if (d2 < bestD2) { bestD2 = d2; best = m; }
+          }
+          if (best) best.applyHit('stupor', null);
+        }
+        if (this.imperioT <= 0) { this.state = 'benommen'; this.stateT = 0; }
+        break;
+      }
+      case 'benommen': {
+        this.stateT += dt;
+        this.vel.set(0, 0, 0);
+        if (this.stateT >= IMPERIO_DAZE_DUR) { this.state = 'aggro'; this.stateT = 0; }
         break;
       }
     }
@@ -382,6 +444,7 @@ export function buildWilderer(scene, glowTex, hud, audio, fx, health, interact, 
     list: [], // für spells.js-Zielliste: alle aktiven Wilderer-Instanzen
     bolts: [],
     onDuelistDefeated: null,
+    onCampMageImperio: null, // S8: Imperio auf einen Lager-Wilderer öffnet sofort den Käfig
   };
 
   // ---------- Pool: 3 Mage-Instanzen, wiederverwendet für Lager UND Duell ----------
@@ -402,6 +465,11 @@ export function buildWilderer(scene, glowTex, hud, audio, fx, health, interact, 
   let lastSpotIdx = -1;
   let campResolved = false;
   let prevNightGlow = 0.5;
+  // S8: Imperio auf einen Lager-Wilderer schaltet den Käfig SOFORT frei —
+  // "Lager-Alternativlösung" aus dem Plan, unabhängig vom sonst nötigen
+  // "alle 3 Wilderer besiegt"-Zustand.
+  let campImperioBypass = false;
+  system.onCampMageImperio = () => { campImperioBypass = true; };
 
   function spawnCagedCreature(siteIdx) {
     const kind = CAGED_KINDS[Math.floor(Math.random() * CAGED_KINDS.length)];
@@ -419,6 +487,7 @@ export function buildWilderer(scene, glowTex, hud, audio, fx, health, interact, 
     activeCampIdx = idx;
     wild.aktivCamp = idx;
     campResolved = false;
+    campImperioBypass = false;
     const spot = WILDERER_SPOTS[idx];
     for (let i = 0; i < mages.length; i++) {
       const a = (i / mages.length) * Math.PI * 2;
@@ -441,6 +510,7 @@ export function buildWilderer(scene, glowTex, hud, audio, fx, health, interact, 
     for (const m of mages) m.deactivate();
     activeCampIdx = -1;
     wild.aktivCamp = -1;
+    campImperioBypass = false;
     onWildChange?.();
   }
 
@@ -618,7 +688,10 @@ export function buildWilderer(scene, glowTex, hud, audio, fx, health, interact, 
 
       for (const m of mages) m.update(dt, player);
       if (activeCampIdx >= 0) {
-        cageEntries[activeCampIdx].enabled = !campResolved && mages.every((m) => m.state === 'gone' || m.state === 'inactive');
+        // S8: Imperio auf einen der 3 Lager-Wilderer schaltet den Käfig
+        // sofort frei, unabhängig davon, ob die anderen beiden noch aktiv sind.
+        cageEntries[activeCampIdx].enabled = !campResolved
+          && (campImperioBypass || mages.every((m) => m.state === 'gone' || m.state === 'inactive'));
         const site = sites[activeCampIdx];
         const flick = 0.8 + Math.sin(system.time * 9) * 0.12 + Math.sin(system.time * 21) * 0.08;
         site.fireGlowMat.opacity = 0.8 * flick;

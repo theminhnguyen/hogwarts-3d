@@ -11,6 +11,9 @@ import * as THREE from 'three';
 import { terrainHeight, SILBERAUEN, FAHLHOLZ, GROVE } from './terrain.js';
 import { mulberry32 } from './noise.js';
 import { buildPatronusModel } from './patronus.js';
+import { IMPERIO_DUR } from './creatures.js';
+
+const IMPERIO_FOLLOW_DIST = 2.5;
 
 const CULL_FULL = 140;
 const CULL_HIDE = 160;
@@ -270,6 +273,7 @@ class Fox {
     this.gaitT = seed;
     this.rng = mulberry32(seed);
     this.huntTarget = null; // Rabbit/Fox-ähnliches Beute-Objekt mit .pos/.state/.huntedDespawn()
+    this.imperioT = 0; // S8: >0 während Besessenheit
     scene.add(this.group);
   }
 
@@ -281,6 +285,15 @@ class Fox {
     this.state = 'hidden';
     this.stateT = 0;
     this.group.visible = false;
+  }
+
+  // S8 Imperio: kein Kampfsystem bei Fauna — der Fuchs folgt dem Spieler
+  // einfach eng (bewusst simpel, reiner Begleiter-Effekt), 20s dann normal.
+  startImperio() {
+    if (this.state === 'hidden') return;
+    if (this.huntTarget) { this.huntTarget.huntedBy = null; this.huntTarget = null; }
+    this.imperioT = IMPERIO_DUR;
+    this.satiatedT = 0;
   }
 
   // fx/audio optional (S2 nutzt sie für den Fang-Effekt) — kein Riss auf dem
@@ -307,40 +320,48 @@ class Fox {
     }
 
     let speed = 0, moving = false;
-    if (this.satiatedT <= 0) {
-      if (!this.huntTarget || this.huntTarget.state === 'hidden') {
-        this.huntTarget = null;
-        let best = null, bestD = FOX_TUNING.huntRange;
-        for (const r of prey) {
-          if (r.state === 'hidden' || (r.huntedBy && r.huntedBy !== this)) continue;
-          const d = Math.hypot(r.pos.x - this.pos.x, r.pos.z - this.pos.z);
-          if (d < bestD) { bestD = d; best = r; }
-        }
-        if (best) { this.huntTarget = best; best.huntedBy = this; this.state = 'hunt'; }
-      }
-    }
-
-    if (this.huntTarget && this.satiatedT <= 0) {
-      const dx = this.huntTarget.pos.x - this.pos.x, dz = this.huntTarget.pos.z - this.pos.z;
-      const d = Math.hypot(dx, dz);
-      this.target.x = this.huntTarget.pos.x; this.target.z = this.huntTarget.pos.z;
-      speed = FOX_TUNING.huntSpeed; moving = true;
-      if (d < FOX_TUNING.touchRange) {
-        fx?.burst({ x: this.huntTarget.pos.x, y: this.huntTarget.pos.y + 0.2, z: this.huntTarget.pos.z }, 0xcbb896, 10, 2, { gravity: -1, life: 0.5 });
-        this.huntTarget.huntedDespawn();
-        this.huntTarget = null;
-        this.state = 'wander';
-        this.satiatedT = FOX_TUNING.satiatedDur;
-      }
-    } else {
-      this.stateT -= dt;
-      if (this.stateT <= 0) {
-        this.stateT = rand(3, 6);
-        const s = ringSpot(this.rng, this.home.x, this.home.z, 0, 10);
-        this.target.x = s.x; this.target.z = s.z;
-      }
+    if (this.imperioT > 0) {
+      // S8 Imperio: folgt dem Spieler statt zu jagen/wandern.
+      this.imperioT -= dt;
+      this.target.x = player.pos.x; this.target.z = player.pos.z;
       const d = Math.hypot(this.target.x - this.pos.x, this.target.z - this.pos.z);
-      if (d > 0.5) { speed = FOX_TUNING.speed; moving = true; }
+      if (d > IMPERIO_FOLLOW_DIST) { speed = FOX_TUNING.speed; moving = true; }
+    } else {
+      if (this.satiatedT <= 0) {
+        if (!this.huntTarget || this.huntTarget.state === 'hidden') {
+          this.huntTarget = null;
+          let best = null, bestD = FOX_TUNING.huntRange;
+          for (const r of prey) {
+            if (r.state === 'hidden' || (r.huntedBy && r.huntedBy !== this)) continue;
+            const d = Math.hypot(r.pos.x - this.pos.x, r.pos.z - this.pos.z);
+            if (d < bestD) { bestD = d; best = r; }
+          }
+          if (best) { this.huntTarget = best; best.huntedBy = this; this.state = 'hunt'; }
+        }
+      }
+
+      if (this.huntTarget && this.satiatedT <= 0) {
+        const dx = this.huntTarget.pos.x - this.pos.x, dz = this.huntTarget.pos.z - this.pos.z;
+        const d = Math.hypot(dx, dz);
+        this.target.x = this.huntTarget.pos.x; this.target.z = this.huntTarget.pos.z;
+        speed = FOX_TUNING.huntSpeed; moving = true;
+        if (d < FOX_TUNING.touchRange) {
+          fx?.burst({ x: this.huntTarget.pos.x, y: this.huntTarget.pos.y + 0.2, z: this.huntTarget.pos.z }, 0xcbb896, 10, 2, { gravity: -1, life: 0.5 });
+          this.huntTarget.huntedDespawn();
+          this.huntTarget = null;
+          this.state = 'wander';
+          this.satiatedT = FOX_TUNING.satiatedDur;
+        }
+      } else {
+        this.stateT -= dt;
+        if (this.stateT <= 0) {
+          this.stateT = rand(3, 6);
+          const s = ringSpot(this.rng, this.home.x, this.home.z, 0, 10);
+          this.target.x = s.x; this.target.z = s.z;
+        }
+        const d = Math.hypot(this.target.x - this.pos.x, this.target.z - this.pos.z);
+        if (d > 0.5) { speed = FOX_TUNING.speed; moving = true; }
+      }
     }
 
     if (moving) {

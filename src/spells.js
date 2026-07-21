@@ -23,7 +23,16 @@ export const TUNING = {
   },
   lumos: { cooldown: 0.3 },
   patronum: { cooldown: 8, range: 26, dur: 2.8, repelRadius: 10 },
+  // Verbotene Sprüche (S8, nur dunkler Pfad — siehe cast()-Gate):
+  avada:   { speed: 42, cooldown: 8, ttl: 2.2 },
+  crucio:  { cooldown: 6, dur: 2, range: 9, coneAngle: 15 * Math.PI / 180, tickInterval: 0.5 },
+  imperio: { cooldown: 12, range: 9, coneAngle: 15 * Math.PI / 180 },
 };
+// Imperio-fähige creatures.js-Arten (Pixie/Spinne — Ghost/Troll/Dementor NICHT,
+// "nicht auf Bosse/Dementoren/Begleiter" laut Plan). Wilderer sind separat
+// über species==='wilderer' in derselben Liste enthalten (main.js übergibt
+// creatures.list+dementors.list+wilderer.list gemeinsam an spells.update()).
+const IMPERIO_SPECIES = new Set(['pixie', 'spider', 'wilderer']);
 
 // Die beiden Leviosa-Steinblöcke im Nordgarten (Rätsel-Setup folgt in Phase 5,
 // hier nur der Greifmechanismus selbst — siehe PLAN-MAGIE.md Abschnitt 3.3)
@@ -49,7 +58,7 @@ function segPointDistSq(ax, ay, az, bx, by, bz, px, py, pz) {
 }
 
 export class SpellSystem {
-  constructor(scene, wand, fx, audio, hud, glowTex, player) {
+  constructor(scene, wand, fx, audio, hud, glowTex, player, dunkel) {
     this.scene = scene;
     this.wand = wand;
     this.fx = fx;
@@ -57,21 +66,30 @@ export class SpellSystem {
     this.hud = hud;
     this._glowTex = glowTex;
     this._player = player;
+    this._dunkel = dunkel; // S8: direkte Save-Referenz (Muster S3/S4/S7) — cast()-Gate für 6-8
 
     this.cooldowns = { stupor: 0, incendio: 0, leviosa: 0, lumos: 0, patronum: 0 };
-    // S7 Dunkler-Sud-Trank: Vorbereitung für S8 (verbotene Sprüche) — von
-    // main.js pro Frame aus heim.trank gesetzt, hier bislang ungenutzt
-    // (wie die dunkler-Pfad-Käfig-Vorbereitung aus S4).
+    // S7 Dunkler-Sud-Trank, jetzt (S8) tatsächlich verdrahtet: multipliziert
+    // JEDEN Bolzen-Schaden (nicht nur die verbotenen Sprüche — "Spruchschaden
+    // ×1.5" laut home.js-Rezept), von main.js pro Frame aus heim.trank gesetzt.
     this.dmgMul = 1;
     this.targets = []; // Ziel-Registry — Rätsel docken hier an (Phase 5/6)
     this._camPos = null;
     this.lumosOn = false;    // Migration: lebt jetzt hier statt in main.js
     this.leviosaHeld = null; // aktuell gegriffenes Leviosa-Objekt (oder null)
+    // S8 Crucio: EIN aktiver Kanal (kein Pool nötig, immer nur ein Ziel).
+    this.crucioTarget = null;
+    this._crucioT = 0;
+    this._crucioTickT = 0;
+    this._darkGateToastShown = false;
+    this._creatures = []; // vom letzten update() zwischengespeichert — cast() (Crucio/Imperio-Griff) läuft außerhalb des update()-Takts
+    this._foxes = [];
     this._buildLeviosaObjects();
 
     // Expecto Patronum: erst nach dem Hauspokal freigeschaltet (Abschnitt
     // 4.1). Charge-Hirsch wird lazy gebaut (nur falls je gecastet).
     this.epUnlocked = false;
+    this._darkSpellsUnlocked = false; // S8: erst nach Grimoire-Fund
     this._patronusModel = null;
     this._chargeT = -1; // -1 = kein aktiver Charge
     this._chargeStart = new THREE.Vector3();
@@ -116,9 +134,26 @@ export class SpellSystem {
     }
   }
 
+  // S8: schaltet die 3 verbotenen Sprüche dauerhaft im Spellbar frei, sobald
+  // das Aschene Grimoire gefunden wurde — "Grimoire-Wissen bleibt" auch nach
+  // einer späteren Läuterung, siehe cast()-Gate (nur wirksam auf dem
+  // dunklen Pfad). Idempotent wie unlockPatronum().
+  unlockDarkSpells(showToast = true) {
+    if (this._darkSpellsUnlocked) return;
+    this._darkSpellsUnlocked = true;
+    for (const id of ['avada', 'crucio', 'imperio']) {
+      if (!SPELL_ORDER.includes(id)) SPELL_ORDER.push(id);
+    }
+    this.hud?.buildSpellbar(SPELL_ORDER.map(id => ({ id, ...SPELLS[id] })));
+    if (showToast) {
+      this.hud?.showToast('🖤 Das Aschene Grimoire flüstert dir verbotenes Wissen zu … (Tasten 6-8, 9 fürs Dunkle Mal)', 6);
+    }
+  }
+
   registerTarget(target) { this.targets.push(target); return target; }
 
   get isHoldingLeviosa() { return this.leviosaHeld !== null; }
+  get darkUnlocked() { return this._darkSpellsUnlocked; }
 
   // Baut die 2 greifbaren Steinblöcke im Nordgarten (Runen-Gravur = zweite,
   // etwas größere Box mit BackSide-Material, ergibt dunkle Kanten am Rand).
@@ -217,6 +252,8 @@ export class SpellSystem {
   }
 
   // Vom Loslassen der Maustaste — lässt ein gehaltenes Leviosa-Objekt fallen
+  // ODER beendet einen laufenden Crucio-Kanal vorzeitig (Cooldown lief schon
+  // seit cast(), wie bei jedem anderen Spruch auch — kein Extra-Malus).
   release() {
     if (this.leviosaHeld) {
       this.leviosaHeld.falling = true;
@@ -224,6 +261,7 @@ export class SpellSystem {
       this.leviosaHeld = null;
       this.audio.leviosaHold?.(false);
     }
+    if (this.crucioTarget) this._endCrucio();
   }
 
   // Sterne (Sternbild-Rätsel) sind "unendlich weit" — kein Bolzen-Treffer,
@@ -247,6 +285,17 @@ export class SpellSystem {
     // Besen UND Mounts einheitlich, da beide dasselbe player.flying nutzen.
     if (this._player?.flying) return;
     const id = this.wand.activeSpell;
+    // S8: die verbotenen Sprüche (Slots 6-8) bleiben nach dem Grimoire-Fund
+    // sichtbar ("Grimoire-Wissen bleibt"), wirken aber NUR auf dem dunklen
+    // Pfad — "Sprüche 6-9 gesperrt" nach Läuterung heißt: kein Cast, kein
+    // Cooldown-Verbrauch, nur ein einmaliger Hinweis-Toast (K12: kein Softlock).
+    if ((id === 'avada' || id === 'crucio' || id === 'imperio') && this._dunkel?.pfad !== 'dunkel') {
+      if (!this._darkGateToastShown) {
+        this._darkGateToastShown = true;
+        this.hud?.showToast('Diese Magie gehorcht dir nur auf dem dunklen Pfad.', 3);
+      }
+      return;
+    }
     if (this.cooldowns[id] > 0) return;
     this.cooldowns[id] = TUNING[id].cooldown;
     this.wand.playCast();
@@ -265,7 +314,81 @@ export class SpellSystem {
       this.audio.lumosToggle?.(this.lumosOn);
     } else if (id === 'patronum') {
       this._castPatronum(camera);
+    } else if (id === 'avada') {
+      this.audio.castAvada?.();
+      this._fireBolt('avada', camera);
+    } else if (id === 'crucio') {
+      this._startCrucio(camera);
+    } else if (id === 'imperio') {
+      this._castImperio(camera);
     }
+  }
+
+  // ---------- S8: Crucio (2s-Kanal-Strahl) ----------
+  // Nutzt denselben Cone-Scan wie Leviosa (_leviosaGrab) — bewusst über
+  // this._creatures (der zuletzt an update() übergebenen Liste), da cast()
+  // per Mausklick außerhalb des update()-Takts feuert.
+  _findConeTarget(camera, list, range, coneAngle, filter) {
+    camera.getWorldDirection(_dir);
+    let best = null, bestAngle = coneAngle;
+    for (const c of list) {
+      if (!filter(c)) continue;
+      const dx = c.pos.x - camera.position.x, dy = (c.pos.y + (c.hitY || 0)) - camera.position.y, dz = c.pos.z - camera.position.z;
+      const dist = Math.hypot(dx, dy, dz);
+      if (dist > range || dist < 1e-4) continue;
+      const dot = (dx * _dir.x + dy * _dir.y + dz * _dir.z) / dist;
+      const angle = Math.acos(Math.max(-1, Math.min(1, dot)));
+      if (angle < bestAngle) { best = c; bestAngle = angle; }
+    }
+    return best;
+  }
+
+  _startCrucio(camera) {
+    const T = TUNING.crucio;
+    const target = this._findConeTarget(camera, this._creatures, T.range, T.coneAngle, (c) => c.alive);
+    if (!target) { this.audio.spellFizzle?.(); return; }
+    this.crucioTarget = target;
+    this._crucioT = 0;
+    this._crucioTickT = 0;
+    this.audio.castCrucio?.(true);
+  }
+
+  _updateCrucio(dt) {
+    if (!this.crucioTarget) return;
+    const T = TUNING.crucio;
+    if (!this.crucioTarget.alive) { this._endCrucio(); return; }
+    const dx = this.crucioTarget.pos.x - this.wand.tipWorldPos.x;
+    const dz = this.crucioTarget.pos.z - this.wand.tipWorldPos.z;
+    if (dx * dx + dz * dz > (T.range * 1.3) * (T.range * 1.3)) { this._endCrucio(); return; }
+    this._crucioT += dt;
+    if (Math.random() < 0.7) this.fx.trail(this.crucioTarget.pos, 0x9a1030);
+    this._crucioTickT -= dt;
+    if (this._crucioTickT <= 0) {
+      this._crucioTickT = T.tickInterval;
+      this.crucioTarget.applyHit('crucio', null, this.dmgMul);
+    }
+    if (this._crucioT >= T.dur) this._endCrucio();
+  }
+
+  _endCrucio() {
+    if (!this.crucioTarget) return;
+    this.crucioTarget = null;
+    this.audio.castCrucio?.(false);
+  }
+
+  // ---------- S8: Imperio (Sofort-Griff wie Leviosa, aber Besessenheit statt Halten) ----------
+  _castImperio(camera) {
+    const T = TUNING.imperio;
+    const target = this._findConeTarget(camera, this._creatures, T.range, T.coneAngle,
+      (c) => c.alive && IMPERIO_SPECIES.has(c.species) && c.state !== 'imperio');
+    const foxTarget = !target
+      ? this._findConeTarget(camera, this._foxes, T.range, T.coneAngle, (f) => f.state !== 'hidden' && f.imperioT <= 0)
+      : null;
+    const picked = target || foxTarget;
+    if (!picked) { this.audio.spellFizzle?.(); return; }
+    picked.startImperio();
+    this.audio.castImperio?.();
+    this.fx.burst({ x: picked.pos.x, y: picked.pos.y + 0.5, z: picked.pos.z }, 0x8a3fd1, 20, 3, { gravity: -1, life: 0.7 });
   }
 
   // Expecto Patronum: materialisiert den Hirsch aus patronus.js 2m vor dem
@@ -378,13 +501,18 @@ export class SpellSystem {
     }
   }
 
-  update(dt, camera, creatures) {
+  update(dt, camera, creatures, foxes) {
     for (const id in this.cooldowns) {
       if (this.cooldowns[id] > 0) this.cooldowns[id] = Math.max(0, this.cooldowns[id] - dt);
     }
     this._camPos = camera.position;
+    // S8: Crucio/Imperio feuern per Mausklick (cast()) außerhalb dieses
+    // Takts — die Cone-Scans dort brauchen die AKTUELLE Kreaturenliste.
+    this._creatures = creatures;
+    if (foxes) this._foxes = foxes;
     this._updateLeviosaObjects(dt, camera);
     this._updatePatronusCharge(dt, creatures);
+    this._updateCrucio(dt);
 
     for (const bolt of this.bolts) {
       if (!bolt.active) continue;
@@ -433,7 +561,8 @@ export class SpellSystem {
             // applyHit() kann true zurückgeben (z.B. immune Dementoren), um
             // den normalen farbigen Einschlagseffekt zu unterdrücken — die
             // Kreatur zeigt dann ihr eigenes (schwächeres) Feedback selbst.
-            const suppressDefaultFx = c.applyHit(bolt.spellId, bolt.vel);
+            // dmgMul (S8): Dunkler-Sud-Trank, ×1 wenn inaktiv.
+            const suppressDefaultFx = c.applyHit(bolt.spellId, bolt.vel, this.dmgMul);
             this._despawnBolt(bolt, !suppressDefaultFx, bolt.pos);
             hitCreature = true;
             break;
