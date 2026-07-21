@@ -6,8 +6,8 @@
 // Duellant (Fechtmeisterin Ondra, 10-16 Uhr, Einsatz/Gewinn in Gold).
 
 import * as THREE from 'three';
-import { GeoBatch, addCircleBlocker, pointBlocked } from './geo.js';
-import { terrainHeight } from './terrain.js';
+import { GeoBatch, addCircleBlocker, addBoxBlocker, pointBlocked } from './geo.js';
+import { terrainHeight, FAHLHOLZ } from './terrain.js';
 import { getMaterials } from './materials.js';
 import { buildFigure, animateFigure, setFigureOpacity } from './npc.js';
 import { buildRabbitModel, buildFoxModel, buildNifflerModel, buildBowtruckleModel } from './fauna.js';
@@ -29,6 +29,17 @@ const WILDERER_SPOTS = [
 // live gegen village.js' colliders.blockers verifiziert (Lehre 3).
 const DUELLRING_POS = { x: -82, z: -230 };
 const DUELLRING_R = 3.2;
+
+// ---------- S10 Umhang-Quest: Wilderer-ANFÜHRER (4. Wilderer) ----------
+// Am östlichen Rand von Fahlholz (290,150,r22) — Distanz zum Zentrum ≈19,
+// außerhalb des Baum-Streureichs der eigenen Deko (wildmark.js rng bis r-6=16)
+// aber noch innerhalb der generischen Vegetations-Ausschlusszone (r22), also
+// eine ungestörte Lichtung ohne Kollisions-Konflikt mit den 14 Fahlholz-Bäumen.
+const LEADER_POS = { x: FAHLHOLZ.x + 18, z: FAHLHOLZ.z + 6 };
+const LEADER_PATROL_R = 4;
+const LEADER_SIGHT_RANGE = 8;
+const LEADER_SIGHT_HALF_ANGLE = Math.PI / 3; // 60° Sichtkegel je Seite
+const LEADER_UNRESOLVED_DAWNS = 2; // "2 Tage nicht geräumt" (Plan)
 
 const TUNING = {
   hp: 3,
@@ -255,7 +266,7 @@ class WildererMage {
         const lx = this.homePos.x + Math.sin(t * 0.25 + this.phaseA) * TUNING.patrolRadius;
         const lz = this.homePos.z + Math.cos(t * 0.2 + this.phaseA) * TUNING.patrolRadius;
         this._steerXZ(lx, lz, TUNING.patrolSpeed, dt);
-        if (dist < TUNING.aggroRange) { this.state = 'aggro'; this.stateT = 0; }
+        if (!player.invisible && dist < TUNING.aggroRange) { this.state = 'aggro'; this.stateT = 0; }
         break;
       }
       case 'aggro': {
@@ -354,6 +365,49 @@ class WildererMage {
       (dx / d) * TUNING.boltSpeed, (dy / d) * TUNING.boltSpeed, (dz / d) * TUNING.boltSpeed,
     );
     this.system.audio.wildererBolt?.();
+  }
+}
+
+// ---------- S10 Umhang-Quest: Anführer (reine Sichtkegel-Wache, kein Kampf —
+// "muss GESTOHLEN werden", kein Duell) ----------
+class LeaderGuard {
+  constructor(scene) {
+    this.fig = buildFigure(0x6b1a1a, 0x1a1410, 0x2a1414, null, true);
+    for (const m of this.fig.mats) m.opacity = 1;
+    this.group = this.fig.group;
+    this.pos = this.group.position;
+    this.pos.set(LEADER_POS.x, terrainHeight(LEADER_POS.x, LEADER_POS.z), LEADER_POS.z);
+    this.facing = 0;
+    this.t = Math.random() * Math.PI * 2;
+    scene.add(this.group);
+  }
+
+  update(dt) {
+    this.t += dt * 0.3;
+    const tx = LEADER_POS.x + Math.sin(this.t) * LEADER_PATROL_R;
+    const tz = LEADER_POS.z + Math.cos(this.t) * LEADER_PATROL_R;
+    const dx = tx - this.pos.x, dz = tz - this.pos.z;
+    const d = Math.hypot(dx, dz) || 1;
+    const speed = 1.1;
+    this.pos.x += (dx / d) * speed * dt;
+    this.pos.z += (dz / d) * speed * dt;
+    this.pos.y = terrainHeight(this.pos.x, this.pos.z);
+    if (d > 0.05) this.facing = Math.atan2(dx, dz);
+    this.group.rotation.y = this.facing;
+    animateFigure(this.fig, dt, true);
+  }
+
+  // Sichtkegel-Check (Plan: "<8m" + Blickrichtung), nur nachts relevant —
+  // tagsüber ruht das Lager, kein Diebstahlsversuch nötig/möglich.
+  sees(player, night) {
+    if (!night) return false;
+    const dx = player.pos.x - this.pos.x, dz = player.pos.z - this.pos.z;
+    const dist = Math.hypot(dx, dz);
+    if (dist > LEADER_SIGHT_RANGE) return false;
+    const angleToPlayer = Math.atan2(dx, dz);
+    let diff = Math.abs(angleToPlayer - this.facing) % (Math.PI * 2);
+    if (diff > Math.PI) diff = Math.PI * 2 - diff;
+    return diff < LEADER_SIGHT_HALF_ANGLE;
   }
 }
 
@@ -456,8 +510,9 @@ export function buildWilderer(scene, glowTex, hud, audio, fx, health, interact, 
   // deps = { heim, dunkel, wild } — direkte Save-Referenzen (Muster aus
   // S3/Fero: mutieren dieselben Objekte, main.js' persist() liest sie
   // unverändert durch, solange main.js dieselbe Referenz übergeben hat.
-  const { heim, dunkel, wild } = deps;
+  const { heim, dunkel, wild, hallows, hallowsUnlocked } = deps;
   let currentTimeOfDay = 0.4;
+  let currentPlayer = null;
 
   const system = {
     scene, glowTex, hud, audio, fx, health, economy,
@@ -492,6 +547,65 @@ export function buildWilderer(scene, glowTex, hud, audio, fx, health, interact, 
   // "alle 3 Wilderer besiegt"-Zustand.
   let campImperioBypass = false;
   system.onCampMageImperio = () => { campImperioBypass = true; };
+
+  // ---------- S10: Anführer-Versteck (nur sichtbar, sobald erschienen) ----------
+  const leaderGuard = new LeaderGuard(scene);
+  leaderGuard.group.visible = false;
+  const leaderChestGroup = new THREE.Group();
+  const leaderChestY = terrainHeight(LEADER_POS.x, LEADER_POS.z);
+  leaderChestGroup.position.set(LEADER_POS.x, leaderChestY, LEADER_POS.z + 1.8);
+  leaderChestGroup.visible = false;
+  scene.add(leaderChestGroup);
+  const leaderChestBodyMat = new THREE.MeshLambertMaterial({ color: 0x3a2c1c, flatShading: true });
+  const leaderChestTrimMat = new THREE.MeshLambertMaterial({ color: 0x8a6a2a, flatShading: true });
+  const leaderChestBody = new THREE.Mesh(new THREE.BoxGeometry(0.9, 0.5, 0.55), leaderChestBodyMat);
+  leaderChestBody.position.y = 0.25;
+  leaderChestGroup.add(leaderChestBody);
+  for (const s of [-1, 1]) {
+    const band = new THREE.Mesh(new THREE.BoxGeometry(0.05, 0.5, 0.57), leaderChestTrimMat);
+    band.position.set(s * 0.38, 0.25, 0);
+    leaderChestGroup.add(band);
+  }
+  const leaderChestLid = new THREE.Mesh(new THREE.BoxGeometry(0.94, 0.3, 0.58), leaderChestBodyMat);
+  leaderChestLid.position.set(0, 0.65, -0.27);
+  leaderChestGroup.add(leaderChestLid);
+  addBoxBlocker(LEADER_POS.x - 0.5, LEADER_POS.x + 0.5, leaderChestY, leaderChestY + 0.9, LEADER_POS.z + 1.5, LEADER_POS.z + 2.1);
+
+  let leaderSpawned = false; // erschienen (Versteck sichtbar, Chance auf Diebstahl)
+  let leaderResolved = false; // Umhang bereits gestohlen — Versteck bleibt für immer verlassen
+  let unresolvedDawns = 0; // Morgengrauen in Folge mit demselben ungeräumten Lager
+  let leaderBusted = false; // heute Nacht schon entdeckt worden — "Versuch morgen neu"
+
+  function spawnLeader() {
+    if (leaderSpawned || leaderResolved) return;
+    // S10 ist erst nach Hauspokal+Seelenlaterne freigeschaltet (Plan) — vorher
+    // zählt der Ungeräumt-Timer zwar mit, löst aber noch nichts aus.
+    if (!hallowsUnlocked?.()) return;
+    leaderSpawned = true;
+    hud.showToast('🏴 Gerüchte erzählen von einem Wilderer-Anführer, der sich in Fahlholz verkrochen hat …', 4.5);
+  }
+
+  const leaderChestEntry = interact.register({
+    x: LEADER_POS.x, z: LEADER_POS.z + 1.8, r: 2, enabled: false,
+    prompt: 'E — Die Truhe durchsuchen (lautlos!)',
+    onInteract: () => {
+      if (!leaderSpawned || leaderResolved || leaderBusted) return;
+      if (leaderGuard.sees(currentPlayer, true)) {
+        leaderBusted = true;
+        hud.showToast('⚠️ Entdeckt! Der Anführer schlägt Alarm — versuch es morgen Nacht wieder.', 3.5);
+        audio.wildererSurrender?.();
+        return;
+      }
+      leaderResolved = true;
+      hallows.umhang = 1;
+      leaderChestLid.rotation.x = -1.9;
+      leaderGuard.group.visible = false;
+      audio.chime?.('fanfare');
+      fx.burst({ x: LEADER_POS.x, y: leaderChestY + 0.6, z: LEADER_POS.z + 1.8 }, 0x2e2a24, 22, 3, { gravity: -1, life: 0.9 });
+      hud.showToast('🧥 Der Umhang der Unsichtbarkeit! Lautlos erbeutet. (Taste U)', 4.5);
+      onWildChange?.();
+    },
+  });
 
   function spawnCagedCreature(siteIdx) {
     const kind = CAGED_KINDS[Math.floor(Math.random() * CAGED_KINDS.length)];
@@ -626,6 +740,11 @@ export function buildWilderer(scene, glowTex, hud, audio, fx, health, interact, 
         hud.showDialog('Ondra', ['Zehn Gold Einsatz, fair und ehrlich. Du hast nicht genug.']);
         return;
       }
+      // K5 (S10): Duellring verbietet den Umhang der Unsichtbarkeit.
+      if (currentPlayer?.invisible) {
+        hud.showDialog('Ondra', ['Ich sehe alles, oder gar nichts — nimm den Umhang ab, dann reden wir.']);
+        return;
+      }
       const lines = ondraGreeted
         ? [`Bereit für eine weitere Runde? Zehn Gold Einsatz.`]
         : ['Ondra, Fechtmeisterin von Eulenbrück. Zehn Gold Einsatz, ein faires Duell.',
@@ -693,6 +812,7 @@ export function buildWilderer(scene, glowTex, hud, audio, fx, health, interact, 
     update(dt, player, sky) {
       system.time += dt;
       currentTimeOfDay = sky.timeOfDay;
+      currentPlayer = player;
 
       // Morgengrauen-Erkennung (dieselbe Schwelle wie Student/Ghost-Fade):
       // ein bereits GELÖSTES Lager verschwindet erst hier, ein freier Slot
@@ -705,8 +825,28 @@ export function buildWilderer(scene, glowTex, hud, audio, fx, health, interact, 
           lastSpotIdx = next;
           activateCamp(next);
         }
+        // S10 Umhang-Quest: dieselbe Morgengrauen-Erkennung zählt, wie viele
+        // Tage in Folge das AKTUELLE Lager ungeräumt blieb (ein ungeräumtes
+        // Lager rotiert nie weg, siehe oben — bleibt also über den Zähler
+        // hinweg dieselbe Instanz, kein Verwechslungsrisiko mit einem neuen).
+        if (activeCampIdx >= 0 && !campResolved) {
+          unresolvedDawns++;
+          if (unresolvedDawns >= LEADER_UNRESOLVED_DAWNS) spawnLeader();
+        } else {
+          unresolvedDawns = 0;
+        }
       }
+      // Neue Nacht bricht an: ein gestriger Alarm verjährt ("Versuch morgen
+      // neu" aus dem Plan) — Muster identisch zu home.js' Meteor-Nacht-Reset.
+      if (prevNightGlow < DAWN_LOW && night >= DAWN_LOW) leaderBusted = false;
       prevNightGlow = night;
+
+      if (leaderSpawned && !leaderResolved) {
+        leaderGuard.update(dt);
+        leaderGuard.group.visible = true;
+        leaderChestGroup.visible = true;
+        leaderChestEntry.enabled = night >= DAWN_LOW && !leaderBusted;
+      }
 
       for (const m of mages) m.update(dt, player);
       if (activeCampIdx >= 0) {
@@ -777,6 +917,20 @@ export function buildWilderer(scene, glowTex, hud, audio, fx, health, interact, 
         lastSpotIdx = savedWild.aktivCamp;
         activateCamp(savedWild.aktivCamp);
       }
+      // S10 Anführer: leaderResolved wird IMMER aus hallows.umhang abgeleitet
+      // (nicht selbst gespeichert) — ein bereits erbeuteter Umhang darf das
+      // Versteck nie wieder auftauchen lassen, egal wie oft neu geladen wird.
+      // unresolvedDawns/leaderSpawned bleiben bewusst Session-Zustand (wie
+      // S7 dailyPicked/S9 following) — bei einem Reload läuft die 2-Tage-
+      // Zählung im schlimmsten Fall einfach neu an, kein Korrektheitsproblem.
+      leaderResolved = !!hallows.umhang;
+      leaderSpawned = leaderResolved;
+      leaderBusted = false;
+      unresolvedDawns = 0;
+      leaderGuard.group.visible = leaderSpawned && !leaderResolved;
+      leaderChestGroup.visible = leaderGuard.group.visible;
+      leaderChestEntry.enabled = false;
+      leaderChestLid.rotation.x = leaderResolved ? -1.9 : 0;
     },
 
     get activeCampIdx() { return activeCampIdx; },

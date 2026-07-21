@@ -35,6 +35,7 @@ export class Hud {
     this.lightningFlash = el('lightning-flash');
     this.bossbar = el('bossbar');
     this.bossbarFill = this.bossbar.querySelector('i');
+    this.airgauge = el('airgauge');
     this._toastTimer = 0;
     this._hurtTimer = 0;
     this._fpsVisible = false;
@@ -93,6 +94,18 @@ export class Hud {
   setFrost(frac) {
     this.vignette.style.setProperty('--frost', frac.toFixed(3));
     this.vignette.style.setProperty('--frost-dark', Math.max(0, (frac - 0.7) / 0.3).toFixed(3));
+  }
+
+  // S10 Tauchen: blaugrüne Trübung + dunklere Ränder (Muster --frost/--frost-dark)
+  setUnderwater(frac) { this.vignette.style.setProperty('--underwater', frac.toFixed(3)); }
+
+  // S10 Luftanzeige — nur sichtbar, solange geschwommen wird (main.js steuert
+  // das via player.swimming). frac<0.25 färbt den Balken warnend rot-orange.
+  setAirGauge(visible, frac) {
+    this.airgauge.classList.toggle('visible', visible);
+    if (!visible) return;
+    this.airgauge.style.setProperty('--air-fill', frac.toFixed(3));
+    this.airgauge.classList.toggle('low', frac < 0.25);
   }
 
   setCounter(n, total) { this.counter.textContent = `✦ ${n} / ${total}`; }

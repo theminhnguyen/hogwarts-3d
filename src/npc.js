@@ -655,7 +655,20 @@ export function buildNpcs(scene, glowTex, hud, audio, fx, health, interact, deps
     x: GEIST_POS.x, z: GEIST_POS.z, r: 3, prompt: 'E — Mit dem Schlossgeist sprechen',
     onInteract: () => {
       const lines = [];
-      if (deps.spells.epUnlocked && !deps.moor.laterneCollected) {
+      // S10: höchste Priorität, sobald freigeschaltet (Hauspokal+Laterne) —
+      // zu diesem Zeitpunkt sind die Bedingungen der übrigen Zweige ohnehin
+      // schon erfüllt (Hauspokal braucht 12/12 Schnätze + alle Artefakte).
+      if (deps.puzzles.finaleWon && deps.moor.laterneCollected
+        && !(deps.hallows.stab && deps.hallows.umhang && deps.hallows.stein)) {
+        lines.push('Ich spüre es noch immer — drei Dinge, die der Tod einst verlor, liegen verstreut in dieser Welt…');
+        if (!deps.hallows.stab) {
+          lines.push('Am Hügelgrab, wenn die Mitternacht schlägt, erhebt sich ein bleicher König. Nur wer würdig kämpft, gewinnt seinen Stab.');
+        } else if (!deps.hallows.umhang) {
+          lines.push('Ein Wilderer-Anführer hütet einen Umhang, der unsichtbar macht — gestohlen werden muss er, nicht erkämpft.');
+        } else {
+          lines.push('Am tiefsten Grund des Sees liegt ein Stein, der den Tod betrügt — wer tief genug taucht, findet ihn.');
+        }
+      } else if (deps.spells.epUnlocked && !deps.moor.laterneCollected) {
         lines.push('Im Nebelmoor wartet noch die Silberne Seelenlaterne auf dich…');
         lines.push('Fünf Seelenlichter müssen heimkehren, bevor sich die Krypta öffnet.');
       } else if (deps.puzzles.artifactCount < ARTIFACT_ORDER.length) {

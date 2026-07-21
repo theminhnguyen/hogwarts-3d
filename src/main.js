@@ -37,6 +37,7 @@ import { buildWilderer } from './wilderer.js';
 import { buildMount } from './mount.js';
 import { buildDark } from './dark.js';
 import { buildCompanion } from './companion.js';
+import { buildHallows } from './hallows.js';
 
 // Der Schlüsselname trägt noch "v1" aus Phase 0 — umbenennen würde alle
 // bestehenden Spielstände verwaisen lassen. Die eigentliche Versionierung
@@ -131,7 +132,7 @@ post.setQuality(save.grafik);
 post.onDegrade = () => hud.showToast('Grafik automatisch reduziert (Bloom aus)', 3.5);
 
 let sky, water, castle, structures, moor, life, collectibles, player;
-let fx, wand, spells, health, creatures, puzzles, dementors, weather, village, train, willow, interact, npc, grove, broom, fahlholz, fauna, economy, wilderer, mount, kate, home, dark, companion;
+let fx, wand, spells, health, creatures, puzzles, dementors, weather, village, train, willow, interact, npc, grove, broom, fahlholz, fauna, economy, wilderer, mount, kate, home, dark, companion, hallows, huegelgrab;
 let lanternWasCollected = false; // erkennt den Moment, in dem die Laterne live geborgen wird
 let natureSwayMaterials = [];
 let natureTreeSpots = []; // S2: echte Baum-Positionen für Bowtruckles (fauna.js)
@@ -249,7 +250,7 @@ const buildSteps = [
       collectibles, puzzles, spells, moor, dementors,
       leuchtkraeuter: structures.leuchtkraeuter,
       train, economy, heim: save.heim, mounts: save.mounts, dunkel: save.dunkel,
-      begleiter: save.begleiter,
+      begleiter: save.begleiter, hallows: save.hallows,
     });
     npc.restore(save.quests);
     npc.onQuestChange = () => persist();
@@ -277,7 +278,7 @@ const buildSteps = [
     // S1: Fahlholz/Hügelgrab bleiben reine Deko (Grabkammer-Öffnung erst
     // S10). Die Kate liefert jetzt (S7) ihr setOwned()-Handle für home.js.
     fahlholz = buildFahlholz(scene);
-    buildHuegelgrab(scene);
+    huegelgrab = buildHuegelgrab(scene);
     kate = buildKate(scene, glowTex);
   }],
   ['Zuhause', () => {
@@ -304,7 +305,11 @@ const buildSteps = [
   }],
   ['Wilderer & Duell', () => {
     wilderer = buildWilderer(scene, glowTex, hud, audio, fx, health, interact, economy, {
-      heim: save.heim, dunkel: save.dunkel, wild: save.wild,
+      heim: save.heim, dunkel: save.dunkel, wild: save.wild, hallows: save.hallows,
+      // S10: Umhang-Anführer erscheint erst, wenn die Heiligtümer-Questreihe
+      // freigeschaltet ist (Hauspokal+Laterne) — puzzles/moor existieren zu
+      // diesem Zeitpunkt bereits (beide Build-Steps laufen vor diesem hier).
+      hallowsUnlocked: () => puzzles.finaleWon && moor.laterneCollected,
     });
     wilderer.restore(save.wild);
     if (save.peaceful) wilderer.peaceful = true;
@@ -339,6 +344,18 @@ const buildSteps = [
     // "gerade gerufen" NICHT — nach jedem Laden erst wieder Taste G nötig.
     companion.restore();
     companion.onChange = () => persist();
+  }],
+  // Heiligtümer (S10): braucht home (Podeste), huegelgrab (Slab-Mesh+Blocker,
+  // S1 vorbereitet), mount/dementors (Meister-des-Todes-Effekte), puzzles/moor
+  // (Freischalt-Gate) — alle bereits gebaut. Letzter Schritt.
+  ['Heiligtümer', () => {
+    hallows = buildHallows(scene, glowTex, hud, audio, fx, health, interact, home, huegelgrab, {
+      hallows: save.hallows, mount, dementors, puzzles, moor,
+    });
+    hallows.restore();
+    hallows.onChange = () => persist();
+    hallows.onSeenDeath = () => { if (!save.seenDeath) { save.seenDeath = 1; persist(); } };
+    if (save.peaceful) hallows.peaceful = true;
   }],
 ];
 
@@ -473,6 +490,7 @@ btnPeaceful.addEventListener('click', () => {
   dementors.peaceful = creatures.peaceful;
   willow.peaceful = creatures.peaceful;
   wilderer.peaceful = creatures.peaceful;
+  hallows.peaceful = creatures.peaceful;
   btnPeaceful.textContent = `Kreaturen: ${creatures.peaceful ? 'zahm' : 'wild'}`;
   persist();
 });
@@ -503,6 +521,11 @@ btnReset.addEventListener('click', () => {
   if (grove) grove.restore(false);
   if (npc) npc.restore({});
   if (broom) broom.restore({});
+  // S10: hallows VOR wilderer.restore() zurücksetzen — dessen restore()
+  // leitet leaderResolved live aus hallows.umhang ab (Lehre: Reihenfolge bei
+  // abgeleitetem Zustand zählt, sonst bliebe das Anführer-Versteck nach
+  // einem Reset fälschlich für immer "schon erledigt").
+  Object.assign(save.hallows, { stab: 0, umhang: 0, stein: 0, steinCd: 0 });
   if (wilderer) wilderer.restore({ aktivCamp: -1, befreit: 0, geerntet: 0 });
   if (mount) mount.restore({ hippo: 0, thestral: 0, sattel: 0 });
   if (player) { player.flying = false; player.riding = false; player.flightTuning = null; }
@@ -538,12 +561,13 @@ btnReset.addEventListener('click', () => {
   if (player) player.potionSpeedMul = 1;
   if (health) health.tempHeartsBonus = 0;
   if (dementors) { dementors.frostImmune = false; dementors.playerIsDark = false; }
-  if (spells) spells.dmgMul = 1;
+  if (spells) { spells.dmgMul = 1; spells.cooldownMul = 1; }
   if (home) home.restore();
   if (dark) dark.restore();
   Object.assign(save.begleiter, { aktiv: '', frei: [] });
   if (companion) companion.restore();
-  Object.assign(save.hallows, { stab: 0, umhang: 0, stein: 0, steinCd: 0 });
+  if (hallows) hallows.restore();
+  if (player) player.invisible = false;
   Object.assign(save.animagus, { gelernt: 0, form: 'rabe' });
   persist();
   hud.showToast('Fortschritt zurückgesetzt');
@@ -606,6 +630,8 @@ window.addEventListener('keydown', (e) => {
     if (!player.swimming) mount.whistle();
   } else if (e.code === 'KeyG') {
     companion.toggle();
+  } else if (e.code === 'KeyU') {
+    hallows.toggleInvisibility(player);
   }
 });
 
@@ -656,7 +682,11 @@ function frame(dt) {
     // Wilderer (S4) ebenso: eigene applyHit()-Logik, gleiche Ziel-Liste.
     // fauna.foxes (S8): Imperio-Cone-Scan braucht Füchse separat (kein hp/
     // applyHit, nicht Teil der Kreaturenliste — siehe fauna.js-Kommentar).
-    spells.update(dt, camera, creatures.list.concat(dementors.list).concat(wilderer.list), fauna.foxes);
+    // hallows.king/phantomGhosts (S10): Bleicher König + seine Phase-2-
+    // Geister-Beschwörung sind ebenfalls gültige Spruchziele (alive-Flag
+    // gated wie überall sonst).
+    spells.update(dt, camera, creatures.list.concat(dementors.list).concat(wilderer.list)
+      .concat([hallows.king]).concat(hallows.phantomGhosts), fauna.foxes);
     // sky.update() läuft weiter unten, aber creatures braucht den Tag/Nacht-
     // Stand vom LETZTEN Frame — nightGlow ändert sich nur sehr langsam
     // (300s/Zyklus), eine Frame Verzögerung ist unmerklich.
@@ -677,9 +707,14 @@ function frame(dt) {
       const t = save.heim.trank;
       const active = t.id && t.restT > 0;
       player.potionSpeedMul = active && t.id === 'flink' ? 1.3 : 1;
-      health.tempHeartsBonus = active && t.id === 'herz' ? 2 : 0;
+      // S10 Meister des Todes: +1 Max-Herz stapelt sich mit dem Herztrank.
+      health.tempHeartsBonus = (active && t.id === 'herz' ? 2 : 0) + (hallows.masterOfDeath ? 1 : 0);
       dementors.frostImmune = active && t.id === 'frost';
-      spells.dmgMul = active && t.id === 'dunkel' && save.dunkel.pfad === 'dunkel' ? 1.5 : 1;
+      // S10 Elderstab: Schaden ×2 / Cooldown ×0.6, stapelt sich multiplikativ
+      // mit dem Dunklen Sud (×1.5).
+      const potionDmgMul = active && t.id === 'dunkel' && save.dunkel.pfad === 'dunkel' ? 1.5 : 1;
+      spells.dmgMul = potionDmgMul * (hallows.elderstabActive ? 2 : 1);
+      spells.cooldownMul = hallows.elderstabActive ? 0.6 : 1;
     }
     dementors.update(dt, player);
     player.slowFactor = dementors.frostFactor > 0.5 ? 0.75 : 1;
@@ -693,6 +728,7 @@ function frame(dt) {
     wilderer.update(dt, player, sky);
     dark.update(dt, player, move.sprinting);
     companion.update(dt, player);
+    hallows.update(dt, player, sky);
     broom.update(dt, player);
     // Tritt-Ziele (S5): kreatur.list + wilderer.list — Dementoren bewusst
     // NICHT dabei (immateriell, K6 aus dem Plan).
@@ -756,6 +792,11 @@ function frame(dt) {
     hud.setFps(fpsEMA, pixelRatio);
     if (player.swimming) hud.showHint('Du schwimmst im See 🏊 — zurück ans Ufer!');
     else hud.hideHint();
+    // S10 Tauchen: Luftanzeige läuft während des gesamten Schwimmens mit,
+    // Unterwasser-Vignette/-Audiofilter nur beim tatsächlichen Abtauchen.
+    hud.setAirGauge(player.swimming, player.airRemaining / 25);
+    hud.setUnderwater(player.diving ? 1 : 0);
+    audio.setUnderwater(player.diving);
 
     // Automatische Qualitätsanpassung
     qualityTimer += dt;
@@ -779,10 +820,16 @@ buildWorld().then(() => {
   player.onStep = (sprinting) => audio.step(sprinting);
   player.onJump = () => audio.jump();
   player.onLand = () => audio.land();
+  // S10 Tauchen: Luft komplett verbraucht — kleiner "Schreck-Schaden" plus
+  // Zwangsauftrieb (player.js ignoriert Shift automatisch sobald air<=0).
+  player.onOutOfAir = () => {
+    health.damage(1, null);
+    hud.showToast('😮‍💨 Dir geht die Luft aus!', 2.5);
+  };
   // Debug-/Test-Zugriff (bewusst öffentlich, hilft bei Fehlersuche)
   window.__game = {
     player, sky, camera, renderer, scene,
-    wand, spells, fx, health, creatures, puzzles, moor, dementors, weather, post, village, train, willow, interact, npc, hud, grove, broom, fahlholz, fauna, economy, wilderer, mount, home, dark, companion,
+    wand, spells, fx, health, creatures, puzzles, moor, dementors, weather, post, village, train, willow, interact, npc, hud, grove, broom, fahlholz, fauna, economy, wilderer, mount, home, dark, companion, hallows,
     get save() { return save; },
     get fps() { return fpsEMA; },
     get pixelRatio() { return pixelRatio; },

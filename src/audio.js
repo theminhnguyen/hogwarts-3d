@@ -19,7 +19,12 @@ export class SoundManager {
     this.ctx = ctx;
     this.master = ctx.createGain();
     this.master.gain.value = this.muted ? 0 : 0.75;
-    this.master.connect(ctx.destination);
+    // S10 Tauchen: dauerhaft im Signalweg (statt bei Bedarf umzustöpseln) —
+    // frequency bleibt bei 20000 (praktisch kein Effekt) außer beim Tauchen.
+    this.underwaterFilter = ctx.createBiquadFilter();
+    this.underwaterFilter.type = 'lowpass';
+    this.underwaterFilter.frequency.value = 20000;
+    this.master.connect(this.underwaterFilter).connect(ctx.destination);
 
     // Rausch-Puffer (für Wind & Schritte)
     const len = ctx.sampleRate * 2;
@@ -1177,6 +1182,70 @@ export class SoundManager {
       o.connect(g).connect(this.master);
       o.start(t0); vib.start(t0);
       o.stop(t0 + 0.42); vib.stop(t0 + 0.42);
+    }
+  }
+
+  // S10 Tauchen: dumpfer Unterwasser-Filter über ALLES (player.js.diving),
+  // sanft ein-/ausgeblendet statt hart umgeschaltet.
+  setUnderwater(active) {
+    if (!this.ctx) return;
+    const t = this.ctx.currentTime;
+    this.underwaterFilter.frequency.cancelScheduledValues(t);
+    this.underwaterFilter.frequency.setTargetAtTime(active ? 500 : 20000, t, 0.4);
+  }
+
+  // Bleicher König (S10): dumpfer, metallischer Treffer-Klang — anders als
+  // der spitze Wilderer-Bolzen-Einschlag, damit sich der Boss "schwerer" anfühlt.
+  kingHit() {
+    if (!this.ctx || this.muted) return;
+    const ctx = this.ctx, t = ctx.currentTime;
+    const o = ctx.createOscillator();
+    o.type = 'square';
+    o.frequency.setValueAtTime(180, t);
+    o.frequency.exponentialRampToValueAtTime(70, t + 0.22);
+    const f = ctx.createBiquadFilter();
+    f.type = 'lowpass'; f.frequency.value = 900;
+    const g = ctx.createGain();
+    this._env(g, t, 0.002, 0.35, 0.24);
+    o.connect(f).connect(g).connect(this.master);
+    o.start(t); o.stop(t + 0.26);
+  }
+
+  // Teleport-Verpuffen: kurzer aufwärts-gewischter Ton mit Rauschanteil.
+  kingTeleport() {
+    if (!this.ctx || this.muted) return;
+    const ctx = this.ctx, t = ctx.currentTime;
+    const o = ctx.createOscillator();
+    o.type = 'sine';
+    o.frequency.setValueAtTime(220, t);
+    o.frequency.exponentialRampToValueAtTime(1100, t + 0.3);
+    const g = ctx.createGain();
+    this._env(g, t, 0.01, 0.25, 0.32);
+    o.connect(g).connect(this.master);
+    o.start(t); o.stop(t + 0.34);
+
+    const src = ctx.createBufferSource();
+    src.buffer = this.noiseBuf;
+    const nf = ctx.createBiquadFilter();
+    nf.type = 'highpass'; nf.frequency.value = 1400;
+    const ng = ctx.createGain();
+    this._env(ng, t, 0.01, 0.12, 0.25);
+    src.connect(nf).connect(ng).connect(this.master);
+    src.start(t, Math.random() * 1.5, 0.3);
+  }
+
+  // Sieg: warmer, absteigend-verklingender Dur-Akkord (Ehre statt Fanfare).
+  kingBow() {
+    if (!this.ctx || this.muted) return;
+    const ctx = this.ctx, t = ctx.currentTime;
+    for (const freq of [392, 494, 587]) {
+      const o = ctx.createOscillator();
+      o.type = 'triangle';
+      o.frequency.value = freq;
+      const g = ctx.createGain();
+      this._env(g, t, 0.05, 0.22, 1.1);
+      o.connect(g).connect(this.master);
+      o.start(t); o.stop(t + 1.2);
     }
   }
 

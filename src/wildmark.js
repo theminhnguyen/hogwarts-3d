@@ -120,12 +120,14 @@ export function buildHuegelgrab(scene) {
   slab.position.set(doorX, cy + 1.2, doorZ);
   slab.castShadow = true; slab.receiveShadow = true;
   scene.add(slab);
-  addBoxBlocker(doorX - 0.25, doorX + 0.25, cy, cy + 2.4, doorZ - 1.6, doorZ + 1.6);
+  const slabBlocker = addBoxBlocker(doorX - 0.25, doorX + 0.25, cy, cy + 2.4, doorZ - 1.6, doorZ + 1.6);
 
   const mesh = stoneBatch.build(mats.stone, { castShadow: true, receiveShadow: true });
   if (mesh) scene.add(mesh);
 
-  return { slabPos: { x: doorX, y: cy + 1.2, z: doorZ } };
+  // slab/slabBlocker: hallows.js (S10) animiert die Platte beim Mitternachts-
+  // Trigger auf und schaltet ihren Blocker ab, damit die Grabkammer begehbar wird.
+  return { slabPos: { x: doorX, y: cy + 1.2, z: doorZ }, slab, slabBlocker, doorZ };
 }
 
 // ---------- Wispernde Kate: verlassenes, begehbares Gebäude (leer) ----------

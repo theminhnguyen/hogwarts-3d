@@ -150,7 +150,7 @@ export function buildWillow(scene, glowTex, audio, fx, health) {
       switch (this.state) {
         case 'idle': {
           target = TUNING.restAngle + Math.sin(this.time * 0.6) * 0.05;
-          if (dist < TUNING.aggroRange && !highFlying) {
+          if (dist < TUNING.aggroRange && !highFlying && !player.invisible) {
             this.state = 'telegraph';
             this.stateT = 0;
             audio.willowCreak?.();

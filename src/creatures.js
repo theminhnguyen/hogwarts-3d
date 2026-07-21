@@ -277,7 +277,7 @@ class Pixie {
         const ly = terrainHeight(lx, lz) + 2.5 + Math.sin(t * 0.9 + this.phaseC) * 1.2;
         this._steerTo(lx, ly, lz, TUNING.pixie.wanderSpeed, dt);
         this._checkTheft();
-        if (distSq < TUNING.pixie.aggroRange * TUNING.pixie.aggroRange) {
+        if (!player.invisible && distSq < TUNING.pixie.aggroRange * TUNING.pixie.aggroRange) {
           this.state = 'aggro';
           this.stateT = 0;
           this.orbitAngle = Math.atan2(this.pos.z - player.pos.z, this.pos.x - player.pos.x);
@@ -434,7 +434,10 @@ class Pixie {
 }
 
 // ---------- Gemeinsame Schattengeist-Geometrie ----------
-function buildGhostParts(glowTex) {
+// S10: exportiert für hallows.js — der Bleiche König nutzt dieselbe
+// Geometrie (mit eigener fahl-goldener Material-Überlagerung statt der
+// Templates hier), Phase 2 beschwört 2 echte Ghost-Instanzen.
+export function buildGhostParts(glowTex) {
   const cloakGeo = jitter(new THREE.ConeGeometry(0.5, 1.6, 8, 3, true), 0.12, 555);
   cloakGeo.translate(0, 0.8, 0); // Saum bei y=0, Spitze bei y=1.6
   const hoodGeo = new THREE.SphereGeometry(0.22, 8, 6);
@@ -460,7 +463,7 @@ function buildGhostParts(glowTex) {
   return { cloakGeo, hoodGeo, cloakMatTemplate, eyeMatTemplate, glowMatTemplate };
 }
 
-class Ghost {
+export class Ghost {
   constructor(system, parts, homePos, seed) {
     this.system = system;
     this.species = 'ghost';
@@ -628,7 +631,7 @@ class Ghost {
         const lx = this.homePos.x + Math.sin(t * 0.15 + this.phaseA) * 14;
         const lz = this.homePos.z + Math.cos(t * 0.12 + this.phaseB) * 14;
         this._steerXZ(lx, lz, TUNING.ghost.wanderSpeed, dt);
-        if (distSq < TUNING.ghost.aggroRange * TUNING.ghost.aggroRange) {
+        if (!player.invisible && distSq < TUNING.ghost.aggroRange * TUNING.ghost.aggroRange) {
           this.state = 'aggro';
           this.stateT = 0;
         }
@@ -864,7 +867,7 @@ class Troll {
         const lx = this.homePos.x + Math.sin(t * 0.2 + this.phaseA) * TROLL_TUNING.patrolRadius;
         const lz = this.homePos.z + Math.cos(t * 0.17 + this.phaseA) * TROLL_TUNING.patrolRadius;
         this._steerXZ(lx, lz, TROLL_TUNING.patrolSpeed, dt);
-        if (distSq < TROLL_TUNING.aggroRange * TROLL_TUNING.aggroRange) {
+        if (!player.invisible && distSq < TROLL_TUNING.aggroRange * TROLL_TUNING.aggroRange) {
           this.state = 'aggro';
           this.stateT = 0;
           this.system.audio.trollRoar?.();
@@ -1215,7 +1218,7 @@ class GiantSpider {
           this.huntTarget = bestPrey;
           this.state = 'jagen';
           this.stateT = 0;
-        } else if (distSq < SPIDER_TUNING.aggroRange * SPIDER_TUNING.aggroRange) {
+        } else if (!player.invisible && distSq < SPIDER_TUNING.aggroRange * SPIDER_TUNING.aggroRange) {
           this.state = 'aggro';
           this.stateT = 0;
         }

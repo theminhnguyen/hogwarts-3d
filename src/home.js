@@ -115,14 +115,17 @@ export function buildHome(scene, camera, glowTex, hud, audio, fx, health, intera
     furniture.add(leg);
   }
 
-  // 3 Podeste (leer — für S10) entlang der Rückwand
+  // 3 Podeste entlang der Rückwand — hallows.js (S10) hängt hier per E
+  // an/ablegbare Heiligtums-Anzeigen dran (Muster: Kreaturen-Ecke-restSpot,
+  // in S7 nur die Position vorbereitet, S10 füllt sie). id-Reihenfolge
+  // entspricht der Plan-Auflistung (Elderstab, Umhang, Stein).
   const pedestalMat = stoneMat;
   const podeste = [];
-  for (const px of [-0.9, 0, 0.9]) {
-    const pos = { x: kx + px, z: kz + 2.15 };
+  for (const [px, id] of [[-0.9, 'stab'], [0, 'umhang'], [0.9, 'stein']]) {
+    const pos = { x: kx + px, y: ky + 0.75, z: kz + 2.15 };
     const ped = el(pedestalMat, new THREE.CylinderGeometry(0.28, 0.32, 0.75, 8), pos.x, ky + 0.375, pos.z);
     furniture.add(ped);
-    podeste.push(ped);
+    podeste.push({ id, mesh: ped, x: pos.x, y: pos.y, z: pos.z });
   }
 
   // Kreaturen-Ecke (Südwest) — reine Deko, S9 lässt hier später den
@@ -296,6 +299,10 @@ export function buildHome(scene, camera, glowTex, hud, audio, fx, health, intera
     // S9: Rastplatz für den weggeschickten Begleiter (Kreaturen-Ecke, s.o.) —
     // nur sinnvoll, solange heim.kate=1 ist (furniture.visible).
     restSpot: { x: rugX - 0.3, y: ky, z: rugZ + 0.3 },
+    // S10: die 3 Podeste (Mesh + Weltposition), furniture-Sichtbarkeit
+    // (an heim.kate gekoppelt) gilt automatisch mit, da die Icons als
+    // Kind-Objekte der Podest-Meshes angehängt werden.
+    podeste,
 
     update(dt, player) {
       currentPlayer = player;

@@ -45,6 +45,12 @@
     background: rgba(4, 8, 16, 0.5);
     opacity: var(--frost-dark, 0); transition: opacity 0.5s;
   }
+  /* S10 Tauchen: blaugrüne Trübung + dunklere Ränder, sanft ein/aus. */
+  #vignette-underwater {
+    position: absolute; inset: 0;
+    background: radial-gradient(ellipse at 50% 50%, rgba(30,80,110,0.25) 0%, rgba(8,28,42,0.7) 100%);
+    opacity: var(--underwater, 0); transition: opacity 0.6s;
+  }
   @keyframes hurtFlash {
     0% { background-color: rgba(210, 30, 30, 0.5); }
     100% { background-color: rgba(210, 30, 30, 0); }
@@ -220,6 +226,21 @@
     background: linear-gradient(180deg, #d24a4a, #8a1f1f);
     transition: width 0.15s;
   }
+  /* S10 Luftanzeige (Tauchen): nur sichtbar, solange geschwommen wird. */
+  #airgauge {
+    position: absolute; bottom: 90px; left: 50%; transform: translateX(-50%);
+    width: 220px; height: 10px; border-radius: 5px;
+    background: rgba(10,14,26,0.65); border: 1px solid rgba(120,190,230,0.5);
+    box-shadow: 0 2px 8px rgba(0,0,0,0.6); display: none; overflow: hidden;
+  }
+  #airgauge.visible { display: block; }
+  #airgauge i {
+    display: block; height: 100%; border-radius: 4px;
+    width: calc(var(--air-fill, 1) * 100%);
+    background: linear-gradient(180deg, #9fe0ff, #3a7ea8);
+    transition: width 0.15s;
+  }
+  #airgauge.low i { background: linear-gradient(180deg, #ff9a6a, #a83a2a); }
   #toast {
     position: absolute; top: 14%; left: 50%; transform: translateX(-50%);
     font-size: 22px; color: #ffd97a; text-shadow: 0 2px 8px rgba(0,0,0,0.95);
@@ -293,13 +314,14 @@
   <canvas id="game-canvas"></canvas>
 
   <div id="hud">
-    <div id="vignette"><div id="vignette-frost"></div></div>
+    <div id="vignette"><div id="vignette-frost"></div><div id="vignette-underwater"></div></div>
     <div id="whiteout"></div>
     <div id="lightning-flash"></div>
     <div id="crosshair"></div>
     <div id="tame-ring"></div>
     <div id="compass">N</div>
     <div id="bossbar"><i></i></div>
+    <div id="airgauge"><i></i></div>
     <div id="counter">✦ 0 / 12</div>
     <div id="clock"></div>
     <div id="gold">💰 0</div>
@@ -337,13 +359,14 @@
       <div class="controls">
         <b>W A S D</b><span>Bewegen</span>
         <b>Maus</b><span>Umsehen</span>
-        <b>Shift</b><span>Rennen</span>
+        <b>Shift</b><span>Rennen (beim Schwimmen: abtauchen)</span>
         <b>Leertaste</b><span>Springen</span>
         <b>Maustaste</b><span>Zaubern</span>
         <b>E</b><span>Interagieren</span>
         <b>B</b><span>Besen auf-/absteigen</span>
         <b>R</b><span>Hippogreif/Thestral rufen/aufsitzen/absitzen</span>
         <b>G</b><span>Begleiter rufen/wegschicken (Musch/Piniva/Grabbel)</span>
+        <b>U</b><span>Umhang der Unsichtbarkeit an/aus (nach dem Diebstahl)</span>
         <b>2× Leertaste</b><span>Beritten abheben (Hippogreif/Thestral)</span>
         <b>Rad / 1-4</b><span>Zauber wechseln</span>
         <b>5</b><span>Expecto Patronum (nach dem Hauspokal)</span>

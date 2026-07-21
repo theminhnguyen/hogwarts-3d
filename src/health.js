@@ -34,6 +34,12 @@ export class HealthSystem {
     // main.js hängt hier die deutschen Toast-Texte ein (wie collectibles.onCollect)
     this.onRespawn = null;
     this.onFountainHeal = null;
+    // S10 Stein der Wiederkehr: hallows.js hängt sich hier direkt ein — gibt
+    // true zurück, wenn der Stein den Tod abgefangen hat (Wiederbelebung AN
+    // ORT UND STELLE, kein Whiteout/Respawn-Teleport, K11: getragene
+    // Seelenlichter bleiben erhalten, weil onRespawn/dropCarriedLights dann
+    // nie läuft). false = normaler Tod läuft ungehindert weiter.
+    this.onLethalHit = null;
   }
 
   // Herz-Upgrade (Troll-Bonus-Truhe): mehr maximale Herzen, sofort teilheilen
@@ -61,6 +67,7 @@ export class HealthSystem {
       this.player.vel.z += knockDir.z * 7;
     }
     if (this.hearts <= 0) {
+      if (this.onLethalHit?.()) return; // Stein der Wiederkehr hat übernommen
       this.dead = true;
       this.whiteoutT = TUNING.whiteoutDur;
     }

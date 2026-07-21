@@ -212,10 +212,23 @@ class Dementor {
           // Seelenlicht, die Laterne halbiert sie wieder — main.js speist
           // beide Werte aus moor.js. K4 (S8): im dunklen Pfad neutral, kein
           // Aggro-Übergang — Dementoren gehören zu den Schatten wie der Spieler.
+          // S10: Meister des Todes ebenso neutral ("verneigen sich im
+          // Vorbeigehen" impliziert Respekt, nicht Angriff — sonst würde ein
+          // Dementor gleichzeitig angreifen UND sich verbeugen, unlogisch).
           const aggroR = (TUNING.aggroRange + this.system.aggroRangeExtra) * this.system.aggroRangeMul;
-          if (!this.system.playerIsDark && distSq < aggroR * aggroR) {
+          if (!this.system.playerIsDark && !this.system.masterOfDeath && !player.invisible && distSq < aggroR * aggroR) {
             this.state = 'aggro';
             this.stateT = 0;
+          }
+          // Statt zu ignorieren wie im dunklen Pfad, verneigt sich der
+          // Dementor beim Vorbeigehen (Umhang-Dip) — er erkennt den Träger
+          // aller drei Heiligtümer als "einen der Ihren" an.
+          if (this.system.masterOfDeath) {
+            const dNear = Math.sqrt(distSq);
+            const dip = dNear < 12 ? (1 - dNear / 12) * 0.5 : 0;
+            this.group.rotation.x += (dip - this.group.rotation.x) * Math.min(1, 3 * dt);
+          } else if (this.group.rotation.x !== 0) {
+            this.group.rotation.x += (0 - this.group.rotation.x) * Math.min(1, 3 * dt);
           }
           break;
         }
@@ -295,6 +308,9 @@ export class DementorSystem {
     this.playerIsDark = false;
     this.malLurePos = null;
     this.malLureT = 0;
+    // S10 Meister des Todes (alle 3 Heiligtümer besessen+ausgerüstet) —
+    // von main.js aus hallows.masterOfDeath gesetzt.
+    this.masterOfDeath = false;
 
     const parts = buildDementorParts(glowTex);
     this.list = SPAWNS.map((s, i) => new Dementor(this, parts, s, i + 1));
@@ -319,7 +335,8 @@ export class DementorSystem {
       const dist = Math.hypot(d.pos.x - player.pos.x, d.pos.y - player.pos.y, d.pos.z - player.pos.z);
       if (dist < nearestDist) nearestDist = dist;
       // K4 (S8): im dunklen Pfad auch keine Frost-Aura/Herz-Drain.
-      if (!this.playerIsDark && d.state !== 'repelled' && dist < TUNING.auraRange) inAura = true;
+      // S10: Meister des Todes ebenso — volle Neutralität, nicht nur kein Aggro.
+      if (!this.playerIsDark && !this.masterOfDeath && d.state !== 'repelled' && dist < TUNING.auraRange) inAura = true;
     }
 
     // Frost-Meter: baut sich über 4s auf, solange der Spieler in irgendeiner

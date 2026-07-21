@@ -73,6 +73,9 @@ export class SpellSystem {
     // JEDEN Bolzen-Schaden (nicht nur die verbotenen Sprüche — "Spruchschaden
     // ×1.5" laut home.js-Rezept), von main.js pro Frame aus heim.trank gesetzt.
     this.dmgMul = 1;
+    // S10 Elderstab: ×0.6 sobald besessen+ausgerüstet, von main.js pro Frame
+    // aus hallows gesetzt (Muster identisch zu dmgMul).
+    this.cooldownMul = 1;
     this.targets = []; // Ziel-Registry — Rätsel docken hier an (Phase 5/6)
     this._camPos = null;
     this.lumosOn = false;    // Migration: lebt jetzt hier statt in main.js
@@ -297,7 +300,7 @@ export class SpellSystem {
       return;
     }
     if (this.cooldowns[id] > 0) return;
-    this.cooldowns[id] = TUNING[id].cooldown;
+    this.cooldowns[id] = TUNING[id].cooldown * this.cooldownMul;
     this.wand.playCast();
 
     if (id === 'stupor') {

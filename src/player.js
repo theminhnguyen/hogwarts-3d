@@ -14,6 +14,12 @@ const JUMP_V = 8.6;
 const WALK = 6.4;
 const SPRINT = 11.5;
 
+// Tauchen (S10) — beim Schwimmen hält Shift zum Abtauchen, Loslassen lässt
+// wieder auftreiben. Luft läuft nur beim tatsächlichen TAUCHEN ab (nicht
+// beim normalen Schwimmen an der Oberfläche) und erholt sich dort/an Land.
+const DIVE_SPEED = 2.2;
+const AIR_MAX = 25;
+
 // Boden-Mount Hippogreif (S5) — "bewusst simpel" laut Plan: gleiche
 // Kollision/Sprung/Schwerkraft wie zu Fuß, nur andere Zielgeschwindigkeit.
 const RIDE_WALK = 15;
@@ -38,6 +44,12 @@ export class Player {
     this.riding = false; // Boden-Mount (S5) — Taste R, nur wenn mounts.hippo
     this.mountSpeedBoost = 0; // +2 mit Sattel (S3-Kauf), von mount.js gesetzt
     this.onDismount = null; // Callback: Schwimmen erzwingt Absitzen
+    this.diving = false; // S10: Shift beim Schwimmen = abtauchen
+    this._swimDepth = 0; // logische Tauchtiefe OHNE Wippen (Wippen wird separat auf pos.y addiert)
+    this.airRemaining = AIR_MAX;
+    this._airWarned = false;
+    this.onOutOfAir = null; // Callback: Luft komplett verbraucht (main.js hängt hier Schaden ein)
+    this.invisible = false; // S10 Umhang der Unsichtbarkeit (Taste U) — Kreaturen/Wilderer/Dementoren ignorieren den Spieler
 
     this.keys = new Set();
     this.bobPhase = 0;
@@ -163,8 +175,19 @@ export class Player {
     // Schwimmen, wenn tiefes Wasser
     const deepWater = terr < WATER_LEVEL - 1.2 && plat === -Infinity;
     if (deepWater && this.pos.y < WATER_LEVEL - 0.9) {
+      if (!this.swimming) this._swimDepth = this.pos.y; // beim Eintauchen übernehmen, kein Sprung
       this.swimming = true;
-      this.pos.y = WATER_LEVEL - 1.05 + Math.sin(performance.now() * 0.0021) * 0.07;
+      // S10 Tauchen: Shift taucht ab (nur solange noch Luft da ist), sonst
+      // treibt man zur Oberflächen-Schwimmtiefe zurück auf — reine
+      // Positions-Integration (_swimDepth), das Wippen kommt separat oben drauf.
+      const surfaceY = WATER_LEVEL - 1.05;
+      const floorY = terr + 0.35;
+      const wantsDive = (this.keys.has('ShiftLeft') || this.keys.has('ShiftRight')) && this.airRemaining > 0;
+      this._swimDepth = wantsDive
+        ? Math.max(floorY, this._swimDepth - DIVE_SPEED * dt)
+        : Math.min(surfaceY, this._swimDepth + DIVE_SPEED * dt);
+      this.diving = this._swimDepth < surfaceY - 0.6;
+      this.pos.y = this._swimDepth + Math.sin(performance.now() * 0.0021) * 0.07;
       this.grounded = true;
       // Schwimmen + Fliegen schließen sich aus — Wasser erzwingt den Abstieg.
       if (this.flying) { this.flying = false; this._noAscendT = 0; this.onLandFlight?.(); }
@@ -172,6 +195,7 @@ export class Player {
       if (this.riding) { this.riding = false; this.onDismount?.(); }
     } else {
       this.swimming = false;
+      this.diving = false;
       const wasAir = !this.grounded;
       if (this.pos.y <= ground + 0.001 && this.vel.y <= 0) {
         // Landen / auf Boden bleiben (sanftes Hochsteigen an Hängen)
@@ -183,6 +207,19 @@ export class Player {
         this.grounded = false;
       }
       this._fallSpeed = -Math.min(0, this.vel.y);
+    }
+
+    // S10 Luftanzeige: läuft NUR beim tatsächlichen Tauchen ab (nicht beim
+    // normalen Schwimmen an der Oberfläche), erholt sich dort und an Land.
+    if (this.diving) {
+      this.airRemaining = Math.max(0, this.airRemaining - dt);
+      if (this.airRemaining <= 0 && !this._airWarned) {
+        this._airWarned = true;
+        this.onOutOfAir?.();
+      }
+    } else {
+      this.airRemaining = Math.min(AIR_MAX, this.airRemaining + dt * (this.swimming ? 3 : 6));
+      this._airWarned = false;
     }
 
     // Flughöhen-Clamp — als Positions-Clamp UNBEDINGT am Ende der Bewegungs-

@@ -266,7 +266,10 @@ export function buildMount(scene, camera, glowTex, hud, audio, fx, health, inter
     return { group: m.group, legs: m.legs, wings: m.wings, mats, gaitT: i * 2.7, tamed: false, opacity: 0 };
   });
 
-  function seenDeath() { return !!save.seenDeath; }
+  // S10 Meister des Todes: überschreibt seenDeath dauerhaft (Plan) — von
+  // hallows.js via masterOfDeath-Setter gesetzt.
+  let masterOfDeathOverride = false;
+  function seenDeath() { return !!save.seenDeath || masterOfDeathOverride; }
 
   thestrals.forEach((t, i) => interact.register({
     get x() { return t.group.position.x; },
@@ -528,6 +531,7 @@ export function buildMount(scene, camera, glowTex, hud, audio, fx, health, inter
   return {
     get riding() { return riding; },
     set onMountChange(fn) { onMountChange = fn; },
+    set masterOfDeath(v) { masterOfDeathOverride = v; },
 
     whistle,
 
