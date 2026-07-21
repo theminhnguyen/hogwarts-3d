@@ -475,6 +475,84 @@ export class SoundManager {
     this._thump(95, 0.22);
   }
 
+  // Flügelschlag im Mount-Flug (S6): weiches, tiefes "Whoomph" — gefilterter
+  // Noise-Burst mit langsamem Attack (organisch, kein harter Knall wie der
+  // Tritt), periodisch aus mount.js's updateFlapSound() getriggert.
+  mountFlap() {
+    if (!this.ctx || this.muted) return;
+    const ctx = this.ctx, t = ctx.currentTime;
+    const src = ctx.createBufferSource();
+    src.buffer = this.noiseBuf;
+    src.playbackRate.value = 0.5 + Math.random() * 0.15;
+    const f = ctx.createBiquadFilter();
+    f.type = 'lowpass';
+    f.frequency.value = 220;
+    const g = ctx.createGain();
+    this._env(g, t, 0.05, 0.14, 0.28);
+    src.connect(f).connect(g).connect(this.master);
+    src.start(t, Math.random() * 1.5, 0.5);
+  }
+
+  // Thestral-Präsenz (S6): solange er unsichtbar ist (seenDeath=0), hört man
+  // ihn trotzdem — leises rasselndes Atmen + gelegentliches Hufscharren. EIN
+  // globales Node-Set (Muster: Schatten-Drone/Dementor-Atem), Gain je nach
+  // Nähe des nächsten UNSICHTBAREN Thestrals von außen gesetzt (0..1).
+  _ensureThestralPresence() {
+    if (this.thestralGain || !this.ctx) return;
+    const ctx = this.ctx;
+    const out = ctx.createGain();
+    out.gain.value = 0;
+    out.connect(this.master);
+
+    const src = ctx.createBufferSource();
+    src.buffer = this.noiseBuf;
+    src.loop = true;
+    const f = ctx.createBiquadFilter();
+    f.type = 'bandpass';
+    f.frequency.value = 260;
+    f.Q.value = 0.9;
+
+    const lfo = ctx.createOscillator();
+    lfo.frequency.value = 0.22; // langsameres, ruhigeres Atmen als der Dementor
+    const lfoGain = ctx.createGain();
+    lfoGain.gain.value = 0.45;
+    const breathGain = ctx.createGain();
+    breathGain.gain.value = 0.35;
+    lfo.connect(lfoGain).connect(breathGain.gain);
+
+    src.connect(f).connect(breathGain).connect(out);
+    src.start(); lfo.start();
+    this.thestralGain = out;
+    this._thestralProximity = 0;
+    this._nextThestralScrape = 0;
+  }
+
+  setThestralPresence(proximity) {
+    if (!this.ctx) return;
+    this._ensureThestralPresence();
+    this._thestralProximity = Math.max(0, Math.min(1, proximity));
+    if (this.thestralGain) {
+      const target = this._thestralProximity * 0.3;
+      this.thestralGain.gain.setTargetAtTime(target, this.ctx.currentTime, 0.5);
+    }
+  }
+
+  // Gelegentliches Hufscharren — kurzer, tiefer Kratz-Burst, nur wenn nah
+  // genug (siehe update()).
+  _thestralHoofScrape() {
+    const ctx = this.ctx, t = ctx.currentTime;
+    const src = ctx.createBufferSource();
+    src.buffer = this.noiseBuf;
+    src.playbackRate.value = 0.35 + Math.random() * 0.1;
+    const f = ctx.createBiquadFilter();
+    f.type = 'lowpass';
+    f.frequency.value = 400;
+    const g = ctx.createGain();
+    this._env(g, t, 0.01, 0.1 * (this._thestralProximity || 0), 0.15);
+    src.connect(f).connect(g).connect(this.master);
+    src.start(t, Math.random() * 1.5, 0.3);
+  }
+
   _bird() {
     const ctx = this.ctx, t = ctx.currentTime;
     const n = 2 + Math.floor(Math.random() * 3);
@@ -933,6 +1011,10 @@ export class SoundManager {
         this._owlCall(owlProximity);
       }
       this._nextOwlCall = now + 6 + Math.random() * 8;
+    }
+    if (this.thestralGain && this._thestralProximity > 0.15 && now > (this._nextThestralScrape || 0)) {
+      this._thestralHoofScrape();
+      this._nextThestralScrape = now + 3 + Math.random() * 5;
     }
   }
 }

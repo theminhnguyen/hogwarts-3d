@@ -49,13 +49,14 @@ function segPointDistSq(ax, ay, az, bx, by, bz, px, py, pz) {
 }
 
 export class SpellSystem {
-  constructor(scene, wand, fx, audio, hud, glowTex) {
+  constructor(scene, wand, fx, audio, hud, glowTex, player) {
     this.scene = scene;
     this.wand = wand;
     this.fx = fx;
     this.audio = audio;
     this.hud = hud;
     this._glowTex = glowTex;
+    this._player = player;
 
     this.cooldowns = { stupor: 0, incendio: 0, leviosa: 0, lumos: 0, patronum: 0 };
     this.targets = []; // Ziel-Registry — Rätsel docken hier an (Phase 5/6)
@@ -238,6 +239,9 @@ export class SpellSystem {
   }
 
   cast(camera) {
+    // Kein Zaubern im Flug (K8, PLAN-SCHATTEN-UND-SCHWINGEN.md) — gilt für
+    // Besen UND Mounts einheitlich, da beide dasselbe player.flying nutzen.
+    if (this._player?.flying) return;
     const id = this.wand.activeSpell;
     if (this.cooldowns[id] > 0) return;
     this.cooldowns[id] = TUNING[id].cooldown;

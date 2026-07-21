@@ -186,7 +186,7 @@ const buildSteps = [
   ['Zauberstab', () => {
     fx = new FxSystem(scene, renderer);
     wand = new WandSystem(camera, glowTex);
-    spells = new SpellSystem(scene, wand, fx, audio, hud, glowTex);
+    spells = new SpellSystem(scene, wand, fx, audio, hud, glowTex, player);
     hud.buildSpellbar(SPELL_ORDER.map(id => ({ id, ...SPELLS[id] })));
     buildPumpkinGlows();
   }],
@@ -285,7 +285,7 @@ const buildSteps = [
   }],
   ['Mount', () => {
     mount = buildMount(scene, camera, glowTex, hud, audio, fx, health, interact, player, {
-      hippos: fauna.hippos, mounts: save.mounts, feroState: npc.fero.feroState,
+      hippos: fauna.hippos, mounts: save.mounts, feroState: npc.fero.feroState, save,
     });
     mount.restore(save.mounts);
     mount.onMountChange = () => persist();
@@ -455,7 +455,7 @@ btnReset.addEventListener('click', () => {
   if (broom) broom.restore({});
   if (wilderer) wilderer.restore({ aktivCamp: -1, befreit: 0, geerntet: 0 });
   if (mount) mount.restore({ hippo: 0, thestral: 0, sattel: 0 });
-  if (player) { player.flying = false; player.riding = false; }
+  if (player) { player.flying = false; player.riding = false; player.flightTuning = null; }
   lanternWasCollected = false;
   if (health) {
     health.maxHearts = 5;
@@ -526,8 +526,11 @@ window.addEventListener('keydown', (e) => {
     if (hud.dialogOpen) hud.advanceDialog();
     else interact.trigger();
   } else if (e.code === 'KeyB') {
-    if (broom.besenUnlocked && !player.swimming) {
+    // Nicht während eines Mount-Ritts (geerdet ODER fliegend) — sonst würden
+    // sich Besen- und Mount-Flug widersprechen (S6, K13-artige Absicherung).
+    if (broom.besenUnlocked && !player.swimming && !mount.riding) {
       player.flying = !player.flying;
+      player.flightTuning = player.flying ? null : player.flightTuning; // null -> Besen-Default (player.js)
       hud.showToast(player.flying ? '🧹 Aufgestiegen!' : '🧹 Abgestiegen.', 1.4);
     }
   } else if (e.code === 'KeyR') {
@@ -635,8 +638,10 @@ function frame(dt) {
     const owlProximity = Math.max(0, 1 - owlDist / 40);
     audio.update(sky.state.daylight, weather.gloom, owlProximity);
     if (audio.windGain) {
-      // Besenflug (W7): Fluggeschwindigkeit treibt zusätzliches Windrauschen.
-      const flyTerm = player.flying ? (move.speed3D / 18) * 0.25 : 0;
+      // Flug (Besen W7 / Mount S6): Fluggeschwindigkeit treibt zusätzliches
+      // Windrauschen, skaliert am jeweiligen Boost-Tempo (Besen 18, Hippogreif/
+      // Thestral 24/28 — sonst würde Mount-Flug zu leise wirken).
+      const flyTerm = player.flying ? (move.speed3D / (player.flightTuning?.boost || 18)) * 0.25 : 0;
       const target = (0.04 + (move.hSpeed / 12) * 0.05 + (player.pos.y / 60) * 0.03 + flyTerm)
         * (0.6 + weather.windStrength * 1.4);
       audio.windGain.gain.value += (target - audio.windGain.gain.value) * 0.02;
@@ -713,6 +718,8 @@ buildWorld().then(() => {
   health.onRespawn = () => {
     hud.showToast('Du wachst im Innenhof auf … Zeit, sich neu zu sammeln.', 3.5);
     moor.dropCarriedLights(); // getragene Seelenlichter fallen an ihre Ursprungs-Spots zurück
+    // K7 (S6): der erste eigene Tod zählt als miterlebter Tod — Thestral-Gate.
+    if (!save.seenDeath) { save.seenDeath = 1; persist(); }
   };
   health.onFountainHeal = () => hud.showToast('Das Brunnenwasser wärmt dich. ♥ voll!', 2.5);
   puzzles.onArtifact = (id, name, n, total) => {

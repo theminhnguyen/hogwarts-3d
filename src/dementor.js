@@ -289,7 +289,9 @@ export class DementorSystem {
     let inAura = false;
     for (const d of this.list) {
       d.update(dt, player);
-      const dist = Math.hypot(d.pos.x - player.pos.x, d.pos.z - player.pos.z);
+      // 3D-Distanz ab S6 (K9): Überfliegen des Moors in Höhe ist sicher,
+      // Tiefflug nicht — zu Fuß ist die y-Differenz ohnehin ~0 (Regression).
+      const dist = Math.hypot(d.pos.x - player.pos.x, d.pos.y - player.pos.y, d.pos.z - player.pos.z);
       if (dist < nearestDist) nearestDist = dist;
       if (d.state !== 'repelled' && dist < TUNING.auraRange) inAura = true;
     }
