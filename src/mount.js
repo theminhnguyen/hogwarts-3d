@@ -20,13 +20,15 @@ const MOUNT_RANGE = 3;
 // "Nur im Freien" — pointBlocked (geo.js) prüft nur Wand-Collider, aber keine
 // Gebäude in diesem Spiel haben einen Decken-Collider (nur Rand-Wände), daher
 // würde ein Über-Kopf-Punkttest die Raummitte fälschlich als "draußen"
-// erkennen. Stattdessen direkter AABB-Test gegen die 4 begehbaren Grundrisse
-// (Werte aus village.js/castle.js/structures.js/wildmark.js übernommen).
+// erkennen. Stattdessen direkter AABB-Test gegen die 5 begehbaren/umschlossenen
+// Grundrisse (Werte aus village.js/castle.js/structures.js/wildmark.js/moor.js
+// übernommen) — K13 (PLAN-SCHATTEN-UND-SCHWINGEN.md): "Gasthaus/Krypta/Kate".
 const INDOOR_ZONES = [
   { x0: -70 - 4.5, x1: -70 + 4.5, z0: -210 - 3.75, z1: -210 + 3.75 }, // Gasthaus (village.js GASTHAUS)
   { x0: -42, x1: -22, z0: -15, z1: 31 }, // Großer Saal (castle.js)
   { x0: 80 - 5, x1: 80 + 5, z0: 240 - 3, z1: 240 + 3 }, // Gewächshaus (structures.js GEWAECHSHAUS)
   { x0: 230 - 3.25, x1: 230 + 3.25, z0: 140 - 2.75, z1: 140 + 2.75 }, // Wispernde Kate (wildmark.js KATE)
+  { x0: 238, x1: 245, z0: -178, z1: -173 }, // Nebelmoor-Krypta (moor.js CRYPT = MOOR-Zentrum)
 ];
 function isIndoors(x, z) {
   for (const r of INDOOR_ZONES) {
