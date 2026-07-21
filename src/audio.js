@@ -615,6 +615,52 @@ export class SoundManager {
     this._thump(95, 0.22);
   }
 
+  // S9 Musch (Begleiter): kurzes, zackiges Fauchen — Rauschen mit
+  // Bandpass-Sweep nach oben statt der Stupor-typischen Highpass-Crack.
+  catHiss() {
+    if (!this.ctx || this.muted) return;
+    const ctx = this.ctx, t = ctx.currentTime;
+    const src = ctx.createBufferSource();
+    src.buffer = this.noiseBuf;
+    const f = ctx.createBiquadFilter();
+    f.type = 'bandpass';
+    f.frequency.setValueAtTime(1200, t);
+    f.frequency.exponentialRampToValueAtTime(3200, t + 0.18);
+    f.Q.value = 3;
+    const g = ctx.createGain();
+    this._env(g, t, 0.005, 0.16, 0.14);
+    src.connect(f).connect(g).connect(this.master);
+    src.start(t, Math.random() * 1.5, 0.22);
+  }
+
+  // S9 Piniva (Begleiter): kurzer Sturzflug-Kreischton, hoch und fallend.
+  owlDive() {
+    if (!this.ctx || this.muted) return;
+    const ctx = this.ctx, t = ctx.currentTime;
+    const o = ctx.createOscillator();
+    o.type = 'triangle';
+    o.frequency.setValueAtTime(1400, t);
+    o.frequency.exponentialRampToValueAtTime(500, t + 0.22);
+    const g = ctx.createGain();
+    this._env(g, t, 0.004, 0.14, 0.2);
+    o.connect(g).connect(this.master);
+    o.start(t); o.stop(t + 0.26);
+  }
+
+  // S9 Grabbel (Begleiter): heller, diebischer Plopp beim Stab-Klauen.
+  nifflerSteal() {
+    if (!this.ctx || this.muted) return;
+    const ctx = this.ctx, t = ctx.currentTime;
+    const o = ctx.createOscillator();
+    o.type = 'square';
+    o.frequency.setValueAtTime(180, t);
+    o.frequency.exponentialRampToValueAtTime(700, t + 0.1);
+    const g = ctx.createGain();
+    this._env(g, t, 0.003, 0.12, 0.12);
+    o.connect(g).connect(this.master);
+    o.start(t); o.stop(t + 0.16);
+  }
+
   // Flügelschlag im Mount-Flug (S6): weiches, tiefes "Whoomph" — gefilterter
   // Noise-Burst mit langsamem Attack (organisch, kein harter Knall wie der
   // Tritt), periodisch aus mount.js's updateFlapSound() getriggert.

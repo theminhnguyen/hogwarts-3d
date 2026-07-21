@@ -88,6 +88,7 @@ class WildererMage {
     this.phaseA = Math.random() * Math.PI * 2;
     this.imperioT = 0; // S8: >0 während Besessenheit
     this._pokeT = 0;
+    this.disarmDur = 0; // S9: >0 während Grabbel den Stab geklaut hat
 
     const idx = seed % CLOAK_COLORS.length;
     this.fig = buildFigure(0x5a4a3a, 0x2a2018, CLOAK_COLORS[idx], null, true);
@@ -153,12 +154,13 @@ class WildererMage {
     const dmg = spellId === 'avada' ? this.hp
       : spellId === 'crucio' ? 0.25
       : spellId === 'incendio' ? 2
+      : spellId === 'claw' ? 0.5
       : (spellId === 'stupor' || spellId === 'kick') ? 1 : 0;
     if (dmg <= 0) return;
     this.hp -= dmg * dmgMul;
     this.system.fx.burst(this.pos, 0xd8c8a0, 8, 2.5, { gravity: -3, life: 0.35 });
     if (this.hp <= 0) { this._surrender(); return; }
-    if (spellId === 'crucio' && this.state === 'telegraph') {
+    if ((spellId === 'crucio' || spellId === 'claw') && this.state === 'telegraph') {
       this.sparkMat.opacity = 0;
       this.state = 'aggro';
       this.stateT = 0;
@@ -176,6 +178,18 @@ class WildererMage {
     this._pokeT = 0;
     this.sparkMat.opacity = 0;
     if (!this.isDuelist) this.system.onCampMageImperio?.();
+  }
+
+  // S9 Grabbel (Niffler-Begleiter): klaut den Stab — 3s keine Zauber, egal
+  // in welchem Zustand er gerade war (auch mitten im Telegraph).
+  disarm(dur) {
+    if (!this.alive || this.state === 'inactive' || this.state === 'gone'
+      || this.state === 'kneel' || this.state === 'fliehen' || this.state === 'imperio') return;
+    this.state = 'entwaffnet';
+    this.stateT = 0;
+    this.disarmDur = dur;
+    this.sparkMat.opacity = 0;
+    this.vel.set(0, 0, 0);
   }
 
   // Kein Tod — sie geben auf: knien kurz, fliehen dann (K-Vorgabe aus dem Plan).
@@ -308,6 +322,14 @@ class WildererMage {
         this.stateT += dt;
         this.vel.set(0, 0, 0);
         if (this.stateT >= IMPERIO_DAZE_DUR) { this.state = 'aggro'; this.stateT = 0; }
+        break;
+      }
+      // S9 Grabbel: Stab geklaut — steht hilflos, keine Zauber, bis die Zeit
+      // abläuft, dann zurück in den Kampf.
+      case 'entwaffnet': {
+        this.stateT += dt;
+        this.vel.set(0, 0, 0);
+        if (this.stateT >= this.disarmDur) { this.state = 'aggro'; this.stateT = 0; }
         break;
       }
     }

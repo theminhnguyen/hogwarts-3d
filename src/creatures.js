@@ -193,13 +193,15 @@ class Pixie {
   applyHit(spellId, boltVel, dmgMul = 1) {
     if (!this.alive) return;
     // 'kick' (S5): Mount-Tritt zählt wie Stupor als 1 dmg (kein eigener Spruch).
-    // avada (S8): sofortiger Tod auf normale Kreaturen — trifft hier immer,
-    // egal wie viel hp noch übrig ist. crucio (S8): 0.5 dmg/s, in 0.5s-Ticks
+    // 'claw' (S9): Begleiter-Schutzangriff (Musch/Piniva), 0.5 dmg. avada
+    // (S8): sofortiger Tod auf normale Kreaturen — trifft hier immer, egal
+    // wie viel hp noch übrig ist. crucio (S8): 0.5 dmg/s, in 0.5s-Ticks
     // von spells.js aufgerufen (0.25 pro Tick). dmgMul (S8): Dunkler-Sud-
     // Trank (heim.trank), von spells.js aus spells.dmgMul durchgereicht.
     const dmg = spellId === 'avada' ? this.hp
       : spellId === 'crucio' ? 0.25
       : spellId === 'incendio' ? 2
+      : spellId === 'claw' ? 0.5
       : (spellId === 'stupor' || spellId === 'kick') ? 1 : 0;
     if (dmg <= 0) return;
     this.hp -= dmg * dmgMul;
@@ -538,6 +540,7 @@ class Ghost {
     if (!this.alive) return;
     const dmg = spellId === 'avada' ? this.hp
       : spellId === 'crucio' ? 0.25
+      : spellId === 'claw' ? 0.5
       : (spellId === 'stupor' || spellId === 'incendio' || spellId === 'kick') ? 1 : 0;
     if (dmg <= 0) return;
     this.hp -= dmg * dmgMul;
@@ -806,15 +809,15 @@ class Troll {
     const dmg = spellId === 'avada' ? 4
       : spellId === 'crucio' ? 0.25
       : spellId === 'incendio' ? 2
+      : spellId === 'claw' ? 0.5
       : (spellId === 'stupor' || spellId === 'kick') ? 1 : 0;
     if (dmg <= 0) return;
     this.hp -= dmg * dmgMul;
     this.system.fx.burst(this.pos, 0x8a9878, 10, 3, { gravity: -2, life: 0.4 });
     if (this.hp <= 0) { this._die(); return; }
-    // Stupor UND Crucio unterbrechen jede laufende Aktion (auch den
-    // Telegraph!) — Crucio ist laut Plan der taktische Konter "gegen Troll/
-    // Wilderer", identischer Mechanismus wie Stupor.
-    if ((spellId === 'stupor' || spellId === 'crucio') && this.state !== 'dying') {
+    // Stupor, Crucio UND der Begleiter-Schutzangriff (claw, S9) unterbrechen
+    // jede laufende Aktion (auch den Telegraph!).
+    if ((spellId === 'stupor' || spellId === 'crucio' || spellId === 'claw') && this.state !== 'dying') {
       this.state = 'stagger';
       this.stateT = 0;
     }
@@ -1115,6 +1118,7 @@ class GiantSpider {
     const dmg = spellId === 'avada' ? this.hp
       : spellId === 'crucio' ? 0.25
       : spellId === 'incendio' ? 2
+      : spellId === 'claw' ? 0.5
       : (spellId === 'stupor' || spellId === 'kick') ? 1 : 0;
     if (dmg <= 0) return;
     this.hp -= dmg * dmgMul;

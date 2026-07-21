@@ -26,7 +26,7 @@ const STUDENT_PATHS = [PATHS[0], PATHS[1], PATHS[3], PATHS[4]];
 const WIZARD_PATH = [
   ...PATHS[9], ...PATHS[10].slice(1), ...PATHS[11].slice(1), ...PATHS[12].slice(1), ...PATHS[13].slice(1),
 ];
-const LENA_POS = { x: 14, z: 20 };
+export const LENA_POS = { x: 14, z: 20 };
 const BARNABY_POS = { x: GASTHAUS.x, z: GASTHAUS.z + GASTHAUS.d / 2 - 1.7 };
 const CAT_POS = { x: -95, z: 165 };
 const GEIST_POS = { x: -32, z: 8 };
@@ -562,6 +562,16 @@ export function buildNpcs(scene, glowTex, hud, audio, fx, health, interact, deps
         });
       } else if (quests.katze === 1) {
         hud.showDialog('Lena', ['Hast du Musch schon gefunden? Sie war zuletzt beim Bootshaus.']);
+      } else if (deps.begleiter && !deps.begleiter.frei.includes('musch')) {
+        // S9: Begleiter-Freischaltung — eigener Dialogzweig, nur einmal.
+        hud.showDialog('Lena', [
+          'Weißt du, Musch mag dich sehr — seit du sie zurückgebracht hast.',
+          'Ich glaube, sie würde gern mit dir losziehen, wenn du magst.',
+        ], () => {
+          deps.begleiter.frei.push('musch');
+          hud.showToast('🐈 Musch mag dich — sie ist jetzt dein Begleiter! (Taste G)', 4.5);
+          onQuestChange?.();
+        });
       } else {
         hud.showDialog('Lena', ['Danke nochmal, dass du Musch gefunden hast!']);
       }
@@ -710,6 +720,12 @@ export function buildNpcs(scene, glowTex, hud, audio, fx, health, interact, deps
   return {
     quests,
     fero,
+    muschGroup: cat.group, // S9: Positions-Referenz für companion.js
+    // S9: companion.js schaltet das BESTEHENDE Katzen-Follow-FSM (s.u.) an/
+    // aus, statt es zu duplizieren — "Katzen-Follow-FSM aus npc.js
+    // WIEDERVERWENDEN" laut Plan. Beim Ausschalten NICHT die Position
+    // anfassen — companion.js setzt sie selbst (Kate/Heimatort).
+    setMuschFollowing(active) { catFollowing = active; },
     set onQuestChange(fn) { onQuestChange = fn; },
 
     save() { return { ...quests }; },

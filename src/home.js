@@ -293,6 +293,9 @@ export function buildHome(scene, camera, glowTex, hud, audio, fx, health, intera
   return {
     set onChange(fn) { onChange = fn; },
     getSplitterTracker,
+    // S9: Rastplatz für den weggeschickten Begleiter (Kreaturen-Ecke, s.o.) —
+    // nur sinnvoll, solange heim.kate=1 ist (furniture.visible).
+    restSpot: { x: rugX - 0.3, y: ky, z: rugZ + 0.3 },
 
     update(dt, player) {
       currentPlayer = player;

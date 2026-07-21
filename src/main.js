@@ -36,6 +36,7 @@ import { EconomySystem } from './economy.js';
 import { buildWilderer } from './wilderer.js';
 import { buildMount } from './mount.js';
 import { buildDark } from './dark.js';
+import { buildCompanion } from './companion.js';
 
 // Der Schlüsselname trägt noch "v1" aus Phase 0 — umbenennen würde alle
 // bestehenden Spielstände verwaisen lassen. Die eigentliche Versionierung
@@ -130,7 +131,7 @@ post.setQuality(save.grafik);
 post.onDegrade = () => hud.showToast('Grafik automatisch reduziert (Bloom aus)', 3.5);
 
 let sky, water, castle, structures, moor, life, collectibles, player;
-let fx, wand, spells, health, creatures, puzzles, dementors, weather, village, train, willow, interact, npc, grove, broom, fahlholz, fauna, economy, wilderer, mount, kate, home, dark;
+let fx, wand, spells, health, creatures, puzzles, dementors, weather, village, train, willow, interact, npc, grove, broom, fahlholz, fauna, economy, wilderer, mount, kate, home, dark, companion;
 let lanternWasCollected = false; // erkennt den Moment, in dem die Laterne live geborgen wird
 let natureSwayMaterials = [];
 let natureTreeSpots = []; // S2: echte Baum-Positionen für Bowtruckles (fauna.js)
@@ -248,6 +249,7 @@ const buildSteps = [
       collectibles, puzzles, spells, moor, dementors,
       leuchtkraeuter: structures.leuchtkraeuter,
       train, economy, heim: save.heim, mounts: save.mounts, dunkel: save.dunkel,
+      begleiter: save.begleiter,
     });
     npc.restore(save.quests);
     npc.onQuestChange = () => persist();
@@ -289,8 +291,11 @@ const buildSteps = [
     fauna = buildFauna(scene, fx, audio, natureTreeSpots, () => {
       const gold = 1 + Math.floor(Math.random() * 3);
       economy.addGold(gold);
-      save.heim.zutaten.glitzer += 1;
-      hud.showToast(`✨ Glitzerstaub gefunden! +${gold} Gold, +1 Glitzerstaub`, 2.5);
+      // Grabbel-Passivum (S9): +1 Glitzer extra bei wilden Niffler-Funden,
+      // solange er der aktive Begleiter ist.
+      const grabbelBonus = save.begleiter.aktiv === 'grabbel' ? 1 : 0;
+      save.heim.zutaten.glitzer += 1 + grabbelBonus;
+      hud.showToast(`✨ Glitzerstaub gefunden! +${gold} Gold, +${1 + grabbelBonus} Glitzerstaub${grabbelBonus ? ' (Grabbel schnüffelt mit!)' : ''}`, 2.5);
       persist();
     });
     // Akromantula-Kopplung (creatures.js, S2): Füchse+Hasen werden für
@@ -320,6 +325,20 @@ const buildSteps = [
     });
     dark.restore();
     dark.onChange = () => persist();
+  }],
+  // Begleiter (S9): braucht npc (Musch-Handoff+Fero-Frischfisch), home
+  // (Rastplatz in der Kate), creatures/wilderer (Schutz-Ziele),
+  // collectibles (Pinivas Schnatz-Suche) — alle bereits gebaut.
+  ['Begleiter', () => {
+    companion = buildCompanion(scene, glowTex, hud, audio, fx, interact, economy, player, npc, {
+      begleiter: save.begleiter, heim: save.heim, home, feroState: npc.fero.feroState,
+      creatures, wilderer, collectibles,
+    });
+    companion.setNightGlowGetter(() => sky.state.nightGlow);
+    // Wie mount.js: "gezähmt/gefunden" (begleiter.frei) bleibt gespeichert,
+    // "gerade gerufen" NICHT — nach jedem Laden erst wieder Taste G nötig.
+    companion.restore();
+    companion.onChange = () => persist();
   }],
 ];
 
@@ -523,6 +542,7 @@ btnReset.addEventListener('click', () => {
   if (home) home.restore();
   if (dark) dark.restore();
   Object.assign(save.begleiter, { aktiv: '', frei: [] });
+  if (companion) companion.restore();
   Object.assign(save.hallows, { stab: 0, umhang: 0, stein: 0, steinCd: 0 });
   Object.assign(save.animagus, { gelernt: 0, form: 'rabe' });
   persist();
@@ -584,6 +604,8 @@ window.addEventListener('keydown', (e) => {
     }
   } else if (e.code === 'KeyR') {
     if (!player.swimming) mount.whistle();
+  } else if (e.code === 'KeyG') {
+    companion.toggle();
   }
 });
 
@@ -670,6 +692,7 @@ function frame(dt) {
     npc.update(dt, player, sky.state, economy.ruf, save.dunkel.pfad === 'dunkel');
     wilderer.update(dt, player, sky);
     dark.update(dt, player, move.sprinting);
+    companion.update(dt, player);
     broom.update(dt, player);
     // Tritt-Ziele (S5): kreatur.list + wilderer.list — Dementoren bewusst
     // NICHT dabei (immateriell, K6 aus dem Plan).
@@ -759,7 +782,7 @@ buildWorld().then(() => {
   // Debug-/Test-Zugriff (bewusst öffentlich, hilft bei Fehlersuche)
   window.__game = {
     player, sky, camera, renderer, scene,
-    wand, spells, fx, health, creatures, puzzles, moor, dementors, weather, post, village, train, willow, interact, npc, hud, grove, broom, fahlholz, fauna, economy, wilderer, mount, home, dark,
+    wand, spells, fx, health, creatures, puzzles, moor, dementors, weather, post, village, train, willow, interact, npc, hud, grove, broom, fahlholz, fauna, economy, wilderer, mount, home, dark, companion,
     get save() { return save; },
     get fps() { return fpsEMA; },
     get pixelRatio() { return pixelRatio; },
