@@ -59,6 +59,10 @@ export class SpellSystem {
     this._player = player;
 
     this.cooldowns = { stupor: 0, incendio: 0, leviosa: 0, lumos: 0, patronum: 0 };
+    // S7 Dunkler-Sud-Trank: Vorbereitung für S8 (verbotene Sprüche) — von
+    // main.js pro Frame aus heim.trank gesetzt, hier bislang ungenutzt
+    // (wie die dunkler-Pfad-Käfig-Vorbereitung aus S4).
+    this.dmgMul = 1;
     this.targets = []; // Ziel-Registry — Rätsel docken hier an (Phase 5/6)
     this._camPos = null;
     this.lumosOn = false;    // Migration: lebt jetzt hier statt in main.js

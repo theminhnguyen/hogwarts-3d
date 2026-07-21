@@ -1052,6 +1052,13 @@ class GiantSpider {
     this.stateT = 0;
     this.system.fx.burst(this.pos, 0x1c1712, 16, 3.5, { gravity: -1.5, life: 0.6 });
     this.system.audio.chime?.();
+    // S7: lässt Spinnenseide fallen (Braukessel-Zutat) — instant statt
+    // separatem Boden-Pickup, wie Nifflers Glitzerstaub-Fund.
+    if (this.system.heim) {
+      this.system.heim.zutaten.seide += 1;
+      this.system.hud?.showToast(`🕸️ Spinnenseide erbeutet (${this.system.heim.zutaten.seide}×)`, 2.2);
+      this.system.onZutatChange?.();
+    }
   }
 
   update(dt, player) {
@@ -1199,18 +1206,20 @@ class GiantSpider {
 }
 
 export class CreatureSystem {
-  constructor(scene, fx, audio, health, collectibles, hud, glowTex) {
+  constructor(scene, fx, audio, health, collectibles, hud, glowTex, heim) {
     this.scene = scene;
     this.fx = fx;
     this.audio = audio;
     this.health = health;
     this.collectibles = collectibles;
     this.hud = hud;
+    this.heim = heim; // S7: Riesenspinnen lassen ab jetzt Spinnenseide fallen
     this.peaceful = false;
     this.time = 0;
     this._theftToastShown = false;
     this._nearestGhostDist = Infinity;
     this.onTrollChest = null; // main.js hängt hier persist() ein
+    this.onZutatChange = null; // S7: Spinnenseide-Fund — main.js hängt hier persist() ein
     this.list = [];
 
     const pixieParts = buildPixieParts(glowTex);

@@ -509,6 +509,12 @@ export function buildNpcs(scene, glowTex, hud, audio, fx, health, interact, deps
 
   const leuchtkraeuter = deps.leuchtkraeuter || [];
   const kraeuterEntries = [];
+  // S7: nach Q2-Abschluss wächst Leuchtkraut jeden Morgen nach (Behebung der
+  // W5-Einweg-Unlogik) — dailyPicked ist reine Session-Deko, NICHT gespeichert
+  // (wie Feros frischfisch), lastNightGlow erkennt den Morgengrauen-Übergang
+  // (Muster: Wilderer-Lager-Rotation aus S4).
+  let dailyPicked = [false, false, false];
+  let lastNightGlow = 0;
 
   function placeCatHome() {
     if (quests.katze >= 2) {
@@ -581,9 +587,23 @@ export function buildNpcs(scene, glowTex, hud, audio, fx, health, interact, deps
 
   leuchtkraeuter.slice(0, 3).forEach((lk, i) => {
     const entry = interact.register({
-      x: lk.x, z: lk.z, r: 1.6, prompt: 'E — Leuchtkraut pflücken',
+      x: lk.x, z: lk.z, r: 1.6,
+      get prompt() { return quests.kraeuterDone ? 'E — Leuchtkraut pflücken (für den Kessel)' : 'E — Leuchtkraut pflücken'; },
       enabled: false,
       onInteract: () => {
+        // Nach Q2: freies Nachwachsen, füllt den Braukessel-Vorrat statt des
+        // Quest-Zählers (der ist bei kraeuterDone bereits fertig).
+        if (quests.kraeuterDone) {
+          if (dailyPicked[i]) return;
+          dailyPicked[i] = true;
+          lk.sprite.visible = false;
+          entry.enabled = false;
+          deps.heim.zutaten.leuchtkraut++;
+          audio.chime();
+          hud.showToast(`✦ Leuchtkraut gepflückt (${deps.heim.zutaten.leuchtkraut}× im Vorrat)`, 2);
+          onQuestChange?.();
+          return;
+        }
         if (quests.kraeuter > i) return;
         quests.kraeuter++;
         lk.sprite.visible = false;
@@ -653,8 +673,9 @@ export function buildNpcs(scene, glowTex, hud, audio, fx, health, interact, deps
       }, saved || {});
       catFollowing = false; // Save-Reload holt die Katze IMMER zurück nach Hause
       placeCatHome();
+      dailyPicked = [false, false, false]; // S7: frischer Tag nach jedem Laden/Reset
       for (let i = 0; i < kraeuterEntries.length; i++) {
-        const picked = quests.kraeuter > i;
+        const picked = quests.kraeuterDone ? dailyPicked[i] : quests.kraeuter > i;
         leuchtkraeuter[i].sprite.visible = !picked;
         kraeuterEntries[i].enabled = false;
       }
@@ -693,10 +714,20 @@ export function buildNpcs(scene, glowTex, hud, audio, fx, health, interact, deps
         }
       }
 
+      // S7: Leuchtkraut-Nachwuchs bei jedem Morgengrauen-Übergang (Muster:
+      // Wilderer-Lager-Rotation) — nur relevant, sobald Q2 abgeschlossen ist.
+      if (quests.kraeuterDone && lastNightGlow >= 0.35 && skyState.nightGlow < 0.35) {
+        dailyPicked = [false, false, false];
+        for (const lk of leuchtkraeuter) lk.sprite.visible = true;
+      }
+      lastNightGlow = skyState.nightGlow;
+
       // Interakt-Reichweiten für bewegliche/zustandsabhängige Ziele live nachziehen
       catEntry.enabled = quests.katze === 1 && !catFollowing;
       for (let i = 0; i < kraeuterEntries.length; i++) {
-        kraeuterEntries[i].enabled = quests.kraeuterStarted === 1 && !quests.kraeuterDone && quests.kraeuter <= i;
+        kraeuterEntries[i].enabled = quests.kraeuterDone
+          ? !dailyPicked[i]
+          : (quests.kraeuterStarted === 1 && quests.kraeuter <= i);
       }
     },
   };

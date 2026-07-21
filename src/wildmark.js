@@ -140,10 +140,12 @@ function gableRoof(batch, cx, cz, w, len, baseY, roofH, color, ry) {
   batch.addRaw(geo, color);
 }
 
-export function buildKate(scene) {
+const WINDOW_WARM = 0xffd98c;
+
+export function buildKate(scene, glowTex) {
   const mats = getMaterials();
   const rng = mulberry32(4443);
-  const batches = { wall: new GeoBatch(), roof: new GeoBatch(), wood: new GeoBatch() };
+  const batches = { wall: new GeoBatch(), roof: new GeoBatch(), wood: new GeoBatch(), window: new GeoBatch() };
 
   const kx = KATE.x, kz = KATE.z;
   const ky = terrainHeight(kx, kz);
@@ -164,31 +166,81 @@ export function buildKate(scene) {
   batches.wall.add(new THREE.BoxGeometry(segW, h, wallT), PLASTER, kx + doorHalfW + segW / 2, ky + h / 2, kz - halfD + wallT / 2);
   addBoxBlocker(kx + doorHalfW, kx + halfW, ky, ky + h, kz - halfD, kz - halfD + wallT);
 
-  // Staubiger Holzboden, kein Kamin, kein Licht — leer, wie geplant.
-  batches.wood.add(new THREE.BoxGeometry(w - wallT * 2, 0.1, d - wallT * 2), 0x4a4030, kx, ky + 0.05, kz);
+  // Boden (S7: heller/staubiger je nach heim.kate, per setOwned() umgefärbt)
+  const floorMesh = new THREE.Mesh(
+    new THREE.BoxGeometry(w - wallT * 2, 0.1, d - wallT * 2),
+    new THREE.MeshLambertMaterial({ color: 0x4a4030, flatShading: true }),
+  );
+  floorMesh.position.set(kx, ky + 0.05, kz);
+  scene.add(floorMesh);
   gableRoof(batches.roof, kx, kz, w, d, ky + h, h * 0.5, ROOF_COL, 0);
 
-  // Schiefe Fensterläden (geschlossene Holzklappen, KEIN Fenster-Glow-
-  // Material — die Kate ist "verlassen: kein Licht", würde sie mats.window
-  // nutzen, glühte sie automatisch mit jedem anderen Fenster im Spiel mit).
+  // Fensteröffnungen (S7: mats.window-Trick — dasselbe geteilte, von
+  // castle.js jeden Frame nach nightGlow animierte Material wie überall
+  // sonst im Spiel; liegt HINTER den Fensterläden, wird erst sichtbar,
+  // sobald setOwned(true) die Läden aufschwingt).
+  const winSideZ = kz - halfD * 0.3;
   for (const side of [-1, 1]) {
-    const shutter = new THREE.BoxGeometry(0.85, 1.05, 0.06);
-    shutter.rotateZ(side * (0.18 + rng() * 0.12)); // "schief" hängend
-    shutter.translate(side * (halfW - wallT / 2 - 0.01), h * 0.55, kz - halfD * 0.3);
-    batches.wood.addRaw(shutter, WOOD_FRAME);
+    const win = new THREE.PlaneGeometry(0.7, 0.9);
+    win.rotateY(side > 0 ? Math.PI / 2 : -Math.PI / 2);
+    win.translate(kx + side * (halfW - wallT / 2 - 0.01), ky + h * 0.55, winSideZ);
+    batches.window.addRaw(win, WINDOW_WARM);
   }
-  // Verzogener Türflügel, halb offen
+
+  // Fensterläden UND Türflügel bleiben EIGENE (nicht gebatchte) Meshes,
+  // damit setOwned() sie einzeln gerade richten/aufschwingen kann — anders
+  // als alle sonstige Deko hier, die statisch gemergt werden darf.
+  const shutterMat = new THREE.MeshLambertMaterial({ color: WOOD_FRAME, flatShading: true });
+  const shutters = [];
+  for (const side of [-1, 1]) {
+    const shutter = new THREE.Mesh(new THREE.BoxGeometry(0.85, 1.05, 0.06), shutterMat);
+    shutter.position.set(kx + side * (halfW - wallT / 2 - 0.01), ky + h * 0.55, winSideZ);
+    const crooked = side * (0.18 + rng() * 0.12);
+    shutter.rotation.z = crooked;
+    shutter.userData = { side, crooked, openZ: side * 1.5 };
+    scene.add(shutter);
+    shutters.push(shutter);
+  }
+  // Verzogener Türflügel, halb offen (bleibt immer schief — nur die
+  // Fensterläden werden laut Plan "gerade", die Tür ist kein Kaufkriterium)
   const door = new THREE.BoxGeometry(0.8, 1.85, 0.06);
   door.rotateY(0.35);
   door.translate(kx - doorHalfW - 0.35, ky + 0.95, kz - halfD + 0.3);
   batches.wood.addRaw(door, WOOD_COL);
 
+  // Kamin (Westwand) — S7: nur bei heim.kate=1 aktiv, gleiches Muster wie
+  // village.js-Gasthaus (EIN Glow-Sprite + EIN PointLight).
+  const kaminPos = { x: kx - halfW + 0.5, y: ky, z: kz + 1.6 };
+  batches.wall.add(new THREE.BoxGeometry(1.0, 1.4, 0.8), STONE_COL, kaminPos.x, kaminPos.y + 0.7, kaminPos.z);
+  const kaminGlowMat = new THREE.SpriteMaterial({
+    map: glowTex, color: 0xff9a3c, transparent: true, opacity: 0,
+    blending: THREE.AdditiveBlending, depthWrite: false,
+  });
+  const kaminGlow = new THREE.Sprite(kaminGlowMat);
+  kaminGlow.position.set(kaminPos.x + 0.35, kaminPos.y + 0.55, kaminPos.z);
+  kaminGlow.scale.set(0.9, 1.1, 1);
+  scene.add(kaminGlow);
+  const kaminLight = new THREE.PointLight(0xff9a3c, 0, 8, 2);
+  kaminLight.position.set(kaminPos.x + 0.5, kaminPos.y + 0.7, kaminPos.z);
+  scene.add(kaminLight);
+
   const meshes = [
     batches.wall.build(mats.stone),
     batches.roof.build(mats.roof),
     batches.wood.build(mats.wood),
+    batches.window.build(mats.window),
   ];
   for (const m of meshes) if (m) scene.add(m);
 
-  return { x: kx, y: ky, z: kz };
+  // Verlassen ↔ bewohnt umschalten (S7-Kauf-Moment): Läden gerade/schief,
+  // Kamin an/aus, Boden heller. Reiner Sichtbarkeits-/Rotations-Zustand,
+  // kein Rebuild — darf beliebig oft (Reset!) aufgerufen werden.
+  function setOwned(owned) {
+    for (const s of shutters) s.rotation.z = owned ? 0 : s.userData.crooked;
+    kaminGlowMat.opacity = owned ? 0.8 : 0;
+    kaminLight.intensity = owned ? 6 : 0;
+    floorMesh.material.color.setHex(owned ? 0x6b5a42 : 0x4a4030);
+  }
+
+  return { x: kx, y: ky, z: kz, w, d, h, wallT, doorHalfW, setOwned };
 }

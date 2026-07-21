@@ -30,6 +30,7 @@ export class Player {
     this.swimming = false;
     this.enabled = false;
     this.slowFactor = 1; // Frost-Aura der Dementoren setzt dies auf 0.75
+    this.potionSpeedMul = 1; // S7 Flinktrank (×1.3), von main.js aus heim.trank gesetzt
     this.flying = false; // Besenflug (W7) ODER Mount-Flug (S6)
     this.flightTuning = null; // von flight.js — welches Tuning gerade gilt (Default: Besen)
     this._noAscendT = 0;
@@ -113,7 +114,7 @@ export class Player {
       if (this.riding) {
         speed = sprinting ? RIDE_SPRINT + this.mountSpeedBoost : RIDE_WALK;
       } else {
-        speed = sprinting ? SPRINT : WALK;
+        speed = (sprinting ? SPRINT : WALK) * this.potionSpeedMul; // S7 Flinktrank — nur zu Fuß, nicht beritten
       }
       if (this.swimming) speed *= 0.45;
       speed *= this.slowFactor;

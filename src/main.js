@@ -30,6 +30,7 @@ import { buildNpcs } from './npc.js';
 import { buildGrove } from './grove.js';
 import { buildBroom } from './broom.js';
 import { buildFahlholz, buildHuegelgrab, buildKate } from './wildmark.js';
+import { buildHome } from './home.js';
 import { buildFauna } from './fauna.js';
 import { EconomySystem } from './economy.js';
 import { buildWilderer } from './wilderer.js';
@@ -70,7 +71,20 @@ function loadSave() {
     wild: raw.wild || { aktivCamp: -1, befreit: 0, geerntet: 0 },
     mounts: raw.mounts || { hippo: 0, thestral: 0, sattel: 0 },
     dunkel: raw.dunkel || { buch: 0, pfad: 'hell', male: 0 },
-    heim: raw.heim || { kate: 0, zutaten: { glitzer: 0, seide: 0, stern: 0, essenz: 0 }, trank: { id: '', restT: 0 } },
+    // heim.zutaten.leuchtkraut (S7) ist neuer als heim selbst — Feld-für-Feld
+    // zusammensetzen statt "raw.heim || {defaults}", sonst bliebe es bei
+    // Alt-Saves für immer undefined (Absturzgefahr bei "++").
+    heim: {
+      kate: raw.heim?.kate || 0,
+      zutaten: {
+        glitzer: raw.heim?.zutaten?.glitzer || 0,
+        seide: raw.heim?.zutaten?.seide || 0,
+        stern: raw.heim?.zutaten?.stern || 0,
+        essenz: raw.heim?.zutaten?.essenz || 0,
+        leuchtkraut: raw.heim?.zutaten?.leuchtkraut || 0,
+      },
+      trank: raw.heim?.trank || { id: '', restT: 0 },
+    },
     begleiter: raw.begleiter || { aktiv: '', frei: [] },
     hallows: raw.hallows || { stab: 0, umhang: 0, stein: 0, steinCd: 0 },
     animagus: raw.animagus || { gelernt: 0, form: 'rabe' },
@@ -115,7 +129,7 @@ post.setQuality(save.grafik);
 post.onDegrade = () => hud.showToast('Grafik automatisch reduziert (Bloom aus)', 3.5);
 
 let sky, water, castle, structures, moor, life, collectibles, player;
-let fx, wand, spells, health, creatures, puzzles, dementors, weather, village, train, willow, interact, npc, grove, broom, fahlholz, fauna, economy, wilderer, mount;
+let fx, wand, spells, health, creatures, puzzles, dementors, weather, village, train, willow, interact, npc, grove, broom, fahlholz, fauna, economy, wilderer, mount, kate, home;
 let lanternWasCollected = false; // erkennt den Moment, in dem die Laterne live geborgen wird
 let natureSwayMaterials = [];
 let natureTreeSpots = []; // S2: echte Baum-Positionen für Bowtruckles (fauna.js)
@@ -203,10 +217,10 @@ const buildSteps = [
   }],
   ['Kreaturen & Gesundheit', () => {
     health = new HealthSystem(player, hud, fx, audio, save.pz?.maxHearts || 5);
-    creatures = new CreatureSystem(scene, fx, audio, health, collectibles, hud, glowTex);
+    creatures = new CreatureSystem(scene, fx, audio, health, collectibles, hud, glowTex, save.heim);
     creatures.restoreTroll(save.pz?.troll, save.pz?.trollChest);
     if (save.peaceful) creatures.peaceful = true;
-    hud.setHearts(health.hearts, health.maxHearts);
+    hud.setHearts(health.hearts, health.effectiveMaxHearts);
   }],
   ['Dementoren', () => {
     dementors = new DementorSystem(scene, fx, audio, health, hud, glowTex);
@@ -257,11 +271,18 @@ const buildSteps = [
     broom.onFinish = () => { if (broom.ace) showAceWon(); persist(); };
   }],
   ['Wildmark', () => {
-    // S1: reine Deko/Terrain-Dressing (Grabkammer-Öffnung erst S10,
-    // Kate-Einrichtung erst S7) — kein Save-Zustand nötig.
+    // S1: Fahlholz/Hügelgrab bleiben reine Deko (Grabkammer-Öffnung erst
+    // S10). Die Kate liefert jetzt (S7) ihr setOwned()-Handle für home.js.
     fahlholz = buildFahlholz(scene);
     buildHuegelgrab(scene);
-    buildKate(scene);
+    kate = buildKate(scene, glowTex);
+  }],
+  ['Zuhause', () => {
+    home = buildHome(scene, camera, glowTex, hud, audio, fx, health, interact, economy, kate, {
+      heim: save.heim, sky, weather, puzzles, moor, spells, player,
+    });
+    home.restore();
+    home.onChange = () => persist();
   }],
   ['Fauna', () => {
     fauna = buildFauna(scene, fx, audio, natureTreeSpots, () => {
@@ -460,7 +481,7 @@ btnReset.addEventListener('click', () => {
   if (health) {
     health.maxHearts = 5;
     health.hearts = Math.min(health.hearts, 5);
-    hud.setHearts(health.hearts, health.maxHearts);
+    hud.setHearts(health.hearts, health.effectiveMaxHearts);
   }
   hauspokalStatus.classList.add('hidden');
   lanternStatus.classList.add('hidden');
@@ -481,8 +502,15 @@ btnReset.addEventListener('click', () => {
   Object.assign(save.mounts, { hippo: 0, thestral: 0, sattel: 0 });
   Object.assign(save.dunkel, { buch: 0, pfad: 'hell', male: 0 });
   save.heim.kate = 0;
-  Object.assign(save.heim.zutaten, { glitzer: 0, seide: 0, stern: 0, essenz: 0 });
+  Object.assign(save.heim.zutaten, { glitzer: 0, seide: 0, stern: 0, essenz: 0, leuchtkraut: 0 });
   Object.assign(save.heim.trank, { id: '', restT: 0 });
+  // Trank-Effekte sofort zurücksetzen statt bis zum nächsten Frame zu warten
+  // (das übliche Sync-Muster oben liefe sonst noch 1 Frame mit alten Werten).
+  if (player) player.potionSpeedMul = 1;
+  if (health) health.tempHeartsBonus = 0;
+  if (dementors) dementors.frostImmune = false;
+  if (spells) spells.dmgMul = 1;
+  if (home) home.restore();
   Object.assign(save.begleiter, { aktiv: '', frei: [] });
   Object.assign(save.hallows, { stab: 0, umhang: 0, stein: 0, steinCd: 0 });
   Object.assign(save.animagus, { gelernt: 0, form: 'rabe' });
@@ -594,6 +622,18 @@ function frame(dt) {
     dementors.aggroRangeMul = moor.laterneCollected ? 0.5 : 1;
     // "Warm ums Herz" (Q2-Belohnung, W5): multipliziert sich mit der Laterne.
     dementors.frostRateMul = (moor.laterneCollected ? 0.5 : 1) * (npc.quests.kraeuterDone ? 0.75 : 1);
+    // S7 Trank-Effekte: EIN aktiver Trank (heim.trank.id), pro Frame in die
+    // jeweils zuständigen Systeme gespiegelt (Muster: frostRateMul oben) —
+    // home.js selbst tickt nur den Timer runter, kennt aber die Zielsysteme
+    // nicht (bleibt "dumm/generisch" wie spells.js' Ziel-Registry).
+    {
+      const t = save.heim.trank;
+      const active = t.id && t.restT > 0;
+      player.potionSpeedMul = active && t.id === 'flink' ? 1.3 : 1;
+      health.tempHeartsBonus = active && t.id === 'herz' ? 2 : 0;
+      dementors.frostImmune = active && t.id === 'frost';
+      spells.dmgMul = active && t.id === 'dunkel' && save.dunkel.pfad === 'dunkel' ? 1.5 : 1;
+    }
     dementors.update(dt, player);
     player.slowFactor = dementors.frostFactor > 0.5 ? 0.75 : 1;
     hud.setFrost(dementors.frostFactor);
@@ -608,6 +648,7 @@ function frame(dt) {
     // Tritt-Ziele (S5): kreatur.list + wilderer.list — Dementoren bewusst
     // NICHT dabei (immateriell, K6 aus dem Plan).
     mount.update(dt, player, creatures.list.concat(wilderer.list));
+    home.update(dt, player);
     wand.root.visible = !player.flying && !player.riding;
     fahlholz.update(dt);
     fauna.update(dt, player, spells.lumosOn, move.sprinting);
@@ -650,9 +691,9 @@ function frame(dt) {
 
     hud.setClock(sky.clockText);
     hud.setHeading(player.heading);
-    hud.setTracker(broom.getTrackerInfo(player) || collectibles.nearest(player.pos), player.heading);
+    hud.setTracker(broom.getTrackerInfo(player) || home.getSplitterTracker(player) || collectibles.nearest(player.pos), player.heading);
     hud.setSpell(wand.activeSpell, spells.cooldowns);
-    hud.setHearts(health.hearts, health.maxHearts);
+    hud.setHearts(health.hearts, health.effectiveMaxHearts);
     const troll = creatures.troll;
     hud.setBoss(['aggro', 'telegraph', 'slam'].includes(troll.state) ? troll.hp / troll.maxHp : null);
     hud.setMoor(moor.insideFactor(player.pos));
@@ -692,7 +733,8 @@ buildWorld().then(() => {
   // Debug-/Test-Zugriff (bewusst öffentlich, hilft bei Fehlersuche)
   window.__game = {
     player, sky, camera, renderer, scene,
-    wand, spells, fx, health, creatures, puzzles, moor, dementors, weather, post, village, train, willow, interact, npc, hud, grove, broom, fahlholz, fauna, economy, wilderer, mount,
+    wand, spells, fx, health, creatures, puzzles, moor, dementors, weather, post, village, train, willow, interact, npc, hud, grove, broom, fahlholz, fauna, economy, wilderer, mount, home,
+    get save() { return save; },
     get fps() { return fpsEMA; },
     get pixelRatio() { return pixelRatio; },
     collectibles,
@@ -731,6 +773,7 @@ buildWorld().then(() => {
     persist();
   };
   creatures.onTrollChest = () => persist();
+  creatures.onZutatChange = () => persist();
   willow.onChestOpen = () => persist();
   collectibles.onCollect = (item, n, total) => {
     const done = n === total;

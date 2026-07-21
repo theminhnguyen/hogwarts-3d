@@ -278,6 +278,7 @@ export class DementorSystem {
     this.aggroRangeExtra = 0; // +4 pro getragenem Seelenlicht
     this.aggroRangeMul = 1;   // ×0.5 sobald die Laterne geborgen ist
     this.frostRateMul = 1;    // ×0.5 sobald die Laterne geborgen ist
+    this.frostImmune = false; // S7 Frostbann-Trank — von main.js aus heim.trank gesetzt
 
     const parts = buildDementorParts(glowTex);
     this.list = SPAWNS.map((s, i) => new Dementor(this, parts, s, i + 1));
@@ -299,8 +300,10 @@ export class DementorSystem {
     // Frost-Meter: baut sich über 4s auf, solange der Spieler in irgendeiner
     // Aura steht (die Laterne halbiert dieses Tempo via frostRateMul), baut
     // sonst mit 0.5/s ab. frostFactor wird von main.js für hud.setFrost()
-    // und player.slowFactor gelesen.
-    this.frost = inAura
+    // und player.slowFactor gelesen. S7 Frostbann-Trank: keinerlei Aufbau,
+    // bestehender Frost baut trotzdem normal ab (kein Instant-Cleanse nötig,
+    // 4s Aufbauzeit ist ohnehin kurz).
+    this.frost = (inAura && !this.frostImmune)
       ? Math.min(1, this.frost + (dt / TUNING.frostBuildDur) * this.frostRateMul)
       : Math.max(0, this.frost - dt * TUNING.frostDecay);
     this.frostFactor = this.frost;
