@@ -2,14 +2,17 @@
 
 Ein **begehbares 3D-Schloss im Browser** — komplett prozedural erzeugt, ohne ein
 einziges externes Asset. Erkunde das Schloss mit Großem Saal, Astronomieturm,
-Viadukt, See mit Bootshaus, Verbotenem Wald, Quidditch-Feld, Steinkreis und dem
-nebelverhangenen Moor jenseits davon. Halte durchgehend einen Zauberstab in der
-Hand, wirke vier Sprüche, verteidige dich gegen Wichtel und Schattengeister,
-löse vier Rätsel und gewinne am Ende den Hauspokal — mit Feuerwerk und einem
-galoppierenden Patronus. Danach beherrschst du **Expecto Patronum** selbst und
-kannst dich ins Nebelmoor wagen: dort schweben Dementoren, denen nur der
-Patronus etwas anhaben kann, und fünf verlorene Seelenlichter warten darauf,
-in die versiegelte Krypta zurückgebracht zu werden.
+Viadukt, See mit Bootshaus, Verbotenem Wald, Quidditch-Feld, Steinkreis, dem
+nebelverhangenen Moor und einer ganzen zweiten Landschaft dahinter — der
+Wildmark mit Dorf, Wilderer-Lagern, einer eigenen Kate und wilder Fauna.
+
+Halte durchgehend einen Zauberstab in der Hand und wirke bis zu neun Sprüche
+(inklusive dreier verbotener, sobald du dem dunklen Pfad folgst), löse vier
+Rätsel und gewinne den Hauspokal, vertreibe Dementoren mit Expecto Patronum,
+zähme Hippogreif und Thestral, handle mit dem Wanderhändler Fero, sammle die
+drei Heiligtümer des Todes im Duell gegen den Bleichen König, per Diebstahl
+und durch Tauchen im See — und werde am Ende sogar selbst zum Animagus:
+verwandle dich per Ritual in Rabe, Katze oder Wolf.
 
 > Inoffizielles, nicht-kommerzielles Fan-Projekt. Steht in keiner Verbindung zu
 > Warner Bros., J.K. Rowling oder Wizarding World. Alle 3D-Inhalte sind
@@ -27,18 +30,27 @@ Oder lokal: Ordner klonen und `node dev-server.mjs` starten → http://localhost
 |---|---|
 | `W A S D` | Bewegen |
 | Maus | Umsehen |
-| `Shift` | Rennen |
+| `Shift` | Rennen (beim Schwimmen: abtauchen) |
 | `Leertaste` | Springen |
 | Maustaste | Zaubern (bei Leviosa: gedrückt halten zum Tragen, loslassen zum Fallenlassen) |
-| Mausrad / `1`–`4` | Zauber wechseln |
-| `5` | Expecto Patronum (erst nach dem Hauspokal) |
-| `E` | Interagieren (mit NPCs sprechen, Gegenstände nehmen) |
+| `E` | Interagieren (mit NPCs sprechen, Gegenstände nehmen, Kessel bedienen) |
 | `B` | Besen auf-/absteigen (erst nach dem Besen-Fund) |
+| `R` | Hippogreif/Thestral rufen, aufsitzen, absitzen |
+| `G` | Begleiter rufen/wegschicken (Musch, Eule Piniva oder Niffler Grabbel) |
+| `U` | Umhang der Unsichtbarkeit an/aus (nach dem Diebstahl beim Wilderer-Anführer) |
+| 2× `Leertaste` | Beritten abheben (Hippogreif/Thestral im Flug) |
+| Mausrad / `1`–`9` | Zauber wählen — alle freigeschalteten Sprüche und Heiligtümer, danach Linksklick zum Wirken |
+| `5` | Expecto Patronum wählen (erst nach dem Hauspokal) |
+| `6` / `7` / `8` / `9` | Avada Kedavra / Crucio / Imperio / Dunkles Mal wählen (nur nach dem Aschenen Grimoire, nur auf dem dunklen Pfad) |
+| `V` | Animagus-Verwandlung Mensch ↔ Tier (nach dem Sturm-Ritual); als Wolf: Doppeldruck = Biss |
 | `T` | Tageszeit vorspulen |
 | `L` | Lumos (Lichtzauber) |
 | `M` | Ton an/aus |
 | `F` | FPS anzeigen |
 | `Esc` | Menü |
+
+Elderstab und Stein der Wiederkehr haben keine eigene Taste (reine
+Dauer-Boni) — sie erscheinen automatisch im Spruchrad, sobald gefunden.
 
 ## Features
 
@@ -119,12 +131,63 @@ Oder lokal: Ordner klonen und `node dev-server.mjs` starten → http://localhost
   Wasser. Ein 12-Ringe-Parcours ums Feld, über die Tribünen und Richtung
   Seeufer belohnt eine Bestzeit unter 75 Sekunden mit dem Titel
   „Quidditch-Ass" und einem goldenen Flug-Schweif
+- 🗺️ Die Wildmark: eine ganze zweite Landschaft jenseits des Bergrings —
+  Silberauen (weites Grasland), der dunkle Hain Fahlholz, ein
+  geheimnisvolles Hügelgrab und die verlassene Wispernde Kate, dazu
+  wilde Fauna: Rehe, Hasen, jagende Füchse, buddelnde Niffler,
+  Bowtruckles, wilde Hippogreife und zwei wandernde Hexer
+- 💰 Gold & Ruf: Wanderhändler Fero steht am Bahnhof während der
+  Zug-Haltephase und handelt mit Zutaten/Frischfisch; dein Ruf (−100
+  bis +100) färbt Preise und die Reaktion der Schüler, sperrt aber
+  nie Inhalte
+- 🏹 Wilderer-Lager in der Wildmark: 3 Lager rotieren im Tageszyklus,
+  ein Käfig lässt sich befreien (heller Pfad, Gold+Ruf) oder ernten
+  (dunkler Pfad, dunkle Essenz) — dazu ein Duellring in Eulenbrück mit
+  Fechtmeisterin Ondra
+- 🦅 Reittiere: der Hippogreif lässt sich zähmen (langsame Annäherung,
+  Verbeugung, Frischfisch von Fero) und trägt dich am Boden UND
+  fliegend (2× Leertaste zum Abheben); der Thestral bleibt unsichtbar
+  und nur hörbar, bis du selbst dem Tod begegnet bist — danach jederzeit
+  zähmbar und der wendigste Flieger im Spiel
+- 🏚️ Die Wispernde Kate: eigener Unterschlupf (kaufbar für Gold oder
+  geschenkt ab Ruf 30) mit Bett (Zeitsprung + Vollheilung), Braukessel
+  mit 5 Rezepten (Flinktrank, Herztrank, Frostbann, Dunkler Sud, Trank
+  der zweiten Gestalt) und Trophäenregal — dazu seltene Meteor-Nächte,
+  die Sternsplitter in der Wildmark liegen lassen
+- 🖤 Der dunkle Pfad: das Aschene Grimoire im Spinnennest schaltet drei
+  verbotene Sprüche frei — **Avada Kedavra** (One-Shot), **Crucio**
+  (Kanal-Schaden) und **Imperio** (macht Gegner zu Verbündeten) — sowie
+  das **Dunkles Mal**, das Dementoren anlockt. Der Pfad ist jederzeit
+  umkehrbar: Läuterung am Brunnen im Innenhof macht dich wieder hell.
+  Dementoren und viele NPCs reagieren auf deinen Pfad
+- 🐾 Begleiter: Katze Musch, Eule Piniva und Niffler Grabbel lassen sich
+  rufen (Taste `G`) und beschützen dich unverwundbar im Kampf — Grabbel
+  bringt zusätzlich mehr Glitzerstaub von wilden Nifflern mit
+- ☠️ Die Heiligtümer des Todes: der **Elderstab** wartet auf ein
+  Mitternachts-Duell gegen den Bleichen König am Hügelgrab (Schaden ×2,
+  Cooldown ×0.6), der **Umhang der Unsichtbarkeit** muss einem
+  Wilderer-Anführer gestohlen werden (Stealth, kein Kampf), und der
+  **Stein der Wiederkehr** liegt am tiefsten Grund des Sees (1× pro Tag
+  Wiederbelebung bei 0 Herzen). Besitzt du alle drei ausgerüstet, wirst
+  du **Meister des Todes**: +1 Herz, Dementoren verneigen sich statt
+  anzugreifen, Thestrale werden immer sichtbar
+- 🐦‍⬛ Animagus: brau den Trank der zweiten Gestalt und vollziehe das
+  Ritual in einer Sturmnacht am Steinkreis, um dich fortan (Taste `V`)
+  in Rabe (fliegt), Katze (Kamera bodennah, schleicht an Feinden vorbei)
+  oder Wolf (schnell, Nachtsicht, Biss per Doppeldruck) zu verwandeln —
+  als Tier kein Zaubern, kein Reiten, Wasser erzwingt die Rückverwandlung
+- 🗣️ Gerüchte: Schüler, Lena und Barnaby erzählen bei erneutem Ansprechen
+  zufällige Gerüchte, die auf deinen tatsächlichen Spielstand reagieren
+  (befreite Lager, dein Pfad, gezähmte Reittiere, Heiligtümer, deine
+  Tierform …)
 - 🔊 Prozeduraler Sound: Wind, Schritte, Vogelgezwitscher, Grillen,
   Zauber-Sounds, Kreaturen-Geräusche, Feuerwerk, Regen/Donner, Zug- und
   Kaminklänge — alles über WebAudio
 - 🎵 Optionale Ambient-Musik (Menü-Button, Standard: aus): zwei sanft
   ineinander überblendende Akkordflächen aus reinen Sinustönen
-- 🏊 Schwimmen im See, Springen, Rennen, Kollisionen, Glühwürmchen, Vögel
+- 🏊 Schwimmen im See mit echtem Tauchen (Shift abtaucht, Luftanzeige,
+  Schaden bei leerer Lunge), Springen, Rennen, Kollisionen,
+  Glühwürmchen, Vögel
 - ⚡ Performance: gemergte Meshes, Instancing mit Regionen-Culling,
   Objekt-Pools für Zauber/Partikel/Kreaturen, automatische
   Auflösungs-Anpassung — läuft flüssig ohne Build-Tools

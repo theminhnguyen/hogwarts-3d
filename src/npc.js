@@ -477,8 +477,55 @@ function buildFero(scene, hud, audio, interact, deps) {
 
 export function buildNpcs(scene, glowTex, hud, audio, fx, health, interact, deps) {
   // deps = { collectibles, puzzles, spells, moor, dementors, train, economy,
-  //          heim, mounts, leuchtkraeuter }
+  //          heim, mounts, dunkel, begleiter, hallows, animagus, wild,
+  //          leuchtkraeuter }
+
+  // ---------- Gerüchte-System (S12): Schüler UND Lena/Barnaby (Repeat-Talk)
+  // teilen sich denselben Pool — reiner Text-Switch auf bereits vorhandene
+  // deps.*-Referenzen, kein neues Save-Feld. Zufällige Zeile unter allen
+  // gerade ZUTREFFENDEN Gerüchten (lebendiger als feste Priorität); ohne
+  // jedes Save-Flag greift ein neutraler Deko-Fallback-Pool.
+  const GERUECHTE = [
+    { cond: () => deps.wild?.befreit > 0, line: 'Jemand hat das Wilderer-Lager am See befreit — sagt man.' },
+    { cond: () => deps.wild?.geerntet > 0, line: 'Im Wald sollen dunkle Essenzen geerntet worden sein…' },
+    { cond: () => deps.heim?.kate === 1, line: 'Man sagt, in der Wispernden Kate brennt wieder Licht.' },
+    { cond: () => deps.dunkel?.pfad === 'dunkel', line: 'Manche munkeln, jemand wandle auf dunklen Pfaden…' },
+    { cond: () => deps.dunkel?.buch === 1 && deps.dunkel?.pfad === 'hell', line: 'Ein geläuterter Zauberer soll wieder ins Licht zurückgefunden haben.' },
+    { cond: () => deps.mounts?.hippo === 1, line: 'Ein zahmer Hippogreif soll neuerdings übers Gelände traben.' },
+    { cond: () => deps.mounts?.thestral === 1, line: 'Nachts hört man Flügelschlag, den niemand sehen kann…' },
+    { cond: () => deps.hallows?.stab === 1, line: 'Der bleiche König am Hügelgrab soll besiegt worden sein.' },
+    { cond: () => deps.hallows?.umhang === 1, line: 'Ein Wilderer-Anführer beklagt einen gestohlenen Umhang.' },
+    { cond: () => deps.hallows?.stein === 1, line: 'Im tiefsten See soll ein sagenhafter Stein gefunden worden sein.' },
+    { cond: () => deps.moor?.laterneCollected, line: 'Die Silberne Seelenlaterne soll geborgen worden sein.' },
+    { cond: () => deps.puzzles?.finaleWon, line: 'Man erzählt sich, der Hauspokal sei schon gewonnen.' },
+    { cond: () => deps.animagus?.gelernt === 1 && deps.animagus?.form === 'wolf', line: 'Nachts soll ein Wolf durchs Fahlholz streifen…' },
+    { cond: () => deps.animagus?.gelernt === 1 && deps.animagus?.form === 'katze', line: 'Eine schwarze Katze soll sich lautlos an jeden heranschleichen können.' },
+    { cond: () => deps.animagus?.gelernt === 1 && deps.animagus?.form === 'rabe', line: 'Ein Rabe soll sich manchmal in einen Menschen zurückverwandeln…' },
+    { cond: () => (deps.begleiter?.frei?.length || 0) > 0, line: 'Manche Schüler sollen jetzt tierische Begleiter haben.' },
+  ];
+  const GERUECHTE_FALLBACK = [
+    'Die Hauselfen sollen heute Nacht Kürbiskuchen gebacken haben.',
+    'Man munkelt, im Verbotenen Wald raschelt es öfter als sonst.',
+    'Ein Vertrauensschüler hat angeblich beim Astronomieturm gefroren.',
+  ];
+  function pickGeruecht() {
+    const active = GERUECHTE.filter((g) => g.cond());
+    const pool = active.length ? active.map((g) => g.line) : GERUECHTE_FALLBACK;
+    return pool[Math.floor(Math.random() * pool.length)];
+  }
+
   const students = STUDENT_PATHS.map((p, i) => new Student(scene, p, i));
+  const STUDENT_NAMES = ['Elyas', 'Priya', 'Finn', 'Wren'];
+  students.forEach((s, i) => {
+    interact.register({
+      get x() { return s.group.position.x; },
+      get z() { return s.group.position.z; },
+      r: 2.2,
+      get enabled() { return s.fade > 0.5 && s.state !== 'flee'; },
+      prompt: `E — Mit ${STUDENT_NAMES[i]} sprechen`,
+      onInteract: () => hud.showDialog(STUDENT_NAMES[i], [pickGeruecht()]),
+    });
+  });
   // 2 wandernde Hexer (S2): eine läuft die Route vorwärts, die andere rückwärts
   // los (idx=1 wie Student, aber entgegengesetzte Startrichtung), damit sie
   // sich nicht die ganze Zeit auf demselben Wegabschnitt begegnen.
@@ -580,7 +627,7 @@ export function buildNpcs(scene, glowTex, hud, audio, fx, health, interact, deps
           onQuestChange?.();
         });
       } else {
-        hud.showDialog('Lena', ['Danke nochmal, dass du Musch gefunden hast!']);
+        hud.showDialog('Lena', ['Danke nochmal, dass du Musch gefunden hast!', pickGeruecht()]);
       }
     },
   });
@@ -611,7 +658,7 @@ export function buildNpcs(scene, glowTex, hud, audio, fx, health, interact, deps
           onQuestChange?.();
         });
       } else {
-        hud.showDialog('Barnaby', ['Danke nochmal für die Leuchtkräuter — mein Kessel dampft wie nie zuvor.']);
+        hud.showDialog('Barnaby', ['Danke nochmal für die Leuchtkräuter — mein Kessel dampft wie nie zuvor.', pickGeruecht()]);
       }
     },
   });

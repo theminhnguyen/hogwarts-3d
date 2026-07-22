@@ -4,7 +4,7 @@
 
 export const RUF_MIN = -100;
 export const RUF_MAX = 100;
-export const RUF_HIGH = 20;  // ab hier: Schüler winken, Barnaby-Rabatt
+export const RUF_HIGH = 20;  // ab hier: Schüler winken, Fero-Rabatt 20%
 export const RUF_LOW = -20;  // ab hier: Schüler fliehen, Fero-Aufpreis 50%
 
 export class EconomySystem {
@@ -18,8 +18,11 @@ export class EconomySystem {
   get ruf() { return this.save.ruf; }
   get rufHigh() { return this.save.ruf >= RUF_HIGH; }
   get rufLow() { return this.save.ruf <= RUF_LOW; }
-  // Fero-Aufpreis bei schlechtem Ruf — auf ALLE seine Preise angewendet.
-  get priceMul() { return this.rufLow ? 1.5 : 1; }
+  // S12-Balancing: bislang lohnte sich guter Ruf NUR kosmetisch (Schüler
+  // winken) — Fero bestrafte schlechten Ruf (×1.5), belohnte guten aber
+  // nirgends. Jetzt symmetrisch: ×0.8 bei rufHigh, auf ALLE seine Preise
+  // UND den Kate-Kaufpreis angewendet (beide lesen economy.priceMul).
+  get priceMul() { return this.rufLow ? 1.5 : this.rufHigh ? 0.8 : 1; }
 
   addGold(n) {
     this.save.gold = Math.max(0, this.save.gold + n);

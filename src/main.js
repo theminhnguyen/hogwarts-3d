@@ -252,6 +252,7 @@ const buildSteps = [
       leuchtkraeuter: structures.leuchtkraeuter,
       train, economy, heim: save.heim, mounts: save.mounts, dunkel: save.dunkel,
       begleiter: save.begleiter, hallows: save.hallows, animagus: save.animagus,
+      wild: save.wild,
     });
     npc.restore(save.quests);
     npc.onQuestChange = () => persist();
@@ -321,7 +322,7 @@ const buildSteps = [
       hippos: fauna.hippos, mounts: save.mounts, feroState: npc.fero.feroState, save,
     });
     mount.restore(save.mounts);
-    mount.onMountChange = () => persist();
+    mount.onMountChange = () => { persist(); refreshStatusLines(); };
   }],
   // Letzter Schritt: braucht spells/dementors/health/economy/interact —
   // alle bereits gebaut.
@@ -330,7 +331,7 @@ const buildSteps = [
       dunkel: save.dunkel, spells, dementors, health, sky,
     });
     dark.restore();
-    dark.onChange = () => persist();
+    dark.onChange = () => { persist(); refreshStatusLines(); };
   }],
   // Begleiter (S9): braucht npc (Musch-Handoff+Fero-Frischfisch), home
   // (Rastplatz in der Kate), creatures/wilderer (Schutz-Ziele),
@@ -354,7 +355,7 @@ const buildSteps = [
       hallows: save.hallows, mount, dementors, puzzles, moor, spells,
     });
     hallows.restore();
-    hallows.onChange = () => persist();
+    hallows.onChange = () => { persist(); refreshStatusLines(); };
     hallows.onSeenDeath = () => { if (!save.seenDeath) { save.seenDeath = 1; persist(); } };
     if (save.peaceful) hallows.peaceful = true;
     // S10: Umhang/Elderstab/Stein casten über dieselbe spells.cast()-Weiche
@@ -381,6 +382,24 @@ const lanternStatus = document.getElementById('lantern-status');
 function showLanternWon() { lanternStatus.classList.remove('hidden'); hud.showLanternIcon(); }
 const aceStatus = document.getElementById('ace-status');
 function showAceWon() { aceStatus.classList.remove('hidden'); }
+// S12: Pfad/Mounts/Heiligtümer — im Gegensatz zu den 3 Einweg-Bannern oben
+// kein "einmal freigeschaltet, für immer sichtbar", sondern jedes Mal neu
+// aus dem aktuellen Save-Stand gebaut (Pfad kann sich zurück ändern).
+const progressStatus = document.getElementById('progress-status');
+function refreshStatusLines() {
+  const lines = [];
+  if (save.dunkel.buch === 1) {
+    lines.push(save.dunkel.pfad === 'dunkel' ? '🖤 Pfad: dunkel' : '🌗 Pfad: hell');
+  }
+  const mountNames = [];
+  if (save.mounts.hippo) mountNames.push('Hippogreif');
+  if (save.mounts.thestral) mountNames.push('Thestral');
+  if (mountNames.length) lines.push(`🐴 Mounts: ${mountNames.join(', ')}`);
+  const hallowCount = (save.hallows.stab ? 1 : 0) + (save.hallows.umhang ? 1 : 0) + (save.hallows.stein ? 1 : 0);
+  if (hallowCount > 0) lines.push(`☠️ Heiligtümer: ${hallowCount}/3${hallowCount === 3 ? ' — Meister des Todes' : ''}`);
+  progressStatus.innerHTML = lines.join('<br>');
+  progressStatus.classList.toggle('hidden', lines.length === 0);
+}
 
 async function buildWorld() {
   for (let i = 0; i < buildSteps.length; i++) {
@@ -390,6 +409,7 @@ async function buildWorld() {
     fn();
     loadingBar.style.width = `${((i + 1) / buildSteps.length) * 100}%`;
   }
+  refreshStatusLines();
   await new Promise(r => setTimeout(r, 0));
   menuLoading.classList.add('hidden');
   menuMain.classList.remove('hidden');
@@ -596,6 +616,7 @@ btnReset.addEventListener('click', () => {
   Object.assign(save.animagus, { gelernt: 0, form: 'rabe' });
   if (animagus) animagus.restore();
   if (btnAnimagusForm) btnAnimagusForm.textContent = `Tierform: ${FORM_LABEL[save.animagus.form]}`;
+  refreshStatusLines();
   persist();
   hud.showToast('Fortschritt zurückgesetzt');
 });
