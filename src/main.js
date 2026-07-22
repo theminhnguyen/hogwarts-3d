@@ -305,7 +305,7 @@ const buildSteps = [
   }],
   ['Wilderer & Duell', () => {
     wilderer = buildWilderer(scene, glowTex, hud, audio, fx, health, interact, economy, {
-      heim: save.heim, dunkel: save.dunkel, wild: save.wild, hallows: save.hallows,
+      heim: save.heim, dunkel: save.dunkel, wild: save.wild, hallows: save.hallows, spells,
       // S10: Umhang-Anführer erscheint erst, wenn die Heiligtümer-Questreihe
       // freigeschaltet ist (Hauspokal+Laterne) — puzzles/moor existieren zu
       // diesem Zeitpunkt bereits (beide Build-Steps laufen vor diesem hier).
@@ -350,12 +350,16 @@ const buildSteps = [
   // (Freischalt-Gate) — alle bereits gebaut. Letzter Schritt.
   ['Heiligtümer', () => {
     hallows = buildHallows(scene, glowTex, hud, audio, fx, health, interact, home, huegelgrab, {
-      hallows: save.hallows, mount, dementors, puzzles, moor,
+      hallows: save.hallows, mount, dementors, puzzles, moor, spells,
     });
     hallows.restore();
     hallows.onChange = () => persist();
     hallows.onSeenDeath = () => { if (!save.seenDeath) { save.seenDeath = 1; persist(); } };
     if (save.peaceful) hallows.peaceful = true;
+    // S10: Umhang/Elderstab/Stein casten über dieselbe spells.cast()-Weiche
+    // wie alle anderen Sprüche (Mausrad + Spellbar) — dark/hallows existieren
+    // erst jetzt, deshalb Spätbindung statt Konstruktor-Parameter.
+    spells.setDarkHallows(dark, hallows);
   }],
 ];
 
@@ -585,9 +589,13 @@ document.addEventListener('pointerlockerror', () => {
 // Nicht-Bewegungs-Tasten
 const DIGIT_SPELLS = {
   Digit1: 'stupor', Digit2: 'incendio', Digit3: 'leviosa', Digit4: 'lumos', Digit5: 'patronum',
-  Digit6: 'avada', Digit7: 'crucio', Digit8: 'imperio', // S8, nur nach Grimoire-Fund sichtbar/wirksam
+  // S8, nur nach Grimoire-Fund sichtbar/wirksam. Digit9 (S10-Nachtrag) wählt
+  // Dunkles Mal jetzt nur noch AUS (wie alle anderen Sprüche) — gewirkt wird
+  // per Linksklick, kein Direktcast auf Tastendruck mehr (Konsistenz mit
+  // Mausrad + Spellbar).
+  Digit6: 'avada', Digit7: 'crucio', Digit8: 'imperio', Digit9: 'mal',
 };
-const DARK_SPELL_IDS = new Set(['avada', 'crucio', 'imperio']);
+const DARK_SPELL_IDS = new Set(['avada', 'crucio', 'imperio', 'mal']);
 window.addEventListener('keydown', (e) => {
   if (!playing) return;
   if (e.code === 'Escape' && fallbackMode) {
@@ -606,10 +614,6 @@ window.addEventListener('keydown', (e) => {
     wand.selectSpell('lumos');
     spells.cast(camera);
     hud.showToast(spells.lumosOn ? '✨ Lumos!' : 'Nox.', 1.4);
-  } else if (e.code === 'Digit9') {
-    // Dunkles Mal: kein Spellbar-Slot, direkter Cast wie Lumos (K-Taste) —
-    // "beschwören" braucht kein Ziel/Anvisieren.
-    if (save.dunkel.pfad === 'dunkel') dark.summonMal(player);
   } else if (DIGIT_SPELLS[e.code]) {
     const id = DIGIT_SPELLS[e.code];
     if (id === 'patronum' && !spells.epUnlocked) { /* noch nicht frei */ }
@@ -631,7 +635,7 @@ window.addEventListener('keydown', (e) => {
   } else if (e.code === 'KeyG') {
     companion.toggle();
   } else if (e.code === 'KeyU') {
-    hallows.toggleInvisibility(player);
+    if (SPELL_ORDER.includes('umhang')) { wand.selectSpell('umhang'); spells.cast(camera); }
   }
 });
 
@@ -777,7 +781,7 @@ function frame(dt) {
     hud.setClock(sky.clockText);
     hud.setHeading(player.heading);
     hud.setTracker(broom.getTrackerInfo(player) || home.getSplitterTracker(player) || collectibles.nearest(player.pos), player.heading);
-    hud.setSpell(wand.activeSpell, spells.cooldowns);
+    hud.setSpell(wand.activeSpell, { ...spells.cooldowns, mal: dark.malCooldown });
     hud.setHearts(health.hearts, health.effectiveMaxHearts);
     const troll = creatures.troll;
     hud.setBoss(['aggro', 'telegraph', 'slam'].includes(troll.state) ? troll.hp / troll.maxHp : null);

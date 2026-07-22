@@ -27,6 +27,13 @@ export const TUNING = {
   avada:   { speed: 42, cooldown: 8, ttl: 2.2 },
   crucio:  { cooldown: 6, dur: 2, range: 9, coneAngle: 15 * Math.PI / 180, tickInterval: 0.5 },
   imperio: { cooldown: 12, range: 9, coneAngle: 15 * Math.PI / 180 },
+  // S10 Heiligtümer des Todes: umhang/stab/stein nutzen nur `cooldown`
+  // (kein Bolzen/Kanal) — umhang ist ein sofortiger Toggle (0), stab/stein
+  // haben keinen echten Effekt beim Casten (reine Info-Toasts), 2s
+  // verhindert nur Toast-Spam bei schnellem Doppelklick.
+  umhang: { cooldown: 0 },
+  stab:   { cooldown: 2 },
+  stein:  { cooldown: 2 },
 };
 // Imperio-fähige creatures.js-Arten (Pixie/Spinne — Ghost/Troll/Dementor NICHT,
 // "nicht auf Bosse/Dementoren/Begleiter" laut Plan). Wilderer sind separat
@@ -67,8 +74,15 @@ export class SpellSystem {
     this._glowTex = glowTex;
     this._player = player;
     this._dunkel = dunkel; // S8: direkte Save-Referenz (Muster S3/S4/S7) — cast()-Gate für 6-8
+    // S10: erst nach dem 'Heiligtümer'-Build-Step per setDarkHallows() gesetzt
+    // (dark.js/hallows.js existieren zur Konstruktionszeit von SpellSystem
+    // noch nicht — Muster: companion.js' setNightGlowGetter()-Spätbindung).
+    this._dark = null;
+    this._hallows = null;
 
-    this.cooldowns = { stupor: 0, incendio: 0, leviosa: 0, lumos: 0, patronum: 0 };
+    // S10: umhang/stab/stein laufen über das normale Cooldown-Objekt (mal
+    // NICHT — dessen Cooldown lebt in dark.js' malCdT, siehe cast()).
+    this.cooldowns = { stupor: 0, incendio: 0, leviosa: 0, lumos: 0, patronum: 0, umhang: 0, stab: 0, stein: 0 };
     // S7 Dunkler-Sud-Trank, jetzt (S8) tatsächlich verdrahtet: multipliziert
     // JEDEN Bolzen-Schaden (nicht nur die verbotenen Sprüche — "Spruchschaden
     // ×1.5" laut home.js-Rezept), von main.js pro Frame aus heim.trank gesetzt.
@@ -137,19 +151,20 @@ export class SpellSystem {
     }
   }
 
-  // S8: schaltet die 3 verbotenen Sprüche dauerhaft im Spellbar frei, sobald
-  // das Aschene Grimoire gefunden wurde — "Grimoire-Wissen bleibt" auch nach
-  // einer späteren Läuterung, siehe cast()-Gate (nur wirksam auf dem
-  // dunklen Pfad). Idempotent wie unlockPatronum().
+  // S8: schaltet die 3 verbotenen Sprüche + Dunkles Mal (S10-Nachtrag: jetzt
+  // ein echter Spellbar-Eintrag statt Digit9-Direktcast) dauerhaft im
+  // Spellbar frei, sobald das Aschene Grimoire gefunden wurde — "Grimoire-
+  // Wissen bleibt" auch nach einer späteren Läuterung, siehe cast()-Gate
+  // (nur wirksam auf dem dunklen Pfad). Idempotent wie unlockPatronum().
   unlockDarkSpells(showToast = true) {
     if (this._darkSpellsUnlocked) return;
     this._darkSpellsUnlocked = true;
-    for (const id of ['avada', 'crucio', 'imperio']) {
+    for (const id of ['avada', 'crucio', 'imperio', 'mal']) {
       if (!SPELL_ORDER.includes(id)) SPELL_ORDER.push(id);
     }
     this.hud?.buildSpellbar(SPELL_ORDER.map(id => ({ id, ...SPELLS[id] })));
     if (showToast) {
-      this.hud?.showToast('🖤 Das Aschene Grimoire flüstert dir verbotenes Wissen zu … (Tasten 6-8, 9 fürs Dunkle Mal)', 6);
+      this.hud?.showToast('🖤 Das Aschene Grimoire flüstert dir verbotenes Wissen zu … (Tasten 6-9, danach Linksklick zum Wirken)', 6);
     }
   }
 
@@ -288,15 +303,24 @@ export class SpellSystem {
     // Besen UND Mounts einheitlich, da beide dasselbe player.flying nutzen.
     if (this._player?.flying) return;
     const id = this.wand.activeSpell;
-    // S8: die verbotenen Sprüche (Slots 6-8) bleiben nach dem Grimoire-Fund
+    // S8: die verbotenen Sprüche (Slots 6-9) bleiben nach dem Grimoire-Fund
     // sichtbar ("Grimoire-Wissen bleibt"), wirken aber NUR auf dem dunklen
     // Pfad — "Sprüche 6-9 gesperrt" nach Läuterung heißt: kein Cast, kein
     // Cooldown-Verbrauch, nur ein einmaliger Hinweis-Toast (K12: kein Softlock).
-    if ((id === 'avada' || id === 'crucio' || id === 'imperio') && this._dunkel?.pfad !== 'dunkel') {
+    if ((id === 'avada' || id === 'crucio' || id === 'imperio' || id === 'mal') && this._dunkel?.pfad !== 'dunkel') {
       if (!this._darkGateToastShown) {
         this._darkGateToastShown = true;
         this.hud?.showToast('Diese Magie gehorcht dir nur auf dem dunklen Pfad.', 3);
       }
+      return;
+    }
+    // S10 Dunkles Mal: eigener Cooldown lebt in dark.js (malCdT/malCooldown),
+    // NICHT im generischen this.cooldowns — sonst gäbe es zwei unabhängige
+    // Cooldown-Uhren für dieselbe Aktion, die nach einem Reset auseinander-
+    // laufen könnten (dark.restore() setzt nur malCdT zurück).
+    if (id === 'mal') {
+      if (this._dark?.malCooldown > 0) return;
+      if (this._dark?.summonMal(this._player)) this.wand.playCast();
       return;
     }
     if (this.cooldowns[id] > 0) return;
@@ -324,6 +348,33 @@ export class SpellSystem {
       this._startCrucio(camera);
     } else if (id === 'imperio') {
       this._castImperio(camera);
+    } else if (id === 'umhang') {
+      this._hallows?.toggleInvisibility(this._player);
+    } else if (id === 'stab') {
+      this.hud?.showToast('👑 Der Elderstab verstärkt bereits jeden deiner Sprüche (Schaden ×2, Cooldown ×0.6).', 3);
+    } else if (id === 'stein') {
+      this.hud?.showToast('💎 Der Stein der Wiederkehr wacht bereits über dich — 1× pro Tag, bei 0 Herzen.', 3);
+    }
+  }
+
+  // S10: dark.js/hallows.js existieren erst nach ihren eigenen Build-Steps,
+  // spät gebunden statt per Konstruktor (main.js ruft dies einmal auf,
+  // sobald beide gebaut sind).
+  setDarkHallows(dark, hallowsSys) {
+    this._dark = dark;
+    this._hallows = hallowsSys;
+  }
+
+  // Generische Freischaltung für Elderstab/Umhang/Stein (Muster:
+  // unlockPatronum()/unlockDarkSpells() — idempotent, erweitert SPELL_ORDER
+  // live und baut die Spellbar neu). Bleibt nach einem Reset freigeschaltet
+  // (Grimoire-Wissen-Präzedenz, S8) — kein SPELL_ORDER-Rückbau im Reset-Handler.
+  unlockHallowsSpell(id, showToast = true) {
+    if (SPELL_ORDER.includes(id)) return;
+    SPELL_ORDER.push(id);
+    this.hud?.buildSpellbar(SPELL_ORDER.map(sid => ({ id: sid, ...SPELLS[sid] })));
+    if (showToast) {
+      this.hud?.showToast(`✨ ${SPELLS[id].name} ist jetzt im Spruchrad verfügbar.`, 3.5);
     }
   }
 

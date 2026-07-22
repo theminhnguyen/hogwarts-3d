@@ -264,8 +264,8 @@ function makeBoltSprite(glowTex) {
 }
 
 export function buildHallows(scene, glowTex, hud, audio, fx, health, interact, home, wildmarkHuegelgrab, deps) {
-  // deps = { hallows, mount, dementors, puzzles, moor }
-  const { hallows, mount, dementors, puzzles, moor } = deps;
+  // deps = { hallows, mount, dementors, puzzles, moor, spells }
+  const { hallows, mount, dementors, puzzles, moor, spells } = deps;
   let currentPlayer = null;
 
   const system = {
@@ -287,6 +287,7 @@ export function buildHallows(scene, glowTex, hud, audio, fx, health, interact, h
     hud.showToast('🪄 Der Bleiche König verneigt sich — „Endlich einer, der würdig ist." Der Elderstab gehört dir!', 5);
     audio.chime?.('fanfare');
     fx.burst({ x: king.pos.x, y: king.pos.y + 1, z: king.pos.z }, 0xffe27a, 40, 5, { gravity: -2, life: 1.1 });
+    spells?.unlockHallowsSpell('stab', false); // eigener Toast oben, kein zweiter nötig
     onChange?.();
   };
   system.onSummonGhosts = (pos) => {
@@ -378,6 +379,7 @@ export function buildHallows(scene, glowTex, hud, audio, fx, health, interact, h
       hud.showToast('💎 Der Stein der Wiederkehr! Bei 0 Herzen holt er dich einmal pro Tag zurück.', 4.5);
       audio.chime?.('fanfare');
       fx.burst(stoneMesh.position, 0x9fc8ff, 24, 3, { gravity: -0.5, life: 1.0 });
+      spells?.unlockHallowsSpell('stein', false); // eigener Toast oben, kein zweiter nötig
       onChange?.();
     },
   });

@@ -510,7 +510,7 @@ export function buildWilderer(scene, glowTex, hud, audio, fx, health, interact, 
   // deps = { heim, dunkel, wild } — direkte Save-Referenzen (Muster aus
   // S3/Fero: mutieren dieselben Objekte, main.js' persist() liest sie
   // unverändert durch, solange main.js dieselbe Referenz übergeben hat.
-  const { heim, dunkel, wild, hallows, hallowsUnlocked } = deps;
+  const { heim, dunkel, wild, hallows, hallowsUnlocked, spells } = deps;
   let currentTimeOfDay = 0.4;
   let currentPlayer = null;
 
@@ -603,6 +603,7 @@ export function buildWilderer(scene, glowTex, hud, audio, fx, health, interact, 
       audio.chime?.('fanfare');
       fx.burst({ x: LEADER_POS.x, y: leaderChestY + 0.6, z: LEADER_POS.z + 1.8 }, 0x2e2a24, 22, 3, { gravity: -1, life: 0.9 });
       hud.showToast('🧥 Der Umhang der Unsichtbarkeit! Lautlos erbeutet. (Taste U)', 4.5);
+      spells?.unlockHallowsSpell('umhang', false); // eigener Toast oben, kein zweiter nötig
       onWildChange?.();
     },
   });

@@ -19,6 +19,15 @@ export const SPELLS = {
   avada:    { name: 'Avada Kedavra', emoji: '💀', color: 0x2ecc55, cooldown: 8, key: 6 },
   crucio:   { name: 'Crucio',        emoji: '⛓️', color: 0x9a1030, cooldown: 6, key: 7 },
   imperio:  { name: 'Imperio',       emoji: '🌀', color: 0x8a3fd1, cooldown: 12, key: 8 },
+  mal:      { name: 'Dunkles Mal',   emoji: '☠️', color: 0x1a5a2a, cooldown: 60, key: 9 },
+  // S10 Heiligtümer des Todes: wie Patronum/die verbotenen Sprüche erst per
+  // SPELL_ORDER.push() sichtbar, sobald besessen (spells.unlockHallowsSpell()).
+  // Elderstab/Stein haben keinen eigenen Cast-Effekt (reine Dauer-Boni) —
+  // ihr "key" ist deshalb bewusst KEINE echte Taste (nur Mausrad/Klick),
+  // ein Mittelpunkt statt einer Ziffer verhindert die falsche Erwartung.
+  umhang:   { name: 'Umhang der Unsichtbarkeit', emoji: '🧥', color: 0x4a4030, cooldown: 0, key: 'U' },
+  stab:     { name: 'Elderstab',                 emoji: '👑', color: 0xd4c060, cooldown: 2, key: '·' },
+  stein:    { name: 'Stein der Wiederkehr',       emoji: '💎', color: 0x5ab0e0, cooldown: 2, key: '·' },
 };
 // 'patronum' ist bewusst NICHT von Anfang an dabei — der Chip existiert erst
 // nach dem Hauspokal (spells.unlockPatronum() erweitert dieses Array live,
