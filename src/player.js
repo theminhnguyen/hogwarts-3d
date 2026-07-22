@@ -7,7 +7,7 @@ import { terrainHeight, WATER_LEVEL, WORLD_BOUND } from './terrain.js';
 import { clamp } from './noise.js';
 import { BROOM_FLIGHT, updateFlight, clampFlightHeight } from './flight.js';
 
-const EYE = 1.7;
+export const EYE = 1.7; // S11: animagus.js braucht den Wert zum Zurückwechseln (Katzen-Kamera)
 const RADIUS = 0.45;
 const GRAVITY = 24;
 const JUMP_V = 8.6;
@@ -50,6 +50,10 @@ export class Player {
     this._airWarned = false;
     this.onOutOfAir = null; // Callback: Luft komplett verbraucht (main.js hängt hier Schaden ein)
     this.invisible = false; // S10 Umhang der Unsichtbarkeit (Taste U) — Kreaturen/Wilderer/Dementoren ignorieren den Spieler
+    this.animalForm = null; // S11: 'rabe'|'katze'|'wolf'|null, von animagus.js gesetzt
+    this.animagusSpeed = 0; // S11: Tier-Form-Tempo, überschreibt WALK/SPRINT komplett (0 = inaktiv)
+    this.eyeHeight = EYE; // S11: Katze setzt 0.5 (Kamera nah am Boden), sonst EYE
+    this.onForceHuman = null; // S11-Callback: Wasser erzwingt Rückverwandlung (K14), Muster onDismount
 
     this.keys = new Set();
     this.bobPhase = 0;
@@ -123,7 +127,9 @@ export class Player {
       updateFlight(this, dt, fwd, sprinting, keys.has('Space'), this.flightTuning || BROOM_FLIGHT);
     } else {
       let speed;
-      if (this.riding) {
+      if (this.animagusSpeed > 0) {
+        speed = this.animagusSpeed; // S11: Katze/Wolf — flaches Tempo, kein Sprint-Bonus laut Plan
+      } else if (this.riding) {
         speed = sprinting ? RIDE_SPRINT + this.mountSpeedBoost : RIDE_WALK;
       } else {
         speed = (sprinting ? SPRINT : WALK) * this.potionSpeedMul; // S7 Flinktrank — nur zu Fuß, nicht beritten
@@ -193,6 +199,14 @@ export class Player {
       if (this.flying) { this.flying = false; this._noAscendT = 0; this.onLandFlight?.(); }
       // Schwimmen erzwingt auch das Absitzen vom Boden-Mount (S5-Plan-Vorgabe).
       if (this.riding) { this.riding = false; this.onDismount?.(); }
+      // K14 (S11): Tier-Form im Wasser → sofortige Rückverwandlung, egal ob
+      // Rabe (flying, s.o. schon beendet), Katze oder Wolf (animagusSpeed).
+      if (this.animalForm) {
+        this.animalForm = null;
+        this.animagusSpeed = 0;
+        this.eyeHeight = EYE;
+        this.onForceHuman?.();
+      }
     } else {
       this.swimming = false;
       this.diving = false;
@@ -248,7 +262,7 @@ export class Player {
     // Kamera
     this.camera.position.set(
       this.pos.x + cosY * bobX,
-      this.pos.y + EYE + bobY,
+      this.pos.y + this.eyeHeight + bobY,
       this.pos.z - sinY * bobX
     );
     this.camera.rotation.set(this.pitch, this.yaw, 0, 'YXZ');

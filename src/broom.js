@@ -212,7 +212,10 @@ export function buildBroom(scene, camera, glowTex, hud, audio, fx, interact, wan
     },
 
     update(dt, player) {
-      flightBroom.visible = besenUnlocked && player.flying;
+      // S11: player.flying wird auch von der Animagus-Rabenform gesetzt —
+      // dann darf kein Besen im Blickfeld schweben (Muster: wand.root.visible
+      // in main.js bekam dasselbe Gate).
+      flightBroom.visible = besenUnlocked && player.flying && !player.animalForm;
       // wand.root.visible wird zentral in main.js gesetzt (S5: muss zusätzlich
       // player.riding kennen) — hier nicht mehr redundant zuweisen.
       startEntry.enabled = besenUnlocked && race.state === 'idle';

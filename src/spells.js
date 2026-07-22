@@ -302,6 +302,11 @@ export class SpellSystem {
     // Kein Zaubern im Flug (K8, PLAN-SCHATTEN-UND-SCHWINGEN.md) — gilt für
     // Besen UND Mounts einheitlich, da beide dasselbe player.flying nutzen.
     if (this._player?.flying) return;
+    // S11 Animagus: "Als Tier: kein Zaubern" gilt für alle 3 Formen — der
+    // Rabe wäre über obiges flying-Gate ohnehin schon blockiert, aber ein
+    // einheitliches Gate für Katze/Wolf (nicht fliegend) ist klarer als
+    // sich auf einen Seiteneffekt zu verlassen.
+    if (this._player?.animalForm) return;
     const id = this.wand.activeSpell;
     // S8: die verbotenen Sprüche (Slots 6-9) bleiben nach dem Grimoire-Fund
     // sichtbar ("Grimoire-Wissen bleibt"), wirken aber NUR auf dem dunklen

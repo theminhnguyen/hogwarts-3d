@@ -166,7 +166,7 @@ class WildererMage {
       : spellId === 'crucio' ? 0.25
       : spellId === 'incendio' ? 2
       : spellId === 'claw' ? 0.5
-      : (spellId === 'stupor' || spellId === 'kick') ? 1 : 0;
+      : (spellId === 'stupor' || spellId === 'kick' || spellId === 'bite') ? 1 : 0;
     if (dmg <= 0) return;
     this.hp -= dmg * dmgMul;
     this.system.fx.burst(this.pos, 0xd8c8a0, 8, 2.5, { gravity: -3, life: 0.35 });
@@ -266,7 +266,8 @@ class WildererMage {
         const lx = this.homePos.x + Math.sin(t * 0.25 + this.phaseA) * TUNING.patrolRadius;
         const lz = this.homePos.z + Math.cos(t * 0.2 + this.phaseA) * TUNING.patrolRadius;
         this._steerXZ(lx, lz, TUNING.patrolSpeed, dt);
-        if (!player.invisible && dist < TUNING.aggroRange) { this.state = 'aggro'; this.stateT = 0; }
+        // S11: Katzen-Schleichen verkleinert den Aggro-Radius aller Feinde.
+        if (!player.invisible && dist < TUNING.aggroRange * this.system.catStealthMul) { this.state = 'aggro'; this.stateT = 0; }
         break;
       }
       case 'aggro': {
@@ -517,6 +518,7 @@ export function buildWilderer(scene, glowTex, hud, audio, fx, health, interact, 
   const system = {
     scene, glowTex, hud, audio, fx, health, economy,
     peaceful: false,
+    catStealthMul: 1, // S11: von main.js aus player.animalForm gesetzt
     time: 0,
     list: [], // für spells.js-Zielliste: alle aktiven Wilderer-Instanzen
     bolts: [],
@@ -805,6 +807,7 @@ export function buildWilderer(scene, glowTex, hud, audio, fx, health, interact, 
     list: system.list,
     set peaceful(v) { system.peaceful = v; },
     get peaceful() { return system.peaceful; },
+    set catStealthMul(v) { system.catStealthMul = v; },
     set onWildChange(fn) { onWildChange = fn; },
 
     // sky (main.js' SkySystem-Instanz, NICHT nur sky.state): braucht sowohl

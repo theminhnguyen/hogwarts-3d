@@ -531,6 +531,13 @@ export function buildNpcs(scene, glowTex, hud, audio, fx, health, interact, deps
   interact.register({
     x: LENA_POS.x, z: LENA_POS.z, r: 2.4, prompt: 'E — Mit Lena sprechen',
     onInteract: () => {
+      // S11: Als Tier gibt's nur die Lach-Zeile, keine echte Quest-Interaktion
+      // (Katze/Rabe/Wolf können nicht sprechen) — Prüfung VOR dem dunklen
+      // Pfad, weil sie unabhängig vom Pfad immer greift.
+      if (currentPlayer?.animalForm) {
+        hud.showDialog('Lena', ['Lena kichert. „Süß — aber ich rede lieber mit dir in deiner echten Gestalt!" …(du bist ein Tier)']);
+        return;
+      }
       // S8: im dunklen Pfad verweigert Lena ängstlich das Gespräch — die
       // Quest PAUSIERT (kein onClose, quests.katze bleibt unverändert),
       // geht aber nie verloren (Läuterung setzt sie einfach fort).
@@ -687,6 +694,11 @@ export function buildNpcs(scene, glowTex, hud, audio, fx, health, interact, deps
         }
         lines.push(`${deps.collectibles.total - deps.collectibles.count} Schnätze schweben noch irgendwo im Schloss…`);
         lines.push(nearest ? `Ich spüre goldenes Glitzern — „${nearest.name}“.` : 'Wo genau, weiß selbst ich nicht mehr.');
+      } else if (deps.heim?.kate && deps.animagus && !deps.animagus.gelernt) {
+        // S11: reine Bonus-Quest, blockiert nichts anderes — deshalb erst
+        // sichtbar, wenn alle dringlicheren Hinweise oben schon erledigt sind.
+        lines.push('Es gibt eine alte, fast vergessene Kunst … die zweite Gestalt.');
+        lines.push('Braue den „Trank der zweiten Gestalt" an deinem Kessel — dann such in einer Sturmnacht den Steinkreis auf.');
       } else {
         lines.push('Du hast schon fast alles gesehen, was dieses Schloss zu bieten hat.');
         lines.push('Ich bin stolz auf dich, kleiner Zauberer.');
@@ -701,6 +713,7 @@ export function buildNpcs(scene, glowTex, hud, audio, fx, health, interact, deps
   // — nie ein gültiges Bolzen-Ziel), braucht also keinen Eintrag hier.
   // Kein `accepts`-Feld = akzeptiert JEDEN spellId (spells.js Default).
   let shieldToastShown = false;
+  let muschSniffShown = false; // S11: Easter-Egg, einmal pro Tierform-Annäherung
   function registerShield(getPos, radius = 1.4) {
     deps.spells.registerTarget({
       kind: 'npc-shield', radius, getPos,
@@ -790,6 +803,17 @@ export function buildNpcs(scene, glowTex, hud, audio, fx, health, interact, deps
           cat.group.position.y = terrainHeight(cat.group.position.x, cat.group.position.z);
           cat.group.rotation.y = Math.atan2(-nx, -nz);
         }
+      }
+      // S11 Easter-Egg: Musch beschnuppert den Spieler neugierig, sobald er
+      // ihr in Tierform nahekommt (unabhängig davon, ob sie gerade folgt).
+      if (currentPlayer?.animalForm) {
+        const dx = currentPlayer.pos.x - cat.group.position.x, dz = currentPlayer.pos.z - cat.group.position.z;
+        if (!muschSniffShown && Math.hypot(dx, dz) < 3) {
+          muschSniffShown = true;
+          hud.showToast('🐈 Musch beschnuppert dich neugierig … und schnurrt.', 2.5);
+        }
+      } else {
+        muschSniffShown = false;
       }
 
       // S7: Leuchtkraut-Nachwuchs bei jedem Morgengrauen-Übergang (Muster:

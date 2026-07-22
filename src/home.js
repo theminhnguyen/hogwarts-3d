@@ -20,6 +20,14 @@ const RECIPES = [
   { id: 'herz', name: 'Herztrank', need: { seide: 1, leuchtkraut: 1 }, desc: '+2 Herzen' },
   { id: 'frost', name: 'Frostbann', need: { stern: 1, glitzer: 1 }, desc: 'Frost-Immunität' },
   { id: 'dunkel', name: 'Dunkler Sud', need: { essenz: 1, seide: 1 }, desc: 'Spruchschaden ×1.5 (nur dunkler Pfad)' },
+  // S11: kein Dauerbuff wie die anderen 4 — läuft genau wie sie über
+  // heim.trank (5 min, siehe POTION_DUR), aber animagus.js liest
+  // heim.trank.id==='animagus' als "bereit fürs Ritual" statt einen
+  // eigenen Effekt zu schalten. Bewusste Konsequenz: das Ritual muss
+  // INNERHALB der 5 Minuten am Steinkreis gelingen, sonst verfliegt der
+  // Trank ungenutzt — passt zur "Tränke: 5 min"-Balancing-Zeile, die
+  // keine Ausnahme für den Animagus-Trank vorsieht.
+  { id: 'animagus', name: 'Trank der zweiten Gestalt', need: { stern: 1, seide: 1, leuchtkraut: 1 }, desc: 'Bereit fürs Ritual im Sturm am Steinkreis (5 min)' },
 ];
 const ZUTAT_NAMES = { glitzer: 'Glitzerstaub', seide: 'Spinnenseide', stern: 'Sternsplitter', essenz: 'Dunkle Essenz', leuchtkraut: 'Leuchtkraut' };
 
@@ -183,8 +191,8 @@ export function buildHome(scene, camera, glowTex, hud, audio, fx, health, intera
     },
   });
 
-  // ---------- Braukessel: 4 Rezept-Stationen um den Kessel ----------
-  const cauldronAngles = [-0.7, -0.25, 0.25, 0.7];
+  // ---------- Braukessel: 5 Rezept-Stationen um den Kessel (S11: +animagus) ----------
+  const cauldronAngles = [-0.9, -0.45, 0, 0.45, 0.9];
   RECIPES.forEach((r, i) => {
     const a = cauldronAngles[i];
     const sx = cauldronX + Math.sin(a) * 0.85, sz = cauldronZ + Math.cos(a) * 0.85 - 0.3;

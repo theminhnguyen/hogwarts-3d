@@ -202,7 +202,7 @@ class Pixie {
       : spellId === 'crucio' ? 0.25
       : spellId === 'incendio' ? 2
       : spellId === 'claw' ? 0.5
-      : (spellId === 'stupor' || spellId === 'kick') ? 1 : 0;
+      : (spellId === 'stupor' || spellId === 'kick' || spellId === 'bite') ? 1 : 0;
     if (dmg <= 0) return;
     this.hp -= dmg * dmgMul;
     const knock = boltVel.lengthSq() > 1e-6
@@ -277,7 +277,9 @@ class Pixie {
         const ly = terrainHeight(lx, lz) + 2.5 + Math.sin(t * 0.9 + this.phaseC) * 1.2;
         this._steerTo(lx, ly, lz, TUNING.pixie.wanderSpeed, dt);
         this._checkTheft();
-        if (!player.invisible && distSq < TUNING.pixie.aggroRange * TUNING.pixie.aggroRange) {
+        // S11: Katzen-Schleichen verkleinert den Aggro-Radius aller Feinde.
+        const pixieAggroR = TUNING.pixie.aggroRange * this.system.catStealthMul;
+        if (!player.invisible && distSq < pixieAggroR * pixieAggroR) {
           this.state = 'aggro';
           this.stateT = 0;
           this.orbitAngle = Math.atan2(this.pos.z - player.pos.z, this.pos.x - player.pos.x);
@@ -544,7 +546,7 @@ export class Ghost {
     const dmg = spellId === 'avada' ? this.hp
       : spellId === 'crucio' ? 0.25
       : spellId === 'claw' ? 0.5
-      : (spellId === 'stupor' || spellId === 'incendio' || spellId === 'kick') ? 1 : 0;
+      : (spellId === 'stupor' || spellId === 'incendio' || spellId === 'kick' || spellId === 'bite') ? 1 : 0;
     if (dmg <= 0) return;
     this.hp -= dmg * dmgMul;
     if (this.hp <= 0) this._die();
@@ -631,7 +633,9 @@ export class Ghost {
         const lx = this.homePos.x + Math.sin(t * 0.15 + this.phaseA) * 14;
         const lz = this.homePos.z + Math.cos(t * 0.12 + this.phaseB) * 14;
         this._steerXZ(lx, lz, TUNING.ghost.wanderSpeed, dt);
-        if (!player.invisible && distSq < TUNING.ghost.aggroRange * TUNING.ghost.aggroRange) {
+        // S11: Katzen-Schleichen verkleinert den Aggro-Radius aller Feinde.
+        const ghostAggroR = TUNING.ghost.aggroRange * this.system.catStealthMul;
+        if (!player.invisible && distSq < ghostAggroR * ghostAggroR) {
           this.state = 'aggro';
           this.stateT = 0;
         }
@@ -813,7 +817,7 @@ class Troll {
       : spellId === 'crucio' ? 0.25
       : spellId === 'incendio' ? 2
       : spellId === 'claw' ? 0.5
-      : (spellId === 'stupor' || spellId === 'kick') ? 1 : 0;
+      : (spellId === 'stupor' || spellId === 'kick' || spellId === 'bite') ? 1 : 0;
     if (dmg <= 0) return;
     this.hp -= dmg * dmgMul;
     this.system.fx.burst(this.pos, 0x8a9878, 10, 3, { gravity: -2, life: 0.4 });
@@ -867,7 +871,9 @@ class Troll {
         const lx = this.homePos.x + Math.sin(t * 0.2 + this.phaseA) * TROLL_TUNING.patrolRadius;
         const lz = this.homePos.z + Math.cos(t * 0.17 + this.phaseA) * TROLL_TUNING.patrolRadius;
         this._steerXZ(lx, lz, TROLL_TUNING.patrolSpeed, dt);
-        if (!player.invisible && distSq < TROLL_TUNING.aggroRange * TROLL_TUNING.aggroRange) {
+        // S11: Katzen-Schleichen verkleinert den Aggro-Radius aller Feinde.
+        const trollAggroR = TROLL_TUNING.aggroRange * this.system.catStealthMul;
+        if (!player.invisible && distSq < trollAggroR * trollAggroR) {
           this.state = 'aggro';
           this.stateT = 0;
           this.system.audio.trollRoar?.();
@@ -1122,7 +1128,7 @@ class GiantSpider {
       : spellId === 'crucio' ? 0.25
       : spellId === 'incendio' ? 2
       : spellId === 'claw' ? 0.5
-      : (spellId === 'stupor' || spellId === 'kick') ? 1 : 0;
+      : (spellId === 'stupor' || spellId === 'kick' || spellId === 'bite') ? 1 : 0;
     if (dmg <= 0) return;
     this.hp -= dmg * dmgMul;
     this.system.fx.burst(this.pos, 0x1c1712, 8, 3, { gravity: -2, life: 0.35 });
@@ -1214,11 +1220,13 @@ class GiantSpider {
           const d = Math.hypot(prey.pos.x - this.pos.x, prey.pos.z - this.pos.z);
           if (d < bestD) { bestD = d; bestPrey = prey; }
         }
+        // S11: Katzen-Schleichen verkleinert den Aggro-Radius aller Feinde.
+        const spiderAggroR = SPIDER_TUNING.aggroRange * this.system.catStealthMul;
         if (bestPrey) {
           this.huntTarget = bestPrey;
           this.state = 'jagen';
           this.stateT = 0;
-        } else if (!player.invisible && distSq < SPIDER_TUNING.aggroRange * SPIDER_TUNING.aggroRange) {
+        } else if (!player.invisible && distSq < spiderAggroR * spiderAggroR) {
           this.state = 'aggro';
           this.stateT = 0;
         }
@@ -1335,6 +1343,7 @@ export class CreatureSystem {
     this.hud = hud;
     this.heim = heim; // S7: Riesenspinnen lassen ab jetzt Spinnenseide fallen
     this.peaceful = false;
+    this.catStealthMul = 1; // S11: ×0.3, solange der Spieler als Katze unterwegs ist
     this.time = 0;
     this._theftToastShown = false;
     this._nearestGhostDist = Infinity;

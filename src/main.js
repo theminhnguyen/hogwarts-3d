@@ -38,6 +38,7 @@ import { buildMount } from './mount.js';
 import { buildDark } from './dark.js';
 import { buildCompanion } from './companion.js';
 import { buildHallows } from './hallows.js';
+import { buildAnimagus, FORM_ORDER, FORM_LABEL } from './animagus.js';
 
 // Der Schlüsselname trägt noch "v1" aus Phase 0 — umbenennen würde alle
 // bestehenden Spielstände verwaisen lassen. Die eigentliche Versionierung
@@ -132,7 +133,7 @@ post.setQuality(save.grafik);
 post.onDegrade = () => hud.showToast('Grafik automatisch reduziert (Bloom aus)', 3.5);
 
 let sky, water, castle, structures, moor, life, collectibles, player;
-let fx, wand, spells, health, creatures, puzzles, dementors, weather, village, train, willow, interact, npc, grove, broom, fahlholz, fauna, economy, wilderer, mount, kate, home, dark, companion, hallows, huegelgrab;
+let fx, wand, spells, health, creatures, puzzles, dementors, weather, village, train, willow, interact, npc, grove, broom, fahlholz, fauna, economy, wilderer, mount, kate, home, dark, companion, hallows, huegelgrab, animagus;
 let lanternWasCollected = false; // erkennt den Moment, in dem die Laterne live geborgen wird
 let natureSwayMaterials = [];
 let natureTreeSpots = []; // S2: echte Baum-Positionen für Bowtruckles (fauna.js)
@@ -250,7 +251,7 @@ const buildSteps = [
       collectibles, puzzles, spells, moor, dementors,
       leuchtkraeuter: structures.leuchtkraeuter,
       train, economy, heim: save.heim, mounts: save.mounts, dunkel: save.dunkel,
-      begleiter: save.begleiter, hallows: save.hallows,
+      begleiter: save.begleiter, hallows: save.hallows, animagus: save.animagus,
     });
     npc.restore(save.quests);
     npc.onQuestChange = () => persist();
@@ -360,6 +361,14 @@ const buildSteps = [
     // wie alle anderen Sprüche (Mausrad + Spellbar) — dark/hallows existieren
     // erst jetzt, deshalb Spätbindung statt Konstruktor-Parameter.
     spells.setDarkHallows(dark, hallows);
+  }],
+  // Animagus (S11): braucht home (Kessel/Trank), weather (Sturm-Gate für
+  // das Ritual), interact — alle bereits gebaut. Letzter Schritt.
+  ['Animagus', () => {
+    animagus = buildAnimagus(scene, glowTex, hud, audio, fx, interact, player, {
+      animagus: save.animagus, heim: save.heim, weather,
+    });
+    animagus.onChange = () => persist();
   }],
 ];
 
@@ -507,6 +516,18 @@ btnGrafik.addEventListener('click', () => {
   persist();
 });
 
+// S11: Formwahl NUR fürs Ritual/Taste V — hat unabhängig von animagus.gelernt
+// immer einen Wert (Default 'rabe' aus dem Save-Schema), damit man die Form
+// schon vor dem Ritual vorwählen kann.
+const btnAnimagusForm = document.getElementById('btn-animagus-form');
+btnAnimagusForm.textContent = `Tierform: ${FORM_LABEL[save.animagus.form]}`;
+btnAnimagusForm.addEventListener('click', () => {
+  const i = FORM_ORDER.indexOf(save.animagus.form);
+  save.animagus.form = FORM_ORDER[(i + 1) % FORM_ORDER.length];
+  btnAnimagusForm.textContent = `Tierform: ${FORM_LABEL[save.animagus.form]}`;
+  persist();
+});
+
 btnReset.addEventListener('click', () => {
   if (collectibles) {
     for (const item of collectibles.items) {
@@ -573,6 +594,8 @@ btnReset.addEventListener('click', () => {
   if (hallows) hallows.restore();
   if (player) player.invisible = false;
   Object.assign(save.animagus, { gelernt: 0, form: 'rabe' });
+  if (animagus) animagus.restore();
+  if (btnAnimagusForm) btnAnimagusForm.textContent = `Tierform: ${FORM_LABEL[save.animagus.form]}`;
   persist();
   hud.showToast('Fortschritt zurückgesetzt');
 });
@@ -623,19 +646,23 @@ window.addEventListener('keydown', (e) => {
     if (hud.dialogOpen) hud.advanceDialog();
     else interact.trigger();
   } else if (e.code === 'KeyB') {
-    // Nicht während eines Mount-Ritts (geerdet ODER fliegend) — sonst würden
-    // sich Besen- und Mount-Flug widersprechen (S6, K13-artige Absicherung).
-    if (broom.besenUnlocked && !player.swimming && !mount.riding) {
+    // Nicht während eines Mount-Ritts (geerdet ODER fliegend) UND nicht als
+    // Tier (S11: "kein Reiten") — sonst würden sich Besen- und Mount-Flug
+    // widersprechen (S6, K13-artige Absicherung).
+    if (broom.besenUnlocked && !player.swimming && !mount.riding && !player.animalForm) {
       player.flying = !player.flying;
       player.flightTuning = player.flying ? null : player.flightTuning; // null -> Besen-Default (player.js)
       hud.showToast(player.flying ? '🧹 Aufgestiegen!' : '🧹 Abgestiegen.', 1.4);
     }
   } else if (e.code === 'KeyR') {
-    if (!player.swimming) mount.whistle();
+    // S11: "kein Reiten" als Tier.
+    if (!player.swimming && !player.animalForm) mount.whistle();
   } else if (e.code === 'KeyG') {
     companion.toggle();
   } else if (e.code === 'KeyU') {
     if (SPELL_ORDER.includes('umhang')) { wand.selectSpell('umhang'); spells.cast(camera); }
+  } else if (e.code === 'KeyV') {
+    animagus.handleVKey();
   }
 });
 
@@ -703,6 +730,13 @@ function frame(dt) {
     dementors.frostRateMul = (moor.laterneCollected ? 0.5 : 1) * (npc.quests.kraeuterDone ? 0.75 : 1);
     // K4 (S8): Dementoren sind neutral, solange der Spieler dem dunklen Pfad folgt.
     dementors.playerIsDark = save.dunkel.pfad === 'dunkel';
+    // S11: Katzen-Schleichen verkleinert den Aggro-Radius aller Feinde ×0.3.
+    {
+      const stealthMul = player.animalForm === 'katze' ? 0.3 : 1;
+      creatures.catStealthMul = stealthMul;
+      dementors.catStealthMul = stealthMul;
+      wilderer.catStealthMul = stealthMul;
+    }
     // S7 Trank-Effekte: EIN aktiver Trank (heim.trank.id), pro Frame in die
     // jeweils zuständigen Systeme gespiegelt (Muster: frostRateMul oben) —
     // home.js selbst tickt nur den Timer runter, kennt aber die Zielsysteme
@@ -737,8 +771,11 @@ function frame(dt) {
     // Tritt-Ziele (S5): kreatur.list + wilderer.list — Dementoren bewusst
     // NICHT dabei (immateriell, K6 aus dem Plan).
     mount.update(dt, player, creatures.list.concat(wilderer.list));
+    // S11: gleiche Ziel-Liste wie der Mount-Tritt — der Wolfsbiss nutzt
+    // dasselbe Kegel-Nahkampf-Muster.
+    animagus.update(dt, creatures.list.concat(wilderer.list), sky.state.nightGlow);
     home.update(dt, player);
-    wand.root.visible = !player.flying && !player.riding;
+    wand.root.visible = !player.flying && !player.riding && !player.animalForm;
     fahlholz.update(dt);
     fauna.update(dt, player, spells.lumosOn, move.sprinting);
     interact.update(player);
@@ -833,7 +870,7 @@ buildWorld().then(() => {
   // Debug-/Test-Zugriff (bewusst öffentlich, hilft bei Fehlersuche)
   window.__game = {
     player, sky, camera, renderer, scene,
-    wand, spells, fx, health, creatures, puzzles, moor, dementors, weather, post, village, train, willow, interact, npc, hud, grove, broom, fahlholz, fauna, economy, wilderer, mount, home, dark, companion, hallows,
+    wand, spells, fx, health, creatures, puzzles, moor, dementors, weather, post, village, train, willow, interact, npc, hud, grove, broom, fahlholz, fauna, economy, wilderer, mount, home, dark, companion, hallows, animagus,
     get save() { return save; },
     get fps() { return fpsEMA; },
     get pixelRatio() { return pixelRatio; },

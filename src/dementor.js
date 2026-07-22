@@ -215,7 +215,10 @@ class Dementor {
           // S10: Meister des Todes ebenso neutral ("verneigen sich im
           // Vorbeigehen" impliziert Respekt, nicht Angriff — sonst würde ein
           // Dementor gleichzeitig angreifen UND sich verbeugen, unlogisch).
-          const aggroR = (TUNING.aggroRange + this.system.aggroRangeExtra) * this.system.aggroRangeMul;
+          // S11: Katzen-Schleichen verkleinert nur die ERKENNUNGS-Reichweite
+          // (dieser aggroR) — leaveR (unten) bleibt unskaliert, ein einmal
+          // alarmierter Dementor lässt sich nicht durch Schleichen abschütteln.
+          const aggroR = (TUNING.aggroRange + this.system.aggroRangeExtra) * this.system.aggroRangeMul * this.system.catStealthMul;
           if (!this.system.playerIsDark && !this.system.masterOfDeath && !player.invisible && distSq < aggroR * aggroR) {
             this.state = 'aggro';
             this.stateT = 0;
@@ -311,6 +314,8 @@ export class DementorSystem {
     // S10 Meister des Todes (alle 3 Heiligtümer besessen+ausgerüstet) —
     // von main.js aus hallows.masterOfDeath gesetzt.
     this.masterOfDeath = false;
+    // S11: Katzen-Schleichen — von main.js aus player.animalForm gesetzt.
+    this.catStealthMul = 1;
 
     const parts = buildDementorParts(glowTex);
     this.list = SPAWNS.map((s, i) => new Dementor(this, parts, s, i + 1));

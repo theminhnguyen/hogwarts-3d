@@ -99,6 +99,10 @@ export class Hud {
   // S10 Tauchen: blaugrüne Trübung + dunklere Ränder (Muster --frost/--frost-dark)
   setUnderwater(frac) { this.vignette.style.setProperty('--underwater', frac.toFixed(3)); }
 
+  // S11 Animagus-Wolf: Nachtsicht hellt die Nacht-Vignette grünlich auf
+  // (mix-blend-mode:screen in index.html, siehe --nightvision).
+  setNightVision(frac) { this.vignette.style.setProperty('--nightvision', frac.toFixed(3)); }
+
   // S10 Luftanzeige — nur sichtbar, solange geschwommen wird (main.js steuert
   // das via player.swimming). frac<0.25 färbt den Balken warnend rot-orange.
   setAirGauge(visible, frac) {

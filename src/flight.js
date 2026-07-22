@@ -13,6 +13,10 @@
 export const BROOM_FLIGHT = { speed: 12, boost: 18, climb: 4, accelK: 3, maxAboveGround: 50, maxAbsY: 75 };
 export const HIPPO_FLIGHT = { speed: 24, boost: 24, climb: 4, accelK: 1.6, maxAboveGround: 50, maxAbsY: 75 };
 export const THESTRAL_FLIGHT = { speed: 28, boost: 28, climb: 4.5, accelK: 4.4, maxAboveGround: 50, maxAbsY: 75 };
+// S11 Animagus-Rabenform: flaches Tempo 16 (Plan gibt keinen separaten
+// Sprint-Wert vor), accelK deutlich höher als bei jedem Mount — "klein und
+// flink" statt majestätisch träge.
+export const RAVEN_FLIGHT = { speed: 16, boost: 16, climb: 4, accelK: 5.5, maxAboveGround: 50, maxAbsY: 75 };
 
 // Ein Simulationsschritt Blickrichtungsflug — mutiert player.vel direkt (wie
 // player.js das für alle anderen Bewegungsarten schon tut) und player.flying/
