@@ -104,6 +104,10 @@ export class Player {
   }
 
   update(dt) {
+    // Sonnet-5-Polish (B1): Dialog/Karte setzen main.js' player.enabled=false
+    // (siehe frame() in main.js) — voller Stillstand statt nur Kamera-Sperre,
+    // damit z.B. kein Sturz vom Rand passiert, während man liest.
+    if (!this.enabled) return { hSpeed: 0, sprinting: false, speed3D: 0 };
     const keys = this.keys;
     let fwd = 0, strafe = 0;
     if (keys.has('KeyW') || keys.has('ArrowUp')) fwd += 1;

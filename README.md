@@ -38,6 +38,7 @@ Oder lokal: Ordner klonen und `node dev-server.mjs` starten → http://localhost
 | `R` | Hippogreif/Thestral rufen, aufsitzen, absitzen |
 | `G` | Begleiter rufen/wegschicken (Musch, Eule Piniva oder Niffler Grabbel) |
 | `U` | Umhang der Unsichtbarkeit an/aus (nach dem Diebstahl beim Wilderer-Anführer) |
+| `J` | Karte des Rumtreibers & Aufgaben öffnen/schließen |
 | 2× `Leertaste` | Beritten abheben (Hippogreif/Thestral im Flug) |
 | Mausrad / `1`–`9` | Zauber wählen — alle freigeschalteten Sprüche und Heiligtümer, danach Linksklick zum Wirken |
 | `5` | Expecto Patronum wählen (erst nach dem Hauspokal) |
@@ -51,6 +52,29 @@ Oder lokal: Ordner klonen und `node dev-server.mjs` starten → http://localhost
 
 Elderstab und Stein der Wiederkehr haben keine eigene Taste (reine
 Dauer-Boni) — sie erscheinen automatisch im Spruchrad, sobald gefunden.
+
+## Orientierung
+
+Taste `J` öffnet die **Karte des Rumtreibers**: dein aktuelles Hauptziel,
+bis zu zwei laufende Nebenaufgaben, ein stilisierter Kartenausschnitt mit
+den Orten, die du bereits besucht hast (unentdeckte Orte fehlen bewusst —
+keine Spoilerkarte), und ein kurzer Hinweis, was als Nächstes sinnvoll ist.
+`J` oder `Esc` schließt die Karte wieder; während sie offen ist, pausiert
+nur deine Steuerung — die Welt läuft im Hintergrund weiter.
+
+Zusätzlich gibt es im Spiel gelegentliche, einmalige Kontext-Hinweise (z. B.
+zur ersten Interaktion oder zum ersten Zauberziel) sowie einen kompakten
+Fortschrittsstatus im Pausenmenü für bereits laufende Spielstände.
+
+## Spielstand sichern
+
+Dein Fortschritt liegt ausschließlich lokal im Browser (`localStorage`) —
+er ist an dieses Gerät und diesen Browser gebunden und geht z. B. beim
+Leeren der Browserdaten verloren. Über die Menü-Buttons **„Spielstand
+exportieren"** und **„Spielstand importieren"** lässt er sich als JSON-Datei
+sichern und auf einem anderen Gerät/Browser wiederherstellen. Import und
+Zurücksetzen fragen vorher immer nach Bestätigung und legen automatisch
+eine lokale Sicherung an, bevor sie den aktuellen Stand ersetzen.
 
 ## Features
 
@@ -191,6 +215,12 @@ Dauer-Boni) — sie erscheinen automatisch im Spruchrad, sobald gefunden.
 - ⚡ Performance: gemergte Meshes, Instancing mit Regionen-Culling,
   Objekt-Pools für Zauber/Partikel/Kreaturen, automatische
   Auflösungs-Anpassung — läuft flüssig ohne Build-Tools
+
+## Entwicklung
+
+- Lokaler Server: `node dev-server.mjs` → http://localhost:8123
+- Tests (Save-Logik + Objective Resolver, ohne neue Abhängigkeit):
+  `npm test` (führt `node --test` aus)
 
 ## Technik
 

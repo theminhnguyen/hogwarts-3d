@@ -1,0 +1,11 @@
+{
+  "name": "hogwarts-3d",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Ein begehbares 3D-Schloss im Browser (Three.js, Vanilla ES-Module) — Fan-Projekt.",
+  "type": "module",
+  "scripts": {
+    "start": "node dev-server.mjs",
+    "test": "node --test"
+  }
+}

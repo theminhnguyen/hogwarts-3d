@@ -302,6 +302,26 @@
     background: rgba(255,217,122,0.12); padding: 1px 8px; border-radius: 5px;
     border: 1px solid rgba(255,217,122,0.25); text-align: center;
   }
+  /* Sonnet-5-Polish (C1): Startmenü zeigt nur die 4 Grundaktionen — alles
+     andere steckt in dieser aufklappbaren Sektion (nativ per <details>, kein
+     JS nötig), damit gesperrte Endgame-Tasten nicht die erste Lernoberfläche
+     dominieren. */
+  #menu .controls-hint {
+    font-size: 13px; font-style: italic; color: rgba(232,223,200,0.6);
+    margin: -20px 0 22px; max-width: 480px; text-align: center;
+  }
+  #menu .controls-hint b {
+    color: #ffd97a; font-weight: normal; font-family: monospace; font-style: normal;
+  }
+  #menu details { margin-bottom: 22px; }
+  #menu details .controls { margin-bottom: 0; margin-top: 14px; }
+  #menu summary {
+    cursor: pointer; font-size: 13px; letter-spacing: 1px; text-align: center;
+    color: rgba(255,217,122,0.7); list-style: none;
+  }
+  #menu summary::-webkit-details-marker { display: none; }
+  #menu summary::before { content: '▸ '; }
+  #menu details[open] summary::before { content: '▾ '; }
   #menu button {
     font-family: inherit; font-size: 19px; letter-spacing: 2px;
     color: #1a1408; background: linear-gradient(180deg, #ffd97a, #d4a437);
@@ -316,11 +336,105 @@
     box-shadow: none; border: 1px solid rgba(232,223,200,0.25);
   }
   #menu .footnote { position: absolute; bottom: 16px; font-size: 12px; color: rgba(232,223,200,0.4); }
+  /* Sonnet-5-Polish: geteiltes Bestätigungs-Overlay (Reset UND Import-
+     Überschreiben nutzen denselben Mechanismus, siehe main.js askConfirm()). */
+  #confirm-overlay {
+    position: fixed; inset: 0; z-index: 30; display: flex;
+    align-items: center; justify-content: center; background: rgba(5,7,14,0.78);
+  }
+  #confirm-box {
+    max-width: min(440px, 86vw); background: rgba(24,32,58,0.97);
+    border: 1px solid rgba(255,217,122,0.35); border-radius: 12px;
+    padding: 28px 30px; text-align: center; box-shadow: 0 10px 40px rgba(0,0,0,0.6);
+  }
+  #confirm-text {
+    font-size: 16px; line-height: 1.5; margin-bottom: 22px; color: rgba(232,223,200,0.95);
+  }
+  #confirm-box .small-buttons { display: flex; gap: 12px; justify-content: center; }
+  #confirm-box button {
+    font-family: inherit; font-size: 14px; letter-spacing: 1px; cursor: pointer;
+    padding: 9px 22px; border-radius: 7px;
+  }
+  #confirm-yes {
+    border: none; color: #1a1408; background: linear-gradient(180deg, #ffd97a, #d4a437);
+  }
+  #confirm-no {
+    border: 1px solid rgba(232,223,200,0.3); color: rgba(232,223,200,0.85);
+    background: rgba(232,223,200,0.1);
+  }
   #loading-bar-wrap {
     width: 260px; height: 5px; background: rgba(232,223,200,0.15);
     border-radius: 3px; overflow: hidden; margin-top: 10px;
   }
   #loading-bar { width: 0%; height: 100%; background: #ffd97a; transition: width 0.2s; }
+  #menu-error button { margin-top: 16px; }
+
+  /* ---------- Karte des Rumtreibers (Sonnet-5-Polish, Meilenstein B) ----------
+     Reines UI-Overlay über der laufenden Szene (Taste J) — z-index zwischen
+     #menu (10, sollte während des Spiels ohnehin verborgen sein) und
+     #confirm-overlay (30, kann nur aus dem Menü heraus geöffnet werden). */
+  #marauders-map {
+    position: fixed; inset: 0; z-index: 20; display: flex;
+    align-items: center; justify-content: center;
+    background: radial-gradient(ellipse at 50% 35%, rgba(24,32,58,0.94), rgba(5,7,14,0.98));
+  }
+  #mm-panel {
+    width: min(920px, 92vw); max-height: 88vh; overflow: auto;
+    background: rgba(20,26,46,0.85); border: 1px solid rgba(255,217,122,0.3);
+    border-radius: 14px; padding: 26px 30px; box-shadow: 0 10px 40px rgba(0,0,0,0.6);
+  }
+  #mm-header { text-align: center; margin-bottom: 18px; }
+  #mm-header h2 {
+    font-weight: normal; font-size: 26px; letter-spacing: 2px; color: #ffd97a;
+    text-shadow: 0 0 20px rgba(255,190,80,0.3); margin: 0 0 4px;
+  }
+  #mm-chapter { font-size: 14px; font-style: italic; color: rgba(232,223,200,0.65); }
+  #mm-body { display: grid; grid-template-columns: 1fr 1.3fr 1fr; gap: 24px; align-items: start; }
+  #mm-body h3 {
+    font-size: 13px; text-transform: uppercase; letter-spacing: 1.5px;
+    color: rgba(255,217,122,0.75); margin: 0 0 6px;
+  }
+  #mm-left, #mm-right { font-size: 14px; line-height: 1.5; color: rgba(232,223,200,0.9); }
+  #mm-primary-title { font-size: 17px; color: #ffd97a; margin-bottom: 4px; }
+  #mm-primary-desc { margin-bottom: 18px; color: rgba(232,223,200,0.8); }
+  #mm-secondary-list { margin: 0; padding-left: 18px; color: rgba(232,223,200,0.75); font-size: 13px; }
+  #mm-secondary-list li { margin-bottom: 6px; }
+  #mm-next-hint { font-size: 13px; color: rgba(232,223,200,0.75); font-style: italic; }
+  #mm-legend { font-size: 13px; margin-bottom: 18px; }
+  #mm-legend div { display: flex; align-items: center; gap: 8px; margin-bottom: 5px; }
+  .mm-legend-dot {
+    width: 9px; height: 9px; border-radius: 50%; background: #ffd97a;
+    box-shadow: 0 0 6px rgba(255,217,122,0.6); display: inline-block;
+  }
+  .mm-legend-dot.mm-legend-target { background: #ff6b6b; box-shadow: 0 0 6px rgba(255,107,107,0.7); }
+  .mm-legend-dot.mm-legend-player { background: #8fd3ff; box-shadow: 0 0 6px rgba(143,211,255,0.7); }
+  /* Mitte: stilisierter, CSS-gezeichneter Umriss der Welt — keine externen
+     Bilder, keine Canvas-Textur (Plan B1). */
+  #mm-world {
+    position: relative; aspect-ratio: 1 / 1; border-radius: 10px;
+    background:
+      radial-gradient(ellipse 40% 30% at 22% 62%, rgba(90,140,190,0.35), transparent 70%),
+      radial-gradient(ellipse 60% 60% at 50% 45%, rgba(70,110,70,0.35), rgba(40,60,45,0.25) 70%, transparent 100%);
+    border: 1px solid rgba(255,217,122,0.25);
+    box-shadow: inset 0 0 30px rgba(0,0,0,0.5);
+  }
+  .mm-dot {
+    position: absolute; width: 8px; height: 8px; margin: -4px 0 0 -4px;
+    border-radius: 50%; background: #ffd97a; box-shadow: 0 0 6px rgba(255,217,122,0.7);
+  }
+  .mm-dot.mm-dot-target { background: #ff6b6b; box-shadow: 0 0 8px rgba(255,107,107,0.8); }
+  .mm-dot-label {
+    position: absolute; left: 10px; top: -6px; white-space: nowrap;
+    font-size: 10px; color: rgba(232,223,200,0.9); text-shadow: 0 1px 3px rgba(0,0,0,0.9);
+  }
+  .mm-player-dot {
+    position: absolute; width: 10px; height: 10px; margin: -5px 0 0 -5px;
+    border-radius: 50%; background: #8fd3ff; box-shadow: 0 0 10px rgba(143,211,255,0.9);
+    border: 1px solid rgba(255,255,255,0.6);
+  }
+  #mm-footer {
+    text-align: center; margin-top: 20px; font-size: 12px; color: rgba(232,223,200,0.45);
+  }
   .hidden { display: none !important; }
 </style>
 </head>
@@ -370,17 +484,30 @@
       <div id="loading-bar-wrap"><div id="loading-bar"></div></div>
     </div>
 
+    <!-- Sonnet-5-Polish (D1): Fehlerpfad, falls ein Build-Schritt wirft — ohne
+         das bliebe die Ladeanzeige oben für immer stehen. -->
+    <div id="menu-error" class="hidden">
+      <div style="font-size:15px; color:rgba(255,180,180,0.9);">Beim Erschaffen der Welt ist etwas schiefgelaufen.</div>
+      <button id="btn-reload-error">Neu laden</button>
+    </div>
+
     <div id="menu-main" class="hidden">
       <div class="controls">
         <b>W A S D</b><span>Bewegen</span>
         <b>Maus</b><span>Umsehen</span>
-        <b>Shift</b><span>Rennen (beim Schwimmen: abtauchen)</span>
-        <b>Leertaste</b><span>Springen</span>
         <b>Maustaste</b><span>Zaubern</span>
         <b>E</b><span>Interagieren</span>
+      </div>
+      <div class="controls-hint">🗺️ Nach dem Start öffnet <b>J</b> die Karte des Rumtreibers mit deinen Aufgaben.</div>
+      <details id="controls-more">
+        <summary>Weitere Steuerung</summary>
+        <div class="controls">
+        <b>Shift</b><span>Rennen (beim Schwimmen: abtauchen)</span>
+        <b>Leertaste</b><span>Springen</span>
         <b>B</b><span>Besen auf-/absteigen</span>
         <b>R</b><span>Hippogreif/Thestral rufen/aufsitzen/absitzen</span>
         <b>G</b><span>Begleiter rufen/wegschicken (Musch/Piniva/Grabbel)</span>
+        <b>J</b><span>Karte des Rumtreibers & Aufgaben öffnen/schließen</span>
         <b>U</b><span>Umhang der Unsichtbarkeit an/aus (nach dem Diebstahl, auch per Mausrad wählbar)</span>
         <b>2× Leertaste</b><span>Beritten abheben (Hippogreif/Thestral)</span>
         <b>Rad / 1-9</b><span>Zauber wählen — alle freigeschalteten Sprüche und Heiligtümer, danach Linksklick zum Wirken</span>
@@ -393,7 +520,8 @@
         <b>M</b><span>Ton an / aus</span>
         <b>F</b><span>FPS anzeigen</span>
         <b>Esc</b><span>Menü</span>
-      </div>
+        </div>
+      </details>
       <button id="btn-start">Spiel starten</button>
       <div class="small-buttons">
         <button id="btn-sound">Ton: an</button>
@@ -401,11 +529,56 @@
         <button id="btn-grafik">Grafik: Schön</button>
         <button id="btn-animagus-form">Tierform: Rabe</button>
         <button id="btn-music">Musik: aus</button>
+        <button id="btn-map">Karte & Aufgaben</button>
+        <button id="btn-export">Spielstand exportieren</button>
+        <button id="btn-import">Spielstand importieren</button>
+        <button id="btn-restore-backup" class="hidden">Letzte Sicherung wiederherstellen</button>
         <button id="btn-reset">Fortschritt zurücksetzen</button>
       </div>
+      <input type="file" id="import-file-input" accept="application/json,.json" class="hidden">
     </div>
 
     <div class="footnote">Inoffizielles, nicht-kommerzielles Fan-Projekt · komplett prozedural erzeugt · läuft lokal im Browser</div>
+  </div>
+
+  <div id="confirm-overlay" class="hidden">
+    <div id="confirm-box">
+      <div id="confirm-text"></div>
+      <div class="small-buttons">
+        <button id="confirm-yes">Ja, fortfahren</button>
+        <button id="confirm-no">Abbrechen</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="marauders-map" class="hidden">
+    <div id="mm-panel">
+      <div id="mm-header">
+        <h2>Karte des Rumtreibers</h2>
+        <div id="mm-chapter"></div>
+      </div>
+      <div id="mm-body">
+        <div id="mm-left">
+          <h3>Hauptaufgabe</h3>
+          <div id="mm-primary-title"></div>
+          <div id="mm-primary-desc"></div>
+          <h3>Nebenaufgaben</h3>
+          <ul id="mm-secondary-list"></ul>
+        </div>
+        <div id="mm-world"></div>
+        <div id="mm-right">
+          <h3>Legende</h3>
+          <div id="mm-legend">
+            <div><span class="mm-legend-dot"></span> Entdeckter Ort</div>
+            <div><span class="mm-legend-dot mm-legend-target"></span> Aktuelles Ziel</div>
+            <div><span class="mm-legend-dot mm-legend-player"></span> Du</div>
+          </div>
+          <h3>Als Nächstes</h3>
+          <div id="mm-next-hint"></div>
+        </div>
+      </div>
+      <div id="mm-footer">J / Esc — Karte schließen</div>
+    </div>
   </div>
 
   <script type="importmap">

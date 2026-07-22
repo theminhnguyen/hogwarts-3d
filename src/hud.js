@@ -259,10 +259,27 @@ export class Hud {
     this.dialogText.textContent = this._dialogLines[this._dialogIdx];
   }
 
-  showToast(text, seconds = 3.2) {
+  // Sonnet-5-Polish (C2): priority ist NEU, aber optional und defaultet auf
+  // die alte, immer-überschreiben-Priorität — jeder bestehende Aufruf ohne
+  // dritten Parameter verhält sich exakt wie vorher. Nur ein niedrigerer Wert
+  // (tutorial.js nutzt 0) wird von einem noch sichtbaren höher-priorisierten
+  // Toast blockiert, statt ihn zu unterbrechen ("Hinweise... überlagern
+  // wichtige Gameplay-Meldungen nicht").
+  // Rückgabewert (NEU): true = wirklich angezeigt, false = von einem noch
+  // sichtbaren höher-priorisierten Toast blockiert. tutorial.js braucht das,
+  // damit ein blockierter Hinweis NICHT als "gesehen" markiert wird (sonst
+  // würde er nie wieder gezeigt, obwohl der Spieler ihn nie sah).
+  showToast(text, seconds = 3.2, priority = 1) {
+    if (this._toastActive && priority < this._toastPriority) return false;
+    this._toastPriority = priority;
+    this._toastActive = true;
     this.toast.innerHTML = text;
     this.toast.classList.add('visible');
     clearTimeout(this._toastTimer);
-    this._toastTimer = setTimeout(() => this.toast.classList.remove('visible'), seconds * 1000);
+    this._toastTimer = setTimeout(() => {
+      this.toast.classList.remove('visible');
+      this._toastActive = false;
+    }, seconds * 1000);
+    return true;
   }
 }

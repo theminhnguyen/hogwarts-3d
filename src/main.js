@@ -39,63 +39,38 @@ import { buildDark } from './dark.js';
 import { buildCompanion } from './companion.js';
 import { buildHallows } from './hallows.js';
 import { buildAnimagus, FORM_ORDER, FORM_LABEL } from './animagus.js';
+import { buildMarauderMap } from './marauders-map.js';
+import { buildTutorial } from './tutorial.js';
+import { loadSave as loadSaveFromStorage, writeSave as writeSaveToStorage, createExport, parseImport, SAVE_KEY, MAX_IMPORT_BYTES } from './save.js';
 
-// Der Schlüsselname trägt noch "v1" aus Phase 0 — umbenennen würde alle
-// bestehenden Spielstände verwaisen lassen. Die eigentliche Versionierung
-// läuft jetzt über das `v`-Feld IM gespeicherten Objekt (siehe loadSave()).
-const SAVE_KEY = 'hogwarts3d-save-v1';
+function loadSave() { return loadSaveFromStorage(localStorage); }
+function writeSave(data) { writeSaveToStorage(localStorage, data); }
 
-function loadSave() {
-  let raw = {};
-  try { raw = JSON.parse(localStorage.getItem(SAVE_KEY)) || {}; } catch { raw = {}; }
-  // v5 (S1, PLAN-SCHATTEN-UND-SCHWINGEN.md Abschnitt 2): komplettes Schema
-  // für ALLE 12 Phasen vorab angelegt — spätere Phasen füllen nur bereits
-  // definierte Felder, kein Migrations-Wildwuchs. Fehlt `v` (alter Save)
-  // oder fehlen einzelne Felder: nie crashen, immer auf Default zurückfallen.
-  const seenDeath = raw.seenDeath === 1 ? 1
-    // Sonderregel: der Troll-Sieg zählt rückwirkend als miterlebter Tod.
-    : (raw.pz?.troll === true ? 1 : 0);
-  return {
-    collected: raw.collected || [],
-    art: raw.art || [],
-    pz: raw.pz || {},
-    moor: raw.moor || { lichter: [], laterne: 0 },
-    quests: raw.quests || {},
-    besen: raw.besen || 0,
-    bestzeit: raw.bestzeit || 0,
-    ace: raw.ace || 0,
-    muted: raw.muted === true,
-    music: raw.music === true,
-    peaceful: raw.peaceful === true,
-    grafik: raw.grafik === 'schnell' ? 'schnell' : 'schoen',
-    t: raw.t,
-    gold: raw.gold || 0,
-    ruf: raw.ruf || 0,
-    seenDeath,
-    wild: raw.wild || { aktivCamp: -1, befreit: 0, geerntet: 0 },
-    mounts: raw.mounts || { hippo: 0, thestral: 0, sattel: 0 },
-    dunkel: raw.dunkel || { buch: 0, pfad: 'hell', male: 0 },
-    // heim.zutaten.leuchtkraut (S7) ist neuer als heim selbst — Feld-für-Feld
-    // zusammensetzen statt "raw.heim || {defaults}", sonst bliebe es bei
-    // Alt-Saves für immer undefined (Absturzgefahr bei "++").
-    heim: {
-      kate: raw.heim?.kate || 0,
-      zutaten: {
-        glitzer: raw.heim?.zutaten?.glitzer || 0,
-        seide: raw.heim?.zutaten?.seide || 0,
-        stern: raw.heim?.zutaten?.stern || 0,
-        essenz: raw.heim?.zutaten?.essenz || 0,
-        leuchtkraut: raw.heim?.zutaten?.leuchtkraut || 0,
-      },
-      trank: raw.heim?.trank || { id: '', restT: 0 },
-    },
-    begleiter: raw.begleiter || { aktiv: '', frei: [] },
-    hallows: raw.hallows || { stab: 0, umhang: 0, stein: 0, steinCd: 0 },
-    animagus: raw.animagus || { gelernt: 0, form: 'rabe' },
-  };
+// Sonnet-5-Polish (A3/A4): zwei rotierende Backup-Slots statt nur einem —
+// beim Import/Reset wird jeweils der ÄLTERE Slot überschrieben, sodass immer
+// mindestens eine ältere Sicherung erhalten bleibt. Da Import einen
+// window.location.reload() auslöst (main.js-Neustart, siehe unten), darf
+// "welcher Slot ist neuer" NICHT im flüchtigen JS-Speicher stehen — daher
+// ein Zeitstempel-Begleitschlüssel (`-t`) direkt in localStorage.
+const BACKUP_KEYS = ['hogwarts3d-backup-a', 'hogwarts3d-backup-b'];
+function backupCurrentSave() {
+  try {
+    const times = BACKUP_KEYS.map((k) => Number(localStorage.getItem(`${k}-t`)) || 0);
+    const target = times[0] <= times[1] ? BACKUP_KEYS[0] : BACKUP_KEYS[1];
+    const raw = localStorage.getItem(SAVE_KEY);
+    if (raw) {
+      localStorage.setItem(target, raw);
+      localStorage.setItem(`${target}-t`, String(Date.now()));
+    }
+  } catch { /* privat-modus etc. */ }
 }
-function writeSave(data) {
-  try { localStorage.setItem(SAVE_KEY, JSON.stringify({ v: 5, ...data })); } catch { /* privat-modus etc. */ }
+function newestBackup() {
+  try {
+    const times = BACKUP_KEYS.map((k) => Number(localStorage.getItem(`${k}-t`)) || 0);
+    if (times[0] === 0 && times[1] === 0) return null;
+    const key = times[0] >= times[1] ? BACKUP_KEYS[0] : BACKUP_KEYS[1];
+    return localStorage.getItem(key);
+  } catch { return null; }
 }
 
 // ---------- Renderer & Szene ----------
@@ -133,7 +108,7 @@ post.setQuality(save.grafik);
 post.onDegrade = () => hud.showToast('Grafik automatisch reduziert (Bloom aus)', 3.5);
 
 let sky, water, castle, structures, moor, life, collectibles, player;
-let fx, wand, spells, health, creatures, puzzles, dementors, weather, village, train, willow, interact, npc, grove, broom, fahlholz, fauna, economy, wilderer, mount, kate, home, dark, companion, hallows, huegelgrab, animagus;
+let fx, wand, spells, health, creatures, puzzles, dementors, weather, village, train, willow, interact, npc, grove, broom, fahlholz, fauna, economy, wilderer, mount, kate, home, dark, companion, hallows, huegelgrab, animagus, tutorial, marauders;
 let lanternWasCollected = false; // erkennt den Moment, in dem die Laterne live geborgen wird
 let natureSwayMaterials = [];
 let natureTreeSpots = []; // S2: echte Baum-Positionen für Bowtruckles (fauna.js)
@@ -371,6 +346,17 @@ const buildSteps = [
     });
     animagus.onChange = () => persist();
   }],
+  // Karte des Rumtreibers (Sonnet-5-Polish, Meilenstein B1): braucht keine
+  // Three.js-Objekte, nur hud+save — als eigener, unabhängiger letzter
+  // Schritt, damit die Reihenfolge keine versteckte Abhängigkeit vortäuscht.
+  ['Karte des Rumtreibers', () => {
+    marauders = buildMarauderMap(hud, save);
+  }],
+  // Kontext-Hinweise (Meilenstein C2): braucht interact/creatures/health/
+  // marauders — alle bereits gebaut, daher letzter Schritt.
+  ['Kontext-Hinweise', () => {
+    tutorial = buildTutorial(hud, save, { interact, creatures, health, marauders });
+  }],
 ];
 
 const loadingBar = document.getElementById('loading-bar');
@@ -402,18 +388,30 @@ function refreshStatusLines() {
 }
 
 async function buildWorld() {
-  for (let i = 0; i < buildSteps.length; i++) {
-    const [, fn] = buildSteps[i];
-    // setTimeout statt requestAnimationFrame: rAF friert in inaktiven Tabs ein
+  // Sonnet-5-Polish (D1): schlägt ein Build-Schritt fehl, bliebe ohne dieses
+  // try/catch "Die Welt wird erschaffen …" für immer stehen. Technischer
+  // Fehler nur in die Konsole, Spieler sieht nur eine kurze, unbeängstigende
+  // Nachricht mit Neuladen-Button.
+  try {
+    for (let i = 0; i < buildSteps.length; i++) {
+      const [, fn] = buildSteps[i];
+      // setTimeout statt requestAnimationFrame: rAF friert in inaktiven Tabs ein
+      await new Promise(r => setTimeout(r, 0));
+      fn();
+      loadingBar.style.width = `${((i + 1) / buildSteps.length) * 100}%`;
+    }
+    refreshStatusLines();
     await new Promise(r => setTimeout(r, 0));
-    fn();
-    loadingBar.style.width = `${((i + 1) / buildSteps.length) * 100}%`;
+    menuLoading.classList.add('hidden');
+    menuMain.classList.remove('hidden');
+  } catch (err) {
+    console.error('Weltaufbau fehlgeschlagen:', err);
+    menuLoading.classList.add('hidden');
+    document.getElementById('menu-error').classList.remove('hidden');
   }
-  refreshStatusLines();
-  await new Promise(r => setTimeout(r, 0));
-  menuLoading.classList.add('hidden');
-  menuMain.classList.remove('hidden');
 }
+
+document.getElementById('btn-reload-error').addEventListener('click', () => window.location.reload());
 
 // ---------- Menü & Pointer-Lock ----------
 const menu = document.getElementById('menu');
@@ -470,6 +468,9 @@ function persist() {
     begleiter: save.begleiter,
     hallows: save.hallows,
     animagus: save.animagus,
+    tutorial: save.tutorial,
+    map: save.map,
+    ui: save.ui,
   });
 }
 
@@ -483,10 +484,18 @@ function setPlaying(on) {
   hud.setActive(on);
   if (on && !started) {
     started = true;
-    hud.showToast('Finde die 12 goldenen Schnätze! ✦', 4.5);
+    // Sonnet-5-Polish (C2): der alte, session-only "Finde die 12 goldenen
+    // Schnätze"-Toast (started-Flag, nicht persistiert) wird durch den
+    // persistierten tutorial.js-Hinweis ersetzt — zeigt sich dadurch wirklich
+    // nur EINMAL pro Spielstand, nicht nach jedem Reload erneut.
+    tutorial.onStart();
   }
   if (!on) {
     btnStart.textContent = 'Weiterspielen';
+    // Karte darf nie hinter dem Pausenmenü offen bleiben (z.B. wenn im
+    // Pointer-Lock-Modus Escape sowohl die Karte schließen als auch den
+    // Lock beenden würde — Letzteres kann JS nicht verhindern).
+    if (marauders?.isOpen) marauders.close();
     persist();
   }
 }
@@ -548,7 +557,22 @@ btnAnimagusForm.addEventListener('click', () => {
   persist();
 });
 
-btnReset.addEventListener('click', () => {
+// Sonnet-5-Polish (B1): "Karte & Aufgaben" aus dem Pausenmenü — setzt das
+// Spiel fort (wie "Weiterspielen") und öffnet danach sofort die Karte.
+// btnStart.click() löst denselben Pointer-Lock-Versuch inkl. Fallback aus;
+// wir warten per rAF-Polling auf `playing===true`, statt die Timing-Logik
+// von dort zu duplizieren.
+const btnMap = document.getElementById('btn-map');
+btnMap.addEventListener('click', () => {
+  btnStart.click();
+  const openWhenReady = () => {
+    if (playing) marauders.open();
+    else requestAnimationFrame(openWhenReady);
+  };
+  requestAnimationFrame(openWhenReady);
+});
+
+function performReset() {
   if (collectibles) {
     for (const item of collectibles.items) {
       if (item.collected) {
@@ -616,9 +640,113 @@ btnReset.addEventListener('click', () => {
   Object.assign(save.animagus, { gelernt: 0, form: 'rabe' });
   if (animagus) animagus.restore();
   if (btnAnimagusForm) btnAnimagusForm.textContent = `Tierform: ${FORM_LABEL[save.animagus.form]}`;
+  // Sonnet-5-Polish: ein Reset ist ein "neuer Anfang" — Kartenaufdeckung und
+  // bereits gesehene Tutorial-Hinweise gehören zum Fortschritt dazu.
+  Object.assign(save.tutorial, { seen: [] });
+  Object.assign(save.map, { discovered: [] });
+  Object.assign(save.ui, { mapHelpSeen: false });
+  if (tutorial) tutorial.restore();
+  if (marauders) marauders.restore();
   refreshStatusLines();
   persist();
   hud.showToast('Fortschritt zurückgesetzt');
+}
+
+// ---------- A3/A4: Bestätigungsdialog, Export, Import, Backup ----------
+const confirmOverlay = document.getElementById('confirm-overlay');
+const confirmText = document.getElementById('confirm-text');
+const confirmYes = document.getElementById('confirm-yes');
+const confirmNo = document.getElementById('confirm-no');
+let confirmOnYes = null;
+
+function askConfirm(message, onYes) {
+  confirmText.textContent = message;
+  confirmOnYes = onYes;
+  confirmOverlay.classList.remove('hidden');
+}
+function closeConfirm() {
+  confirmOverlay.classList.add('hidden');
+  confirmOnYes = null;
+}
+confirmYes.addEventListener('click', () => {
+  const fn = confirmOnYes;
+  closeConfirm();
+  fn?.();
+});
+confirmNo.addEventListener('click', closeConfirm);
+
+btnReset.addEventListener('click', () => {
+  askConfirm('Wirklich den GESAMTEN Fortschritt zurücksetzen? Eine Sicherung wird vorher automatisch angelegt.', () => {
+    backupCurrentSave();
+    btnRestoreBackup.classList.remove('hidden');
+    performReset();
+  });
+});
+
+const btnExport = document.getElementById('btn-export');
+const btnImport = document.getElementById('btn-import');
+const btnRestoreBackup = document.getElementById('btn-restore-backup');
+const importFileInput = document.getElementById('import-file-input');
+
+if (newestBackup()) btnRestoreBackup.classList.remove('hidden');
+
+btnExport.addEventListener('click', () => {
+  persist();
+  const exportObj = createExport(loadSave());
+  const blob = new Blob([JSON.stringify(exportObj, null, 2)], { type: 'application/json' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  const stamp = new Date().toISOString().slice(0, 10);
+  a.href = url;
+  a.download = `hogwarts3d-spielstand-${stamp}.json`;
+  a.click();
+  URL.revokeObjectURL(url);
+  hud.showToast('Spielstand exportiert 💾');
+});
+
+btnImport.addEventListener('click', () => {
+  importFileInput.value = '';
+  importFileInput.click();
+});
+
+importFileInput.addEventListener('change', () => {
+  const file = importFileInput.files?.[0];
+  if (!file) return;
+  if (file.size > MAX_IMPORT_BYTES) {
+    hud.showToast(`Datei zu groß (>${Math.round(MAX_IMPORT_BYTES / 1000)} KB) — das ist kein gültiger Spielstand.`, 3.5);
+    return;
+  }
+  const reader = new FileReader();
+  reader.onload = () => {
+    const result = parseImport(String(reader.result ?? ''));
+    if (!result.ok) {
+      hud.showToast(`Import fehlgeschlagen: ${result.error}`, 3.5);
+      return;
+    }
+    askConfirm('Spielstand importieren? Der aktuelle Fortschritt wird ersetzt (eine Sicherung wird vorher automatisch angelegt).', () => {
+      backupCurrentSave();
+      writeSave(result.data);
+      hud.showToast('Spielstand importiert — wird neu geladen …');
+      setTimeout(() => window.location.reload(), 900);
+    });
+  };
+  reader.readAsText(file);
+});
+
+btnRestoreBackup.addEventListener('click', () => {
+  const raw = newestBackup();
+  if (!raw) return;
+  let parsed;
+  try { parsed = JSON.parse(raw); } catch { parsed = null; }
+  if (!parsed) {
+    hud.showToast('Sicherung ist beschädigt.', 3);
+    return;
+  }
+  askConfirm('Letzte Sicherung wiederherstellen? Der aktuelle Fortschritt wird ersetzt.', () => {
+    writeSave(parsed);
+    hud.showToast('Sicherung wiederhergestellt — wird neu geladen …');
+    setTimeout(() => window.location.reload(), 900);
+  });
 });
 
 document.addEventListener('pointerlockchange', () => {
@@ -642,8 +770,26 @@ const DIGIT_SPELLS = {
 const DARK_SPELL_IDS = new Set(['avada', 'crucio', 'imperio', 'mal']);
 window.addEventListener('keydown', (e) => {
   if (!playing) return;
+  // Sonnet-5-Polish (B1): Während Dialog ODER Karte offen sind, dürfen keine
+  // anderen Tasten durchgreifen — vorher blockierte hud.dialogOpen nur den
+  // eigenen E-Zweig weiter unten, alle anderen Tasten (Zaubern, V, R, G, U …)
+  // liefen währenddessen unbemerkt weiter.
+  if (hud.dialogOpen) {
+    if (e.code === 'KeyE') hud.advanceDialog();
+    return;
+  }
+  if (marauders.isOpen) {
+    // J schließt wie Esc (Plan B1: "Esc schließt zuerst die Karte, bevor das
+    // Pausenmenü geöffnet wird") — im Pointer-Lock-Modus beendet der Browser
+    // bei Escape IMMER zusätzlich den Pointer-Lock (nicht abfangbar), was
+    // parallel setPlaying(false) auslöst; siehe dortiger Kommentar.
+    if (e.code === 'KeyJ' || e.code === 'Escape') marauders.close();
+    return;
+  }
   if (e.code === 'Escape' && fallbackMode) {
     setPlaying(false);
+  } else if (e.code === 'KeyJ') {
+    marauders.open();
   } else if (e.code === 'KeyT') {
     sky.advance(3);
     hud.showToast(`Zeit vorgespult → ${sky.clockText}`, 1.6);
@@ -664,8 +810,7 @@ window.addEventListener('keydown', (e) => {
     else if (DARK_SPELL_IDS.has(id) && !spells.darkUnlocked) { /* noch nicht frei */ }
     else wand.selectSpell(id);
   } else if (e.code === 'KeyE') {
-    if (hud.dialogOpen) hud.advanceDialog();
-    else interact.trigger();
+    interact.trigger();
   } else if (e.code === 'KeyB') {
     // Nicht während eines Mount-Ritts (geerdet ODER fliegend) UND nicht als
     // Tier (S11: "kein Reiten") — sonst würden sich Besen- und Mount-Flug
@@ -690,7 +835,7 @@ window.addEventListener('keydown', (e) => {
 // Zaubern: Maustaste (nur wenn Klick auf dem Canvas landet — HUD/Menü sind
 // entweder pointer-events:none oder unsichtbar solange playing===true).
 window.addEventListener('mousedown', (e) => {
-  if (!playing || e.button !== 0 || e.target !== canvas) return;
+  if (!playing || hud.dialogOpen || marauders.isOpen || e.button !== 0 || e.target !== canvas) return;
   spells.cast(camera);
 });
 window.addEventListener('mouseup', (e) => {
@@ -698,7 +843,7 @@ window.addEventListener('mouseup', (e) => {
   spells?.release();
 });
 window.addEventListener('wheel', (e) => {
-  if (!playing) return;
+  if (!playing || hud.dialogOpen || marauders.isOpen) return;
   wand.cycleSpell(e.deltaY > 0 ? 1 : -1);
 }, { passive: true });
 
@@ -724,6 +869,15 @@ function tick() {
 // Ein Simulationsschritt (vom Render-Loop und von __game.step() genutzt)
 function frame(dt) {
   {
+    // Sonnet-5-Polish (B1): Karte/Dialog blockieren Bewegung, Kamera-Umsehen
+    // UND Zaubern — player.enabled gatete bisher nur die Maussteuerung
+    // (siehe player.js mousemove-Listener), WASD/Sprint lief bislang auch
+    // während eines offenen Dialogs unbemerkt weiter. Jeden Frame neu
+    // abgeleitet statt über Callbacks synchron gehalten (einfacher, hud.js/
+    // marauders-map.js müssen main.js dafür nicht kennen).
+    player.enabled = !hud.dialogOpen && !marauders.isOpen;
+    marauders.tick(player.pos);
+    tutorial.update(dt, player.pos);
     time += dt;
     weather.update(dt, player);
     const move = player.update(dt);
@@ -891,7 +1045,7 @@ buildWorld().then(() => {
   // Debug-/Test-Zugriff (bewusst öffentlich, hilft bei Fehlersuche)
   window.__game = {
     player, sky, camera, renderer, scene,
-    wand, spells, fx, health, creatures, puzzles, moor, dementors, weather, post, village, train, willow, interact, npc, hud, grove, broom, fahlholz, fauna, economy, wilderer, mount, home, dark, companion, hallows, animagus,
+    wand, spells, fx, health, creatures, puzzles, moor, dementors, weather, post, village, train, willow, interact, npc, hud, grove, broom, fahlholz, fauna, economy, wilderer, mount, home, dark, companion, hallows, animagus, marauders, tutorial,
     get save() { return save; },
     get fps() { return fpsEMA; },
     get pixelRatio() { return pixelRatio; },
