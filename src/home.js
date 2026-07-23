@@ -44,10 +44,18 @@ const RECIPES = [
   // gelesenes Flag (Muster fireImmune/iceThrowImmune) — ein scheues Einhorn
   // lässt sich auch auf dem dunklen Pfad zähmen, solange der Trank wirkt.
   { id: 'feenlicht', name: 'Feenlichttrank', need: { mondsilber: 1, stern: 1 }, desc: 'Ein scheues Einhorn vertraut dir, egal welchem Pfad du folgst' },
+  // E7 (PLAN-EPISCHE-WELT.md Abschnitt 6.5): tiefenperle fällt nur beim Lösen
+  // des Tauch-Rätsels in Schwarzwasser ab. Effekt spiegelt Feuerschutz/
+  // Eisatem (Immunität gegen die jeweils regionseigene Gefahr) — hier gegen
+  // den Berührungsschaden der Grindeloh-Wassergeister UNTER Wasser.
+  { id: 'tiefenatem', name: 'Tiefenatem-Trank', need: { tiefenperle: 1, essenz: 1 }, desc: 'Immunität gegen Grindeloh-Berührung beim Tauchen' },
 ];
 const ZUTAT_NAMES = {
   glitzer: 'Glitzerstaub', seide: 'Spinnenseide', stern: 'Sternsplitter', essenz: 'Dunkle Essenz',
   leuchtkraut: 'Leuchtkraut', schuppe: 'Drachenschuppe', frostkristall: 'Frostkristall',
+  // Echter Bug gefunden+gefixt (E7): mondsilber (E6) fehlte hier komplett —
+  // der Feenlichttrank-Brauprompt hätte "undefinedx Mondsilber" gezeigt.
+  mondsilber: 'Mondsilber', tiefenperle: 'Tiefenperle',
 };
 
 // Meteor-Nächte (Sternsplitter): in klaren Nächten 15% Chance beim
@@ -210,8 +218,8 @@ export function buildHome(scene, camera, glowTex, hud, audio, fx, health, intera
     },
   });
 
-  // ---------- Braukessel: 8 Rezept-Stationen um den Kessel (E6: +feenlicht) ----------
-  const cauldronAngles = [-0.9, -0.45, 0, 0.45, 0.9, 1.35, 1.8, 2.25];
+  // ---------- Braukessel: 9 Rezept-Stationen um den Kessel (E7: +tiefenatem) ----------
+  const cauldronAngles = [-0.9, -0.45, 0, 0.45, 0.9, 1.35, 1.8, 2.25, 2.7];
   RECIPES.forEach((r, i) => {
     const a = cauldronAngles[i];
     const sx = cauldronX + Math.sin(a) * 0.85, sz = cauldronZ + Math.cos(a) * 0.85 - 0.3;

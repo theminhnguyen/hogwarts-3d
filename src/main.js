@@ -3,7 +3,7 @@
 // automatischer Qualitätsanpassung (Render-Auflösung nach FPS).
 
 import * as THREE from 'three';
-import { buildTerrain, buildWater, ASCHENKLAMM, FROSTZINNEN, SILBERHAIN } from './terrain.js';
+import { buildTerrain, buildWater, ASCHENKLAMM, FROSTZINNEN, SILBERHAIN, SCHWARZWASSER } from './terrain.js';
 import { SkySystem } from './sky.js';
 import { buildCastle } from './castle.js';
 import { buildStructures } from './structures.js';
@@ -47,6 +47,7 @@ import { buildAschenklamm } from './aschenklamm.js';
 import { buildFrostzinnen } from './frostzinnen.js';
 import { buildSilberhain } from './silberhain.js';
 import { buildUnicorn } from './unicorn.js';
+import { buildSchwarzwasser } from './schwarzwasser.js';
 import { loadSave as loadSaveFromStorage, writeSave as writeSaveToStorage, createExport, parseImport, SAVE_KEY, MAX_IMPORT_BYTES } from './save.js';
 
 function loadSave() { return loadSaveFromStorage(localStorage); }
@@ -131,6 +132,7 @@ let aschenklammRegion; // E4: RegionManager-Handle (regions.js) — Register-Auf
 let frostzinnenRegion; // E5: dito für die Frostzinnen
 let silberhainRegion; // E6: dito für den Silberhain
 let unicornRegion; // E6: eigene Region (gleiches Zentrum wie Silberhain), siehe unicorn.js-Kopf-Kommentar
+let schwarzwasserRegion; // E7: dito für Schwarzwasser
 let lanternWasCollected = false; // erkennt den Moment, in dem die Laterne live geborgen wird
 let natureSwayMaterials = [];
 let natureTreeSpots = []; // S2: echte Baum-Positionen für Bowtruckles (fauna.js)
@@ -370,6 +372,32 @@ const buildSteps = [
       },
     });
   }],
+  // E7: gleiches Muster wie die drei vorigen Regionen — reine Registrierung,
+  // buildSchwarzwasser() baut erst lazy beim ersten Wecken. Braucht economy
+  // (Leuchtturmwärter-Ruf-Belohnung) — bereits gebaut (Build-Step 'Wirtschaft').
+  ['Schwarzwasser (Region)', () => {
+    schwarzwasserRegion = regionManager.register({
+      key: 'schwarzwasser',
+      center: { x: SCHWARZWASSER.x, z: SCHWARZWASSER.z },
+      wakeRadius: 90,
+      sleepRadius: 130,
+      build: (root, deps) => buildSchwarzwasser(root, deps),
+      deps: {
+        glowTex, hud, audio, fx, health, interact, economy,
+        heim: save.heim, schwarzwasser: save.schwarzwasser, siegel: save.siegel,
+        // Getter statt Schnappschuss: buildSchwarzwasser() läuft erst beim
+        // ersten Wecken (lazy) — zu dem Zeitpunkt liefert dies den WIRKLICH
+        // aktuellen Zahm/Wild-Stand, auch wenn zwischen Weltaufbau und
+        // erstem Betreten der Region umgeschaltet wurde.
+        get peaceful() { return creatures.peaceful; },
+        onChange: () => persist(),
+      },
+    });
+    atmosphere.registerZone({
+      center: { x: SCHWARZWASSER.x, z: SCHWARZWASSER.z }, radius: SCHWARZWASSER.r + 15, feather: 70,
+      color: 0x1a3a2e, fogFarMul: 0.7, ambientMul: 0.85, soundId: 'schwarzwasser',
+    });
+  }],
   ['Zuhause', () => {
     home = buildHome(scene, camera, glowTex, hud, audio, fx, health, interact, economy, kate, {
       heim: save.heim, sky, weather, puzzles, moor, spells, player,
@@ -587,6 +615,7 @@ function persist() {
     aschenklamm: save.aschenklamm,
     frostzinnen: save.frostzinnen,
     silberhain: save.silberhain,
+    schwarzwasser: save.schwarzwasser,
     siegel: save.siegel,
   });
 }
@@ -650,6 +679,9 @@ btnPeaceful.addEventListener('click', () => {
   willow.peaceful = creatures.peaceful;
   wilderer.peaceful = creatures.peaceful;
   hallows.peaceful = creatures.peaceful;
+  // E7: Grindelohs/Schlund respektieren den friedlichen Modus ebenfalls
+  // (nur gesetzt, falls die Region schon gebaut wurde — sonst No-Op).
+  if (schwarzwasserRegion.handle) schwarzwasserRegion.handle.peaceful = creatures.peaceful;
   btnPeaceful.textContent = `Kreaturen: ${creatures.peaceful ? 'zahm' : 'wild'}`;
   persist();
 });
@@ -740,7 +772,7 @@ function performReset() {
   Object.assign(save.mounts, { hippo: 0, thestral: 0, einhorn: 0, sattel: 0 });
   Object.assign(save.dunkel, { buch: 0, pfad: 'hell', male: 0 });
   save.heim.kate = 0;
-  Object.assign(save.heim.zutaten, { glitzer: 0, seide: 0, stern: 0, essenz: 0, leuchtkraut: 0, schuppe: 0, frostkristall: 0, mondsilber: 0 });
+  Object.assign(save.heim.zutaten, { glitzer: 0, seide: 0, stern: 0, essenz: 0, leuchtkraut: 0, schuppe: 0, frostkristall: 0, mondsilber: 0, tiefenperle: 0 });
   Object.assign(save.heim.trank, { id: '', restT: 0 });
   // Trank-Effekte sofort zurücksetzen statt bis zum nächsten Frame zu warten
   // (das übliche Sync-Muster oben liefe sonst noch 1 Frame mit alten Werten).
@@ -770,7 +802,8 @@ function performReset() {
   Object.assign(save.aschenklamm, { eggStolen: 0, dragonDefeated: 0, chestCollected: 0 });
   Object.assign(save.frostzinnen, { eisblitzLearned: 0, giantDefeated: 0, chestCollected: 0 });
   Object.assign(save.silberhain, { puzzleSolved: 0, chestCollected: 0, zentaurinQuestDone: 0 });
-  Object.assign(save.siegel, { drache: 0, frost: 0, hain: 0 });
+  Object.assign(save.schwarzwasser, { puzzleSolved: 0, chestCollected: 0, keeperQuestDone: 0 });
+  Object.assign(save.siegel, { drache: 0, frost: 0, hain: 0, tiefe: 0 });
   aschenklammRegion.handle?.restore?.();
   frostzinnenRegion.handle?.restore?.();
   silberhainRegion.handle?.restore?.();
@@ -778,6 +811,7 @@ function performReset() {
   // unicorn.js' restore() liest mounts.einhorn live, ein Aufruf davor würde
   // die wilde Instanz fälschlich weiter als "gezähmt" (unsichtbar) behandeln.
   unicornRegion.handle?.restore?.();
+  schwarzwasserRegion.handle?.restore?.();
   refreshStatusLines();
   persist();
   hud.showToast('Fortschritt zurückgesetzt');
@@ -1042,7 +1076,8 @@ function frame(dt) {
     spells.update(dt, camera, creatures.list.concat(dementors.list).concat(wilderer.list)
       .concat([hallows.king]).concat(hallows.phantomGhosts)
       .concat(aschenklammRegion.handle?.dragon ? [aschenklammRegion.handle.dragon] : [])
-      .concat(frostzinnenRegion.handle?.giant ? [frostzinnenRegion.handle.giant] : []), fauna.foxes);
+      .concat(frostzinnenRegion.handle?.giant ? [frostzinnenRegion.handle.giant] : [])
+      .concat(schwarzwasserRegion.handle?.grindylows || []), fauna.foxes);
     // sky.update() läuft weiter unten, aber creatures braucht den Tag/Nacht-
     // Stand vom LETZTEN Frame — nightGlow ändert sich nur sehr langsam
     // (300s/Zyklus), eine Frame Verzögerung ist unmerklich.
@@ -1080,6 +1115,8 @@ function frame(dt) {
       if (frostzinnenRegion.handle) frostzinnenRegion.handle.iceThrowImmune = active && t.id === 'eisatem';
       // E6 Feenlichttrank: das Einhorn lässt sich trotz dunklem Pfad zähmen.
       if (unicornRegion.handle) unicornRegion.handle.calmPotion = active && t.id === 'feenlicht';
+      // E7 Tiefenatem-Trank: negiert den Berührungsschaden der Grindelohs.
+      if (schwarzwasserRegion.handle) schwarzwasserRegion.handle.grindylowImmune = active && t.id === 'tiefenatem';
       // S10 Elderstab: Schaden ×2 / Cooldown ×0.6, stapelt sich multiplikativ
       // mit dem Dunklen Sud (×1.5).
       const potionDmgMul = active && t.id === 'dunkel' && save.dunkel.pfad === 'dunkel' ? 1.5 : 1;
@@ -1134,6 +1171,16 @@ function frame(dt) {
     wu.uSunColor.value.copy(sky.state.sunColor);
     wu.uSky.value.copy(sky.state.skyHorizon);
     wu.uNight.value = sky.state.nightGlow;
+    // E7: zweite Wasserfläche (Schwarzwasser) existiert erst, sobald die
+    // Region einmal geweckt wurde — dieselben Uniforms, eigene Instanz.
+    if (schwarzwasserRegion.handle) {
+      const wu2 = schwarzwasserRegion.handle.waterUniforms;
+      wu2.uTime.value = time;
+      wu2.uSunDir.value.copy(wu.uSunDir.value);
+      wu2.uSunColor.value.copy(sky.state.sunColor);
+      wu2.uSky.value.copy(sky.state.skyHorizon);
+      wu2.uNight.value = sky.state.nightGlow;
+    }
 
     const owlDist = Math.hypot(player.pos.x - structures.eulerei.x, player.pos.z - structures.eulerei.z);
     const owlProximity = Math.max(0, 1 - owlDist / 40);
@@ -1222,6 +1269,7 @@ buildWorld().then(() => {
     get frostzinnen() { return frostzinnenRegion.handle; },
     get silberhain() { return silberhainRegion.handle; },
     get einhorn() { return unicornRegion.handle; },
+    get schwarzwasser() { return schwarzwasserRegion.handle; },
     get save() { return save; },
     get fps() { return fpsEMA; },
     get pixelRatio() { return pixelRatio; },

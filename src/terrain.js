@@ -120,6 +120,23 @@ export const FROSTZINNEN = { x: 0, z: -410, r: 45, blend: 22, h: 9 };
 // da Silberhain keine Kampfregion ist.
 export const SILBERHAIN = { x: -90, z: 410, r: 45, blend: 22, h: 6 };
 
+// ---------- Schwarzwasser (E7, PLAN-EPISCHE-WELT.md) ----------
+// Zweiter, dunkler See im Westen, jenseits des Quidditch-Felds. Plan-
+// Vorschlag (-405,-40): d0=407,0 (Plan-Zielband 390-430, ≥110m Puffer bis
+// Bergring-Start 520) — direkt übernommen, keine Kollision gefunden.
+// Abstände zu allen realen Zonen-Konstanten nachgerechnet: Quidditch
+// (r=52) 215,9 (Rand 163,9 frei) · Dorf (r=40) 385,1 · Bahnhof 341,2 ·
+// Nebelmoor (r=55) 659,0 · Schloss-Plateau 405,5 · Hügelgrab 755,6 ·
+// Silberauen 712,0 · Kate 660,0 · der GROSSE See (r=125!) 357,9 (Rand
+// 232,9 frei — der bei Weitem kritischste Nachbar, da er selbst schon
+// riesig ist, aber immer noch klar getrennt) · Aschenklamm 813,9 ·
+// Frostzinnen 548,8 · Silberhain 549,4 — alle frei. "Kompakter" laut Plan:
+// bewusst kleinerer Kernradius (40) als die drei anderen neuen Regionen
+// (45), echte Wassertiefe wie beim großen See (Senke bis -5.5, siehe
+// unten) statt begehbarem Boden — Tauchen/Schwimmen soll hier ECHT
+// funktionieren (anders als der absichtlich feste Eissee in Frostzinnen).
+export const SCHWARZWASSER = { x: -405, z: -40, r: 40, blend: 20, h: -5.5 };
+
 // Wege als Polylinien (für Färbung + Freihalten von Bäumen)
 export const PATHS = [
   [[0, 46], [0, 168]],                       // Tor → Kreuzung (über Viadukt)
@@ -139,6 +156,7 @@ export const PATHS = [
   [[230, 140], [310, 125], [395, 110]],      // Kate → Aschenklamm (E4)
   [[-70, -230], [-30, -320], [0, -410]],     // Dorf → Frostzinnen (E5)
   [[-140, 190], [-110, 300], [-90, 410]],    // Seeufer → Silberhain (E6)
+  [[-165, 40], [-280, 0], [-405, -40]],      // Quidditch-Rundweg → Schwarzwasser (E7)
 ];
 
 // Kürzester Abstand zu EINER Polylinie (nicht dem gesamten PATHS-Bestand) —
@@ -306,6 +324,15 @@ export function terrainHeight(x, z) {
     h = lerp(h, SILBERHAIN.h + fbm(x * 0.035, z * 0.035, 3) * 1.6, m);
   }
 
+  // Schwarzwasser-Senke (E7) — exakt gleiches Muster wie die See-Senke oben
+  // (echte Wassertiefe, kein begehbarer Boden wie bei Frostzinnen/Silberhain):
+  // Tauchen/Schwimmen soll hier ECHT auslösen (player.js: rein höhenbasiert).
+  {
+    const dw = Math.sqrt((x - SCHWARZWASSER.x) ** 2 + (z - SCHWARZWASSER.z) ** 2);
+    const m = 1 - smoothstep(SCHWARZWASSER.r * 0.5, SCHWARZWASSER.r, dw);
+    h = lerp(h, SCHWARZWASSER.h, m);
+  }
+
   // Sicherheitsnetz gegen unsichtbares "Phantom-Wasser": das Grund-Rauschen
   // (Skala 0.0052, Wellenlänge ~190m) kann UNABHÄNGIG vom See irgendwo auf
   // der Karte unter die Schwimm-Schwelle (WATER_LEVEL-1.2) absacken, ohne
@@ -316,10 +343,17 @@ export function terrainHeight(x, z) {
   // Fix ist rein von h abhängig (nicht vom Ort) → keine Kante im Gelände,
   // nur echte Unterwasser-Höhen werden angehoben, alles ab h≥0.3 bleibt
   // unangetastet. dl-Schutz stellt sicher, dass die eigentliche Seefläche
-  // (dort deckt ohnehin das Wasser-Mesh ab) nie betroffen ist.
+  // (dort deckt ohnehin das Wasser-Mesh ab) nie betroffen ist. E7 (Schwarz-
+  // wasser) braucht denselben zweiten Schutz — sonst würde dieses Netz die
+  // gerade oben erst gebaute Schwarzwasser-Senke (h=-5.5, weit unter dem
+  // -0.8-Schwellwert) sofort wieder auf ~1.0-1.6 anheben und den ganzen
+  // neuen See unsichtbar verschwinden lassen (klassischer Stolperfallen-1-
+  // Fehler: eine bestehende ortsunabhängige Regel nach einer NEUEN Senke
+  // nicht gegenprüfen).
   {
     const dl = Math.sqrt((x - LAKE.x) ** 2 + (z - LAKE.z) ** 2);
-    if (dl > LAKE.r + 55) {
+    const dw = Math.sqrt((x - SCHWARZWASSER.x) ** 2 + (z - SCHWARZWASSER.z) ** 2);
+    if (dl > LAKE.r + 55 && dw > SCHWARZWASSER.r + 55) {
       const m = 1 - smoothstep(-0.8, 0.3, h);
       if (m > 0) {
         const floor = WATER_LEVEL + 0.6 + fbm(x * 0.05, z * 0.05, 2) * 0.6; // ~1.0–1.6
@@ -401,8 +435,13 @@ export function buildTerrain() {
 }
 
 // ---------- Wasser ----------
-export function buildWater() {
-  const geo = new THREE.CircleGeometry(LAKE.r + 55, 64);
+// E7: parametrisiert (Zentrum/Radius/Farben), damit Schwarzwasser dieselbe
+// Shader-Wasserfläche mit eigener (dunklerer) Farbgebung bekommt, ohne den
+// Shader zu duplizieren. Ohne Argumente exakt das bisherige Verhalten (See).
+export function buildWater(center = LAKE, colors = {}) {
+  const deep = colors.deep ?? 0x14384d;
+  const shallow = colors.shallow ?? 0x2a6a7d;
+  const geo = new THREE.CircleGeometry(center.r + 55, 64);
   geo.rotateX(-Math.PI / 2);
 
   const uniforms = {
@@ -410,11 +449,11 @@ export function buildWater() {
     uSunDir: { value: new THREE.Vector3(0.5, 0.8, 0.2) },
     uSunColor: { value: new THREE.Color(0xfff2cf) },
     uSky: { value: new THREE.Color(0x87b8e8) },
-    uDeep: { value: new THREE.Color(0x14384d) },
-    uShallow: { value: new THREE.Color(0x2a6a7d) },
+    uDeep: { value: new THREE.Color(deep) },
+    uShallow: { value: new THREE.Color(shallow) },
     uNight: { value: 0 },
-    uCenter: { value: new THREE.Vector2(LAKE.x, LAKE.z) },
-    uR: { value: LAKE.r },
+    uCenter: { value: new THREE.Vector2(center.x, center.z) },
+    uR: { value: center.r },
   };
 
   const mat = new THREE.ShaderMaterial({

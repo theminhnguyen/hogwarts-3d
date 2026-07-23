@@ -9,7 +9,7 @@
 // eigentliche Versionierung läuft über SAVE_VERSION im `v`-Feld des
 // gespeicherten Objekts, nicht über den Schlüsselnamen.
 export const SAVE_KEY = 'hogwarts3d-save-v1';
-export const SAVE_VERSION = 9; // v5 (S1-S12) + v6 (Sonnet-5-Polish) + v7 (E4: Aschenklamm/Siegel) + v8 (E5: Frostzinnen/Eisblitz) + v9 (E6: Silberhain/Einhorn)
+export const SAVE_VERSION = 10; // v5 (S1-S12) + v6 (Sonnet-5-Polish) + v7 (E4: Aschenklamm/Siegel) + v8 (E5: Frostzinnen/Eisblitz) + v9 (E6: Silberhain/Einhorn) + v10 (E7: Schwarzwasser/Tiefenperle)
 export const EXPORT_FORMAT = 'hogwarts3d-save';
 export const MAX_IMPORT_BYTES = 250_000;
 
@@ -38,7 +38,8 @@ export const DEFAULT_SAVE = {
     // schuppe (E4): Drachenschuppe — fällt nur beim Sieg über Aschenschwinge ab.
     // frostkristall (E5): fällt nur beim Sieg über den Frostriesen ab.
     // mondsilber (E6): fällt nur beim Lösen des Feenlicht-Rätsels in Silberhain ab.
-    zutaten: { glitzer: 0, seide: 0, stern: 0, essenz: 0, leuchtkraut: 0, schuppe: 0, frostkristall: 0, mondsilber: 0 },
+    // tiefenperle (E7): fällt nur beim Lösen des Tauch-Rätsels in Schwarzwasser ab.
+    zutaten: { glitzer: 0, seide: 0, stern: 0, essenz: 0, leuchtkraut: 0, schuppe: 0, frostkristall: 0, mondsilber: 0, tiefenperle: 0 },
     trank: { id: '', restT: 0 },
   },
   begleiter: { aktiv: '', frei: [] },
@@ -64,7 +65,15 @@ export const DEFAULT_SAVE = {
   // beim Zähmen direkt gesetzt. zentaurinQuestDone (stille Zentaurin) prüft
   // mounts.einhorn selbst, statt einen eigenen Zähm-Zustand zu duplizieren.
   silberhain: { puzzleSolved: 0, chestCollected: 0, zentaurinQuestDone: 0 },
-  siegel: { drache: 0, frost: 0, hain: 0 },
+  // PLAN-EPISCHE-WELT.md (v10): Schwarzwasser-Region (E7) — echte
+  // Wassertiefe (anders als Silberhain), daher WIEDER eine Kampf-Region wie
+  // Aschenklamm/Frostzinnen (Grindeloh-Wassergeister + der Schwarze Schlund
+  // als unbesiegbare, nur ausweichbare Gefahr) mit Herz-Upgrade-Belohnung.
+  // keeperQuestDone (Leuchtturmwärter) ist rein an puzzleSolved gekoppelt
+  // (Muster wie Selas Quest in E6 — kein eigener Fortschritts-Zwischenstand
+  // nötig, ein Gespräch NACH dem gelösten Rätsel reicht).
+  schwarzwasser: { puzzleSolved: 0, chestCollected: 0, keeperQuestDone: 0 },
+  siegel: { drache: 0, frost: 0, hain: 0, tiefe: 0 },
 };
 
 // ---------- kleine defensive Primitiv-Helfer ----------
@@ -139,6 +148,7 @@ export function normalizeSave(value) {
         schuppe: num(zutatenRaw.schuppe, 0),
         frostkristall: num(zutatenRaw.frostkristall, 0),
         mondsilber: num(zutatenRaw.mondsilber, 0),
+        tiefenperle: num(zutatenRaw.tiefenperle, 0),
       },
       trank: { id: str(trankRaw.id, ''), restT: num(trankRaw.restT, 0) },
     },
@@ -171,10 +181,16 @@ export function normalizeSave(value) {
       chestCollected: num(obj(raw.silberhain).chestCollected, 0),
       zentaurinQuestDone: num(obj(raw.silberhain).zentaurinQuestDone, 0),
     },
+    schwarzwasser: {
+      puzzleSolved: num(obj(raw.schwarzwasser).puzzleSolved, 0),
+      chestCollected: num(obj(raw.schwarzwasser).chestCollected, 0),
+      keeperQuestDone: num(obj(raw.schwarzwasser).keeperQuestDone, 0),
+    },
     siegel: {
       drache: num(obj(raw.siegel).drache, 0),
       frost: num(obj(raw.siegel).frost, 0),
       hain: num(obj(raw.siegel).hain, 0),
+      tiefe: num(obj(raw.siegel).tiefe, 0),
     },
   };
 }

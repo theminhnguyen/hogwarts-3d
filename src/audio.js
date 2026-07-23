@@ -1446,6 +1446,68 @@ export class SoundManager {
     o.start(t); o.stop(t + 0.55);
   }
 
+  // Grindeloh (E7): kurzes, blubberndes Fauchen — Muster wie catHiss(), aber
+  // mit Tiefpass statt Bandpass (dumpfer, "unter Wasser" klingend).
+  grindylowHiss() {
+    if (!this.ctx || this.muted) return;
+    const ctx = this.ctx, t = ctx.currentTime;
+    const src = ctx.createBufferSource();
+    src.buffer = this.noiseBuf;
+    const f = ctx.createBiquadFilter();
+    f.type = 'lowpass';
+    f.frequency.setValueAtTime(1400, t);
+    f.frequency.exponentialRampToValueAtTime(500, t + 0.2);
+    const g = ctx.createGain();
+    this._env(g, t, 0.004, 0.14, 0.16);
+    src.connect(f).connect(g).connect(this.master);
+    src.start(t, Math.random() * 1.5, 0.24);
+  }
+
+  // Der Schwarze Schlund (E7): tiefes, gurgelndes Auftauchen-Brüllen —
+  // Muster wie dragonRoar()/frostGiantRoar(), aber mit Bandpass statt
+  // Lowpass auf dem Rauschanteil (nasser, "aus der Tiefe" klingend).
+  schlundRoar() {
+    if (!this.ctx || this.muted) return;
+    const ctx = this.ctx, t = ctx.currentTime;
+    const o = ctx.createOscillator();
+    o.type = 'sawtooth';
+    o.frequency.setValueAtTime(48, t);
+    o.frequency.linearRampToValueAtTime(80, t + 0.3);
+    o.frequency.linearRampToValueAtTime(36, t + 1.0);
+    const f = ctx.createBiquadFilter();
+    f.type = 'lowpass'; f.frequency.value = 320;
+    const g = ctx.createGain();
+    this._env(g, t, 0.06, 0.55, 0.55);
+    o.connect(f).connect(g).connect(this.master);
+    o.start(t); o.stop(t + 1.4);
+
+    const src = ctx.createBufferSource();
+    src.buffer = this.noiseBuf;
+    const nf = ctx.createBiquadFilter();
+    nf.type = 'bandpass'; nf.frequency.value = 700; nf.Q.value = 0.8;
+    const ng = ctx.createGain();
+    this._env(ng, t, 0.06, 0.4, 0.5);
+    src.connect(nf).connect(ng).connect(this.master);
+    src.start(t, Math.random() * 1.5, 1.0);
+  }
+
+  // Untertauchen nach dem Ausfall-Versuch — kurzer, fallender Platsch.
+  schlundSplash() {
+    if (!this.ctx || this.muted) return;
+    const ctx = this.ctx, t = ctx.currentTime;
+    const src = ctx.createBufferSource();
+    src.buffer = this.noiseBuf;
+    const f = ctx.createBiquadFilter();
+    f.type = 'bandpass';
+    f.frequency.setValueAtTime(900, t);
+    f.frequency.exponentialRampToValueAtTime(200, t + 0.4);
+    f.Q.value = 1.0;
+    const g = ctx.createGain();
+    this._env(g, t, 0.01, 0.35, 0.4);
+    src.connect(f).connect(g).connect(this.master);
+    src.start(t, Math.random() * 1.5, 0.45);
+  }
+
   // gloom (0..1, von weather.js): bei Regen/Sturm verstummen Vögel/Grillen.
   // owlProximity (0..1, von main.js): Nähe zur Eulerei, gated Eulenrufe nachts.
   update(daylight, gloom = 0, owlProximity = 0) {

@@ -7,6 +7,7 @@ import {
   terrainHeight, distToPaths, distToPolyline, WATER_LEVEL,
   PLATEAU, LAKE, QUIDDITCH, HAGRID, STONES, BOATHOUSE, MOOR, DORF, TRASSE,
   SILBERAUEN, FAHLHOLZ, HUEGELGRAB, KATE, ASCHENKLAMM, FROSTZINNEN, SILBERHAIN,
+  SCHWARZWASSER,
 } from './terrain.js';
 import { fbm, mulberry32 } from './noise.js';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
@@ -146,6 +147,10 @@ function spotFree(x, z, h) {
   const dPlat = Math.hypot(x - PLATEAU.x, z - PLATEAU.z);
   if (dPlat < 100) return false;
   if (Math.hypot(x - LAKE.x, z - LAKE.z) < LAKE.r + 8) return false;
+  // Schwarzwasser (E7): wie beim großen See reicht der reine Höhen-Gate für
+  // Felsen/Gras (terrainHeight taucht dort ohnehin unter deren Schwellwerte)
+  // — nur Bäume brauchen den expliziten Radius-Ausschluss (Muster LAKE oben).
+  if (Math.hypot(x - SCHWARZWASSER.x, z - SCHWARZWASSER.z) < SCHWARZWASSER.r + 8) return false;
   if (Math.hypot(x - QUIDDITCH.x, z - QUIDDITCH.z) < 62) return false;
   if (Math.hypot(x - HAGRID.x, z - HAGRID.z) < 24) return false;
   if (Math.hypot(x - STONES.x, z - STONES.z) < 30) return false;
