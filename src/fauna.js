@@ -12,6 +12,8 @@ import { terrainHeight, SILBERAUEN, FAHLHOLZ, GROVE } from './terrain.js';
 import { mulberry32 } from './noise.js';
 import { buildPatronusModel } from './patronus.js';
 import { IMPERIO_DUR } from './creatures.js';
+import { attachRimLight } from './model.js';
+import { makeFurTexture } from './textures.js';
 
 const IMPERIO_FOLLOW_DIST = 2.5;
 
@@ -122,8 +124,9 @@ const RABBIT_TUNING = { hopSpeed: 2.2, wanderR: 10, respawnDur: 60 };
 
 // Exportiert (S4): der Wilderer-Käfig braucht eine der 4 Modelle als reine
 // Deko-Kreatur (kein AI-Zustand) — Extraktion statt Duplikat.
-export function buildRabbitModel() {
-  const mat = new THREE.MeshLambertMaterial({ color: 0x9a8265, flatShading: true });
+export function buildRabbitModel(furTex) {
+  const mat = new THREE.MeshLambertMaterial({ color: 0x9a8265, flatShading: true, map: furTex });
+  attachRimLight(mat, { color: 0xf0e6d0, power: 2.6, intensity: 0.35 });
   const group = new THREE.Group();
   const body = new THREE.Mesh(new THREE.SphereGeometry(0.11, 6, 5), mat);
   body.scale.set(1, 0.85, 1.3);
@@ -132,23 +135,31 @@ export function buildRabbitModel() {
   const head = new THREE.Mesh(new THREE.SphereGeometry(0.075, 6, 5), mat);
   head.position.set(0, 0.19, 0.14);
   group.add(head);
+  // E1: Ohren als eigene Gruppen mit Basis-Pivot (statt starrer Meshes) —
+  // erlaubt das Zuck-Sekundärbewegung in Rabbit.update() über rotation.z.
+  const ears = [];
   for (const s of [-1, 1]) {
+    const earRoot = new THREE.Group();
+    earRoot.position.set(s * 0.03, 0.31, 0.13);
+    earRoot.rotation.z = s * 0.15;
     const ear = new THREE.Mesh(new THREE.ConeGeometry(0.022, 0.16, 4), mat);
-    ear.position.set(s * 0.03, 0.31, 0.13);
-    ear.rotation.z = s * 0.15;
-    group.add(ear);
+    ear.position.y = 0.08;
+    earRoot.add(ear);
+    group.add(earRoot);
+    ears.push(earRoot);
   }
   const tail = new THREE.Mesh(new THREE.SphereGeometry(0.035, 5, 4), mat);
   tail.position.set(0, 0.14, -0.16);
   group.add(tail);
-  return { group, body };
+  return { group, body, ears };
 }
 
 class Rabbit {
-  constructor(scene, spot, seed, denPos) {
-    const m = buildRabbitModel();
+  constructor(scene, spot, seed, denPos, furTex) {
+    const m = buildRabbitModel(furTex);
     this.group = m.group;
     this.body = m.body;
+    this.ears = m.ears;
     this.pos = this.group.position;
     this.den = denPos || { x: spot.x, z: spot.z };
     this.pos.set(spot.x, terrainHeight(spot.x, spot.z), spot.z);
@@ -156,6 +167,7 @@ class Rabbit {
     this.state = 'idle'; // idle|hop|hidden
     this.stateT = rand(0, 3);
     this.hopT = 0;
+    this.twitchT = rand(1, 4); // E1: Ohren-Zuck-Timer, unabhängig von Bewegung
     this.rng = mulberry32(seed);
     this.huntedBy = null; // von Fuchs/Spinne gesetzt: aktives Jagd-Ziel
     scene.add(this.group);
@@ -215,14 +227,28 @@ class Rabbit {
     }
     leashClamp(this.pos, SILBERAUEN.x, SILBERAUEN.z, LEASH);
     this.pos.y = terrainHeight(this.pos.x, this.pos.z);
+
+    // E1: Ohren-Zuck — kurzer, unregelmäßiger Wackler, unabhängig vom
+    // Hüpf-Zustand (auch im Stehen "lebendig").
+    this.twitchT -= dt;
+    if (this.twitchT <= 0) {
+      this.twitchT = rand(1.5, 4);
+      this._twitchPhase = 0.4;
+    }
+    if (this._twitchPhase > 0) {
+      this._twitchPhase -= dt * 3;
+      const k = Math.max(0, this._twitchPhase);
+      for (const ear of this.ears) ear.rotation.x = Math.sin(k * 20) * k * 0.6;
+    }
   }
 }
 
 // ============================================================ Fuchs ============
 const FOX_TUNING = { speed: 2.0, huntSpeed: 4.8, huntRange: 20, touchRange: 1.4, satiatedDur: 90, respawnDur: 60 };
 
-export function buildFoxModel() {
-  const mat = new THREE.MeshLambertMaterial({ color: 0xc06a30, flatShading: true });
+export function buildFoxModel(furTex) {
+  const mat = new THREE.MeshLambertMaterial({ color: 0xc06a30, flatShading: true, map: furTex });
+  attachRimLight(mat, { color: 0xffd8a0, power: 2.4, intensity: 0.4 });
   const darkMat = new THREE.MeshLambertMaterial({ color: 0x2a221c, flatShading: true });
   const group = new THREE.Group();
   const body = new THREE.Mesh(new THREE.SphereGeometry(0.19, 7, 5), mat);
@@ -236,18 +262,29 @@ export function buildFoxModel() {
   snout.rotation.x = Math.PI / 2;
   snout.position.set(0, 0.27, 0.42);
   group.add(snout);
+  // E1: Ohren als Pivot-Gruppen (Sekundärbewegung in Fox.update()).
+  const ears = [];
   for (const s of [-1, 1]) {
+    const earRoot = new THREE.Group();
+    earRoot.position.set(s * 0.07, 0.42, 0.26);
     const ear = new THREE.Mesh(new THREE.ConeGeometry(0.045, 0.12, 4), mat);
-    ear.position.set(s * 0.07, 0.42, 0.26);
-    group.add(ear);
+    ear.position.y = 0.06;
+    earRoot.add(ear);
+    group.add(earRoot);
+    ears.push(earRoot);
   }
+  // E1: Schwanz als Pivot-Gruppe an der Wurzel (statt starrem Mesh) —
+  // Sekundärbewegung wedelt/pendelt in Fox.update().
+  const tailRoot = new THREE.Group();
+  tailRoot.position.set(0, 0.3, -0.28);
+  group.add(tailRoot);
   const tail = new THREE.Mesh(new THREE.ConeGeometry(0.09, 0.55, 6), mat);
   tail.rotation.x = Math.PI / 2.3;
-  tail.position.set(0, 0.28, -0.42);
-  group.add(tail);
+  tail.position.set(0, -0.02, -0.14);
+  tailRoot.add(tail);
   const tailTip = new THREE.Mesh(new THREE.SphereGeometry(0.06, 5, 4), new THREE.MeshLambertMaterial({ color: 0xe8e0d0, flatShading: true }));
-  tailTip.position.set(0, 0.24, -0.66);
-  group.add(tailTip);
+  tailTip.position.set(0, -0.06, -0.38);
+  tailRoot.add(tailTip);
   const legs = [];
   for (const [lx, lz] of [[-0.11, 0.22], [0.11, 0.22], [-0.11, -0.22], [0.11, -0.22]]) {
     const leg = new THREE.Mesh(new THREE.CylinderGeometry(0.03, 0.025, 0.24, 5), darkMat);
@@ -255,14 +292,16 @@ export function buildFoxModel() {
     group.add(leg);
     legs.push(leg);
   }
-  return { group, legs };
+  return { group, legs, ears, tailRoot };
 }
 
 class Fox {
-  constructor(scene, spot, seed) {
-    const m = buildFoxModel();
+  constructor(scene, spot, seed, furTex) {
+    const m = buildFoxModel(furTex);
     this.group = m.group;
     this.legs = m.legs;
+    this.ears = m.ears;
+    this.tailRoot = m.tailRoot;
     this.pos = this.group.position;
     this.pos.set(spot.x, terrainHeight(spot.x, spot.z), spot.z);
     this.home = { x: spot.x, z: spot.z };
@@ -377,14 +416,22 @@ class Fox {
     this.gaitT += dt * (moving ? (this.state === 'hunt' ? 9 : 3) : 1);
     const amp = moving ? (this.state === 'hunt' ? 0.6 : 0.25) : 0.05;
     for (let i = 0; i < this.legs.length; i++) this.legs[i].rotation.x = Math.sin(this.gaitT + i * 1.5) * amp;
+
+    // E1: Ohren/Schwanz-Sekundärbewegung — Schwanz pendelt beim Laufen breit
+    // mit (schneller/stärker bei der Jagd), Ohren wippen dezent im Idle.
+    const tailAmp = moving ? (this.state === 'hunt' ? 0.35 : 0.18) : 0.05;
+    this.tailRoot.rotation.y = Math.sin(this.gaitT * 0.6) * tailAmp;
+    const earWobble = Math.sin(this.gaitT * 2.2) * (moving ? 0.08 : 0.04);
+    for (const ear of this.ears) ear.rotation.x = earWobble;
   }
 }
 
 // ============================================================ Niffler ============
 const NIFFLER_TUNING = { pickupRange: 2.5, cooldown: 25 };
 
-export function buildNifflerModel() {
-  const mat = new THREE.MeshLambertMaterial({ color: 0x1c1a1e, flatShading: true });
+export function buildNifflerModel(furTex) {
+  const mat = new THREE.MeshLambertMaterial({ color: 0x1c1a1e, flatShading: true, map: furTex });
+  attachRimLight(mat, { color: 0x9ab0c8, power: 2.6, intensity: 0.35 });
   const billMat = new THREE.MeshLambertMaterial({ color: 0x3a3238, flatShading: true });
   const group = new THREE.Group();
   const body = new THREE.Mesh(new THREE.SphereGeometry(0.15, 7, 5), mat);
@@ -403,8 +450,8 @@ export function buildNifflerModel() {
 }
 
 class Niffler {
-  constructor(scene, spot, seed, onGlitter) {
-    const m = buildNifflerModel();
+  constructor(scene, spot, seed, onGlitter, furTex) {
+    const m = buildNifflerModel(furTex);
     this.group = m.group;
     this.body = m.body;
     this.pos = this.group.position;
@@ -439,6 +486,7 @@ class Niffler {
 // ============================================================ Bowtruckle ============
 export function buildBowtruckleModel() {
   const mat = new THREE.MeshLambertMaterial({ color: 0x3c5a2e, flatShading: true });
+  attachRimLight(mat, { color: 0xbfe89a, power: 2.6, intensity: 0.35 });
   const eyeMat = new THREE.MeshLambertMaterial({ color: 0x1c2418, flatShading: true });
   const group = new THREE.Group();
   const body = new THREE.Mesh(new THREE.CylinderGeometry(0.025, 0.035, 0.22, 5), mat);
@@ -503,8 +551,9 @@ const HIPPO_TUNING = { speed: 1.8, fleeSpeed: 6, fleeRange: 12, wanderR: 16 };
 
 // Exportiert (S5): mount.js baut den gerittenen Hippogreif aus DERSELBEN
 // Geometrie (gezähmt ist er kein neues Modell, nur ein neuer Zustand).
-export function buildWildHippoModel() {
-  const bodyMat = new THREE.MeshLambertMaterial({ color: 0x8a7860, flatShading: true });
+export function buildWildHippoModel(furTex) {
+  const bodyMat = new THREE.MeshLambertMaterial({ color: 0x8a7860, flatShading: true, map: furTex });
+  attachRimLight(bodyMat, { color: 0xe0d4b8, power: 2.4, intensity: 0.4 });
   const featherMat = new THREE.MeshLambertMaterial({ color: 0x5a4a38, flatShading: true, side: THREE.DoubleSide });
   const beakMat = new THREE.MeshLambertMaterial({ color: 0x3a3228, flatShading: true });
   const group = new THREE.Group();
@@ -552,8 +601,8 @@ export function buildWildHippoModel() {
 }
 
 class WildHippogriff {
-  constructor(scene, spot, seed) {
-    const m = buildWildHippoModel();
+  constructor(scene, spot, seed, furTex) {
+    const m = buildWildHippoModel(furTex);
     this.group = m.group;
     this.legs = m.legs;
     this.wings = m.wings;
@@ -636,6 +685,10 @@ class WildHippogriff {
 // ============================================================ Aufbau ============
 export function buildFauna(scene, fx, audio, treeSpots, onGlitter) {
   const rng = mulberry32(6001);
+  // E1 (PLAN-EPISCHE-WELT.md): EINE geteilte Fell-Textur für die ganze Fauna
+  // dieses Builds (statt pro Art neu zu generieren) — modulierend um Weiß
+  // aufgebaut (siehe textures.js), färbt die jeweilige Materialfarbe nicht um.
+  const furTex = makeFurTexture(3);
 
   const deer = [];
   for (let i = 0; i < 8; i++) deer.push(new Deer(scene, ringSpot(rng, SILBERAUEN.x, SILBERAUEN.z, 0, 28), 100 + i));
@@ -643,14 +696,14 @@ export function buildFauna(scene, fx, audio, treeSpots, onGlitter) {
   const rabbits = [];
   for (let i = 0; i < 12; i++) {
     const den = ringSpot(rng, SILBERAUEN.x, SILBERAUEN.z, 0, 40);
-    rabbits.push(new Rabbit(scene, den, 200 + i, den));
+    rabbits.push(new Rabbit(scene, den, 200 + i, den, furTex));
   }
 
   const foxes = [];
-  for (let i = 0; i < 4; i++) foxes.push(new Fox(scene, ringSpot(rng, FOX_HOME.x, FOX_HOME.z, 0, FOX_LEASH - 5), 300 + i));
+  for (let i = 0; i < 4; i++) foxes.push(new Fox(scene, ringSpot(rng, FOX_HOME.x, FOX_HOME.z, 0, FOX_LEASH - 5), 300 + i, furTex));
 
   const nifflers = [];
-  for (let i = 0; i < 3; i++) nifflers.push(new Niffler(scene, ringSpot(rng, SILBERAUEN.x, SILBERAUEN.z, 0, 25), 400 + i, onGlitter));
+  for (let i = 0; i < 3; i++) nifflers.push(new Niffler(scene, ringSpot(rng, SILBERAUEN.x, SILBERAUEN.z, 0, 25), 400 + i, onGlitter, furTex));
 
   // Bowtruckles sitzen an ECHTEN Baum-Positionen (S1-treeSpots-Export),
   // auf die Wildmark-Nähe gefiltert (sonst wirken sie beliebig über die
@@ -667,7 +720,7 @@ export function buildFauna(scene, fx, audio, treeSpots, onGlitter) {
   }
 
   const hippos = [];
-  for (let i = 0; i < 3; i++) hippos.push(new WildHippogriff(scene, ringSpot(rng, SILBERAUEN.x, SILBERAUEN.z, 5, 30), 600 + i));
+  for (let i = 0; i < 3; i++) hippos.push(new WildHippogriff(scene, ringSpot(rng, SILBERAUEN.x, SILBERAUEN.z, 5, 30), 600 + i, furTex));
 
   const preyForFoxes = rabbits;
 

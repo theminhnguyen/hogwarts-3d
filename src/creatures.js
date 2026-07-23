@@ -8,6 +8,7 @@ import * as THREE from 'three';
 import { GeoBatch } from './geo.js';
 import { terrainHeight, GROVE } from './terrain.js';
 import { mulberry32 } from './noise.js';
+import { buildLimbChain, attachRimLight } from './model.js';
 
 const TUNING = {
   pixie: {
@@ -111,8 +112,9 @@ function buildPixieParts(glowTex) {
   head.translate(0, 0.14, 0.09);
   b.addRaw(head, 0x4fc8e0);
   for (const s of [-1, 1]) {
-    const eye = new THREE.SphereGeometry(0.018, 5, 4);
-    eye.translate(s * 0.035, 0.155, 0.155);
+    // E1 (PLAN-EPISCHE-WELT.md): größere, ausdrucksstärkere Augen (0.018->0.03).
+    const eye = new THREE.SphereGeometry(0.03, 6, 5);
+    eye.translate(s * 0.04, 0.16, 0.165);
     b.addRaw(eye, 0x142028);
     const ear = new THREE.ConeGeometry(0.025, 0.09, 4);
     ear.rotateZ(s * 0.7);
@@ -120,19 +122,34 @@ function buildPixieParts(glowTex) {
     b.addRaw(ear, 0x3fb8d4);
   }
   const bodyMat = new THREE.MeshLambertMaterial({ vertexColors: true, flatShading: true });
+  attachRimLight(bodyMat, { color: 0xbdf4ff, power: 2.0, intensity: 0.7 });
   const bodyTemplate = b.build(bodyMat, { castShadow: true, receiveShadow: false });
 
+  // E1: Doppelmembran-Flügel — zwei leicht versetzte, unterschiedlich helle
+  // Lagen statt einer einzelnen Fläche (in Pixie unten zu einer Gruppe
+  // zusammengefasst, die gemeinsam flattert) — wirkt aus jedem Winkel
+  // voluminöser als eine einzelne Ebene.
   const wingGeo = new THREE.PlaneGeometry(0.22, 0.12);
   const wingMat = new THREE.MeshBasicMaterial({
-    color: 0xf3fbff, side: THREE.DoubleSide, transparent: true, opacity: 0.6,
+    color: 0xf3fbff, side: THREE.DoubleSide, transparent: true, opacity: 0.55,
+  });
+  const wingGeoInner = new THREE.PlaneGeometry(0.15, 0.085);
+  const wingMatInner = new THREE.MeshBasicMaterial({
+    color: 0xafe8fa, side: THREE.DoubleSide, transparent: true, opacity: 0.4,
   });
 
   const glowMat = new THREE.SpriteMaterial({
     map: glowTex, color: 0x3fb8d4, transparent: true, opacity: 0.5,
     blending: THREE.AdditiveBlending, depthWrite: false,
   });
+  // E1: leuchtende Adern — zwei kleine additive Glanzpunkte entlang der
+  // Körperlängsachse, pulsieren pro Instanz leicht phasenversetzt (update()).
+  const veinMat = new THREE.SpriteMaterial({
+    map: glowTex, color: 0x9ff5ff, transparent: true, opacity: 0.6,
+    blending: THREE.AdditiveBlending, depthWrite: false,
+  });
 
-  return { bodyGeo: bodyTemplate.geometry, bodyMat, wingGeo, wingMat, glowMat };
+  return { bodyGeo: bodyTemplate.geometry, bodyMat, wingGeo, wingMat, wingGeoInner, wingMatInner, glowMat, veinMat };
 }
 
 class Pixie {
@@ -168,15 +185,42 @@ class Pixie {
     const body = new THREE.Mesh(parts.bodyGeo, parts.bodyMat);
     body.castShadow = true;
     this.group.add(body);
-    this.wingL = new THREE.Mesh(parts.wingGeo, parts.wingMat);
+    // E1: Flügel sind jetzt Gruppen aus 2 Membranen (Doppelmembran-Effekt) —
+    // rotation.z auf der GRUPPE treibt weiterhin wie vorher den Flügelschlag,
+    // beide Lagen schlagen also gemeinsam mit.
+    this.wingL = new THREE.Group();
     this.wingL.position.set(-0.13, 0.06, 0);
+    this.wingL.add(new THREE.Mesh(parts.wingGeo, parts.wingMat));
+    const wingLInner = new THREE.Mesh(parts.wingGeoInner, parts.wingMatInner);
+    wingLInner.position.set(-0.02, 0.01, 0.015);
+    wingLInner.rotation.y = 0.15;
+    this.wingL.add(wingLInner);
     this.group.add(this.wingL);
-    this.wingR = new THREE.Mesh(parts.wingGeo, parts.wingMat);
+
+    this.wingR = new THREE.Group();
     this.wingR.position.set(0.13, 0.06, 0);
+    this.wingR.add(new THREE.Mesh(parts.wingGeo, parts.wingMat));
+    const wingRInner = new THREE.Mesh(parts.wingGeoInner, parts.wingMatInner);
+    wingRInner.position.set(0.02, 0.01, 0.015);
+    wingRInner.rotation.y = -0.15;
+    this.wingR.add(wingRInner);
     this.group.add(this.wingR);
+
     const glow = new THREE.Sprite(parts.glowMat);
     glow.scale.setScalar(0.5);
     this.group.add(glow);
+
+    // E1: leuchtende Adern — eigene Material-Klone, damit jeder Wichtel
+    // unabhängig pulsiert (siehe update()).
+    const veinA = new THREE.Sprite(parts.veinMat.clone());
+    veinA.scale.setScalar(0.05);
+    veinA.position.set(0, 0.17, 0.03);
+    this.group.add(veinA);
+    const veinB = new THREE.Sprite(parts.veinMat.clone());
+    veinB.scale.setScalar(0.045);
+    veinB.position.set(0, 0.15, -0.08);
+    this.group.add(veinB);
+    this._veinMats = [veinA.material, veinB.material];
 
     system.scene.add(this.group);
   }
@@ -406,6 +450,9 @@ class Pixie {
     const flap = Math.sin(this._flapT * 28) * 0.9;
     this.wingL.rotation.z = flap;
     this.wingR.rotation.z = -flap;
+    // E1: Adern-Puls, phasenversetzt pro Instanz (this.phaseB).
+    const veinPulse = 0.35 + Math.sin(this._flapT * 2.3 + this.phaseB) * 0.25;
+    for (const m of this._veinMats) m.opacity = veinPulse;
     if (this.state !== 'dying') {
       const hSpeed = Math.hypot(this.vel.x, this.vel.z);
       if (hSpeed > 0.3) {
@@ -461,8 +508,15 @@ export function buildGhostParts(glowTex) {
     map: glowTex, color: 0x4a70c0, transparent: true, opacity: 0.3,
     blending: THREE.AdditiveBlending, depthWrite: false,
   });
+  // E1 (PLAN-EPISCHE-WELT.md): "tieferes Nichts im Inneren" — unlit, fast
+  // schwarzes Material für die etwas kleinere Innenschale (siehe Ghost-
+  // Konstruktor). MeshBasicMaterial statt Lambert: repräsentiert bewusst
+  // KEINE beleuchtete Oberfläche, sondern die Abwesenheit von Licht.
+  const voidMatTemplate = new THREE.MeshBasicMaterial({
+    color: 0x05060c, transparent: true, opacity: 0, side: THREE.DoubleSide, depthWrite: false,
+  });
 
-  return { cloakGeo, hoodGeo, cloakMatTemplate, eyeMatTemplate, glowMatTemplate };
+  return { cloakGeo, hoodGeo, cloakMatTemplate, eyeMatTemplate, glowMatTemplate, voidMatTemplate };
 }
 
 export class Ghost {
@@ -495,10 +549,26 @@ export class Ghost {
 
     this.cloakMat = parts.cloakMatTemplate.clone();
     this.cloakMat.opacity = 0;
-    this.cloak = new THREE.Mesh(parts.cloakGeo, this.cloakMat);
+    // E1: Rim-Light auf dem per-Instanz-Klon (Material.copy() übernimmt
+    // onBeforeCompile NICHT — siehe model.js-Kommentar — deshalb hier NACH
+    // dem .clone() erneut anhängen, nicht auf dem Template oben).
+    attachRimLight(this.cloakMat, { color: 0x8fb0ff, power: 2.0, intensity: 0.8 });
+    // E1: eigene Geometrie-Kopie pro Geist (statt der geteilten Vorlage) —
+    // nötig, damit der Saum-Wobble in update() nicht alle Geister gleich-
+    // zeitig/synchron verzerrt. `_cloakBase` hält die unverzerrten
+    // Ausgangs-Positionen für die Wobble-Berechnung.
+    this.cloakGeoInst = parts.cloakGeo.clone();
+    this._cloakBase = this.cloakGeoInst.attributes.position.array.slice();
+    this.cloak = new THREE.Mesh(this.cloakGeoInst, this.cloakMat);
     this.group.add(this.cloak);
     const hood = new THREE.Mesh(parts.hoodGeo, this.cloakMat);
     this.group.add(hood);
+    // E1: "tieferes Nichts im Inneren" — etwas kleinere, fast schwarze
+    // Innenschale, teilt sich dieselbe (wabernde) Geometrie wie der Umhang.
+    this.voidMat = parts.voidMatTemplate.clone();
+    const voidShell = new THREE.Mesh(this.cloakGeoInst, this.voidMat);
+    voidShell.scale.setScalar(0.82);
+    this.group.add(voidShell);
 
     this.eyeMat = parts.eyeMatTemplate.clone();
     this.eyeMat.opacity = 0;
@@ -539,6 +609,28 @@ export class Ghost {
     this.cloakMat.opacity = 0.88 * f;
     this.eyeMat.opacity = 0.95 * f;
     this.glowMat.opacity = 0.3 * f;
+    this.voidMat.opacity = 0.9 * f;
+  }
+
+  // E1: Saum-Wobble — Vertices nahe y=0 (Saum) verschieben sich radial nach
+  // außen/innen, zur Spitze hin (falloff) abnehmend, sodass nur der untere
+  // Umhangrand "weht" statt der ganzen starren Kegelform. flatShading:true
+  // liest Normalen aus Screen-Space-Ableitungen der Fragment-Position, NICHT
+  // aus dem Normalen-Attribut — computeVertexNormals() ist hier bewusst
+  // NICHT nötig (gespart, da sonst jeden Frame für alle nahen Geister fällig).
+  _updateWobble(t) {
+    const pos = this.cloakGeoInst.attributes.position;
+    const base = this._cloakBase;
+    for (let i = 0; i < pos.count; i++) {
+      const bx = base[i * 3], by = base[i * 3 + 1], bz = base[i * 3 + 2];
+      const falloff = Math.max(0, 1 - by / 1.3);
+      if (falloff <= 0) continue;
+      const ang = Math.atan2(bz, bx);
+      const wob = Math.sin(t * 2.4 + ang * 2.5 + i * 0.37 + this.phaseA) * 0.09 * falloff * falloff;
+      const r = Math.hypot(bx, bz) || 1;
+      pos.setXYZ(i, bx + (bx / r) * wob, by, bz + (bz / r) * wob);
+    }
+    pos.needsUpdate = true;
   }
 
   applyHit(spellId, _boltVel, dmgMul = 1) {
@@ -615,6 +707,7 @@ export class Ghost {
     if (distSq > CULL_HIDE * CULL_HIDE) { this.group.visible = false; return; }
     this.group.visible = true;
     if (distSq > CULL_FULL * CULL_FULL) { this._applyFade(); return; } // eingefroren, aber sichtbar
+    this._updateWobble(this.system.time);
 
     // Kälte-Näherungsmeldung ans System (für HUD-Vignette & Drone-Sound)
     const dist = Math.sqrt(distSq);
@@ -709,11 +802,6 @@ class Troll {
     this.pos.set(TROLL_POS.x, terrainHeight(TROLL_POS.x, TROLL_POS.z), TROLL_POS.z);
 
     const b = new GeoBatch();
-    for (const s of [-1, 1]) {
-      const leg = new THREE.CylinderGeometry(0.34, 0.4, 1.3, 7);
-      leg.translate(s * 0.4, 0.65, 0);
-      b.addRaw(leg, SKIN_DARK);
-    }
     const torso = new THREE.SphereGeometry(0.85, 8, 6);
     torso.scale(1.15, 1.3, 0.95);
     torso.translate(0, 2.0, 0);
@@ -732,7 +820,10 @@ class Troll {
     arm.rotateZ(0.25);
     arm.translate(-0.95, 1.75, 0.1);
     b.addRaw(arm, SKIN_DARK);
+    // E1 (PLAN-EPISCHE-WELT.md): Rim-Light auf dem Hauptkörper-Material für
+    // eine bessere Silhouette (auch im Gegenlicht/nachts lesbar).
     const bodyMat = new THREE.MeshLambertMaterial({ vertexColors: true, flatShading: true });
+    attachRimLight(bodyMat, { color: 0xd8e0c8, power: 2.6, intensity: 0.4 });
     const bodyMesh = b.build(bodyMat, { castShadow: true, receiveShadow: true });
     this.group.add(bodyMesh);
 
@@ -740,6 +831,7 @@ class Troll {
     this.clubArmGroup = new THREE.Group();
     this.clubArmGroup.position.set(0.9, 2.15, 0.1);
     const darkMat = new THREE.MeshLambertMaterial({ color: SKIN_DARK, flatShading: true });
+    attachRimLight(darkMat, { color: 0xd8e0c8, power: 2.6, intensity: 0.4 });
     const clubMat = new THREE.MeshLambertMaterial({ color: CLUB, flatShading: true });
     const upperArm = new THREE.Mesh(new THREE.CylinderGeometry(0.22, 0.2, 0.55, 6), darkMat);
     upperArm.position.set(0, -0.28, 0);
@@ -754,6 +846,25 @@ class Troll {
     clubHead.position.set(0, -1.75, 0);
     this.clubArmGroup.add(clubHead);
     this.group.add(this.clubArmGroup);
+
+    // E1: echte Bein-Gelenkketten (Astketten-Muster aus willow.js/
+    // Spinnenbeinen, verallgemeinert in model.js) statt starrer Zylinder —
+    // trägt jetzt eine echte Gang-Animation (siehe update()). Hüfte y=1.3
+    // (deckt sich mit dem alten, statischen Bein-Zentrum), 2 Segmente
+    // (Ober-/Unterschenkel) bis zum Boden (y=0).
+    this.legs = [];
+    for (const s of [-1, 1]) {
+      const chain = buildLimbChain(this.group, {
+        pos: { x: s * 0.4, y: 1.3, z: 0 },
+        down: true,
+        segments: [
+          { length: 0.75, radiusTop: 0.34, radiusBot: 0.28, radialSegs: 7, material: darkMat },
+          { length: 0.60, radiusTop: 0.28, radiusBot: 0.34, radialSegs: 6, material: darkMat, restRotX: 0.3 },
+        ],
+      });
+      this.legs.push({ hip: chain.joints[0], phase: s > 0 ? Math.PI : 0 });
+    }
+    this.gaitT = Math.random() * 10;
 
     system.scene.add(this.group);
 
@@ -959,6 +1070,13 @@ class Troll {
       this.group.rotation.y = angleLerp(this.group.rotation.y, targetYaw, Math.min(1, dt * 4));
     }
 
+    // E1: Gang-Zyklus — Hüftgelenk schwingt, Kniegelenk bleibt in der
+    // statischen Ruhehaltung (gleiches vereinfachtes Muster wie die
+    // Spinnenbeine: nur EIN Gelenk pro Bein animiert).
+    this.gaitT += dt * (hSpeed > 0.15 ? 2.6 + hSpeed * 0.7 : 0.35);
+    const legAmp = hSpeed > 0.15 ? 0.4 : 0.03;
+    for (const leg of this.legs) leg.hip.rotation.x = Math.sin(this.gaitT + leg.phase) * legAmp;
+
     this._updateChest(dt, player);
   }
 
@@ -1029,11 +1147,13 @@ function buildSpiderParts(glowTex) {
   head.translate(0, 0.4, 0.38);
   b.addRaw(head, 0x1c1712);
   const bodyMat = new THREE.MeshLambertMaterial({ vertexColors: true, flatShading: true });
+  attachRimLight(bodyMat, { color: 0x8a6a52, power: 2.8, intensity: 0.35 });
   const bodyMesh = b.build(bodyMat, { castShadow: true, receiveShadow: false });
 
   const legUpperGeo = new THREE.CylinderGeometry(0.05, 0.06, 0.55, 5);
   const legLowerGeo = new THREE.CylinderGeometry(0.035, 0.05, 0.5, 5);
   const legMat = new THREE.MeshLambertMaterial({ color: 0x14100c, flatShading: true });
+  attachRimLight(legMat, { color: 0x8a6a52, power: 2.8, intensity: 0.35 });
 
   const eyeMatTemplate = new THREE.SpriteMaterial({
     map: glowTex, color: 0xff2020, transparent: true, opacity: 0.9,

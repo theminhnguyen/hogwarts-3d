@@ -257,6 +257,33 @@ export function makeWebTexture() {
   return finish(c, { repeat: false });
 }
 
+// ---------- Fell/Federn (kurze gerichtete Strähnen) ----------
+// PLAN-EPISCHE-WELT.md (E1): Fauna-Grafik-Upgrade. Wie die anderen Texturen
+// um Weiß herum aufgebaut (Mittelwert ~0.9) — moduliert nur die Vertex-Farbe
+// mit Strähnen-Detail, färbt sie nicht um. `seed` hält Fuchs/Reh/Hase optisch
+// unterscheidbar, ohne die Funktion zu duplizieren.
+export function makeFurTexture(seed = 1) {
+  const S = 128;
+  const [c, ctx] = canvas(S);
+  const rng = mulberry32(200 + seed);
+  ctx.fillStyle = '#dcdcdc';
+  ctx.fillRect(0, 0, S, S);
+  for (let i = 0; i < 700; i++) {
+    const x = rng() * S, y = rng() * S;
+    const len = 2.5 + rng() * 4;
+    const drift = (rng() - 0.5) * 1.5;
+    const bright = rng() < 0.55;
+    ctx.strokeStyle = bright ? 'rgba(255,255,255,0.22)' : 'rgba(40,35,30,0.16)';
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.moveTo(x, y);
+    ctx.lineTo(x + drift, y - len); // Strähnen wachsen "nach oben" (Fellrichtung Kopf->Schwanz beim Auftragen)
+    ctx.stroke();
+  }
+  speckle(ctx, S, rng, 200, 0.06);
+  return finish(c);
+}
+
 // ---------- Mond mit Kratern ----------
 export function makeMoonTexture() {
   const S = 128;
