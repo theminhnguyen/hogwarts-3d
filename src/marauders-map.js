@@ -29,8 +29,10 @@ export const LANDMARKS = [
 // Skalierung fürs CSS-Panel: Weltkoordinaten auf 0..100%. WORLD_BOUND aus
 // terrain.js (die unpassierbare Bergkette) ist die sichere obere Grenze für
 // jede Landmarken-Koordinate — hier als Zahl gespiegelt, nicht importiert
-// (gleicher Grund wie oben).
-const MAP_EXTENT = 430;
+// (gleicher Grund wie oben). PLAN-EPISCHE-WELT.md E0: mit WORLD_BOUND
+// 430->660 nachgezogen, sonst liefe der Spieler-Punkt außerhalb des Panels,
+// sobald man in den jetzt begehbaren äußeren Ring läuft.
+const MAP_EXTENT = 660;
 function toPercent(v) { return ((v + MAP_EXTENT) / (MAP_EXTENT * 2)) * 100; }
 
 export function buildMarauderMap(hud, save) {

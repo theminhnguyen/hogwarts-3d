@@ -164,11 +164,16 @@ function spotFree(x, z, h) {
   return true;
 }
 
-// Instanzen in 3×3 Regionen aufteilen → Frustum-/Schatten-Culling greift
+// Instanzen in Regionen aufteilen → Frustum-/Schatten-Culling greift.
+// PLAN-EPISCHE-WELT.md (E0): Offset 480->720 (= neuer WORLD_BOUND 660 + 60
+// Marge, gleiches Muster wie vorher 430+50) nachgezogen. Die 320er-Chunkgröße
+// selbst bleibt unverändert — sie bestimmt nur, wie fein Culling greift, nicht
+// die Weltgröße; bei größerem Radius entstehen automatisch mehr Chunks
+// (vorher 3×3, jetzt 5×5), keine "Riesen-Chunks".
 function buildChunkedInstances(scene, geo, placements, { castShadow = true, doubleSide = false, sway = null, swayMaterials = null } = {}) {
   const chunks = new Map();
   for (const p of placements) {
-    const key = `${Math.floor((p.x + 480) / 320)}_${Math.floor((p.z + 480) / 320)}`;
+    const key = `${Math.floor((p.x + 720) / 320)}_${Math.floor((p.z + 720) / 320)}`;
     if (!chunks.has(key)) chunks.set(key, []);
     chunks.get(key).push(p);
   }
@@ -213,12 +218,16 @@ export function buildNature(scene) {
   const rng = mulberry32(4242);
   const conifers = [], broadleaf = [], rocks = [], grass = [];
 
-  // Bäume (Wald-Cluster über Noise-Maske)
+  // Bäume (Wald-Cluster über Noise-Maske). PLAN-EPISCHE-WELT.md (E0):
+  // Streuradius 410->640, Zielzahlen ~×2 (660->1320 / 260->520). tries-Limit
+  // entsprechend hochgesetzt — die Trefferquote pro Versuch bleibt etwa
+  // gleich (spotFree()/Dichte-Schwelle unverändert), aber die Fläche wächst
+  // um Faktor ~2,4 UND die Zielzahl verdoppelt sich, macht zusammen ~×5.
   let tries = 0;
-  while ((conifers.length < 660 || broadleaf.length < 260) && tries < 40000) {
+  while ((conifers.length < 1320 || broadleaf.length < 520) && tries < 200000) {
     tries++;
-    const x = (rng() * 2 - 1) * 410;
-    const z = (rng() * 2 - 1) * 410;
+    const x = (rng() * 2 - 1) * 640;
+    const z = (rng() * 2 - 1) * 640;
     const h = terrainHeight(x, z);
     if (!spotFree(x, z, h)) continue;
     const forest = fbm(x * 0.006 + 3.7, z * 0.006 - 1.2, 3);
@@ -227,16 +236,16 @@ export function buildNature(scene) {
     const s = 0.75 + rng() * 0.85;
     const p = { x, y: h - 0.15, z, ry: rng() * Math.PI * 2, s, sy: 0.9 + rng() * 0.35, tint: rng() };
     if (forest > 0.58 || h > 20) {
-      if (conifers.length < 660) { conifers.push(p); addCircleBlocker(x, z, 0.45 * s + 0.15, h - 1, h + 3); }
-    } else if (broadleaf.length < 260) {
+      if (conifers.length < 1320) { conifers.push(p); addCircleBlocker(x, z, 0.45 * s + 0.15, h - 1, h + 3); }
+    } else if (broadleaf.length < 520) {
       broadleaf.push(p); addCircleBlocker(x, z, 0.5 * s + 0.15, h - 1, h + 3);
     }
   }
 
-  // Felsen
-  for (let i = 0; i < 400 && rocks.length < 150; i++) {
-    const x = (rng() * 2 - 1) * 420;
-    const z = (rng() * 2 - 1) * 420;
+  // Felsen: Streuradius 420->650, Zielzahl ~×2 (150->300).
+  for (let i = 0; i < 900 && rocks.length < 300; i++) {
+    const x = (rng() * 2 - 1) * 650;
+    const z = (rng() * 2 - 1) * 650;
     const h = terrainHeight(x, z);
     if (h < 0.8 || h > 60) continue;
     if (distToPaths(x, z) < 5) continue;
@@ -256,10 +265,10 @@ export function buildNature(scene) {
     if (s > 1.0) addCircleBlocker(x, z, s * 0.85, h - 1, h + s);
   }
 
-  // Gras-Büschel
-  for (let i = 0; i < 9000 && grass.length < 2400; i++) {
-    const x = (rng() * 2 - 1) * 360;
-    const z = (rng() * 2 - 1) * 360;
+  // Gras-Büschel: Streuradius 360->560, Zielzahl ~×2 (2400->4800).
+  for (let i = 0; i < 20000 && grass.length < 4800; i++) {
+    const x = (rng() * 2 - 1) * 560;
+    const z = (rng() * 2 - 1) * 560;
     const h = terrainHeight(x, z);
     if (h < 1.4 || h > 26) continue;
     if (distToPaths(x, z) < 3.2) continue;

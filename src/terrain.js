@@ -5,8 +5,13 @@ import * as THREE from 'three';
 import { fbm, smoothstep, lerp, clamp } from './noise.js';
 import { getMaterials } from './materials.js';
 
-export const WORLD_SIZE = 960;        // Kantenlänge des Terrains
-export const WORLD_BOUND = 430;       // weiter draußen: Berge (unpassierbar)
+// PLAN-EPISCHE-WELT.md (Meilenstein E0): Welt spielbar verdoppelt.
+// WORLD_SIZE 960->1500, WORLD_BOUND 430->660 (Bergring-Start entsprechend
+// weiter draußen, siehe terrainHeight() unten) — Fläche des spielbaren
+// Kreises (r=WORLD_BOUND-etwas) wächst dadurch um Faktor ~2.48 (nachgerechnet
+// in PLAN-EPISCHE-WELT.md Abschnitt 4), nicht nur linear.
+export const WORLD_SIZE = 1500;       // Kantenlänge des Terrains
+export const WORLD_BOUND = 660;       // weiter draußen: Berge (unpassierbar)
 export const WATER_LEVEL = 0.4;
 
 export const PLATEAU = { x: 0, z: -20, r: 85, blend: 45, h: 18 };
@@ -124,10 +129,13 @@ export function terrainHeight(x, z) {
   // Sanfte Grundhügel
   let h = (fbm(x * 0.0052, z * 0.0052, 4) - 0.38) * 15;
 
-  // Bergring am Weltrand (zerklüftete Grate statt glatter Wand)
+  // Bergring am Weltrand (zerklüftete Grate statt glatter Wand). E0: Start/
+  // Ende im selben Verhältnis wie vorher (330/470, Differenz 140) auf den
+  // neuen WORLD_BOUND (660) hochskaliert, damit die Grat-Breite (in Metern)
+  // gleich bleibt und sich nicht dünner/dichter anfühlt.
   const d0 = Math.sqrt(x * x + z * z);
-  if (d0 > 330) {
-    const t = smoothstep(330, 470, d0);
+  if (d0 > 520) {
+    const t = smoothstep(520, 660, d0);
     const ridge = Math.abs(fbm(x * 0.013, z * 0.013, 4) - 0.5) * 2; // Grat-Noise
     h += t * t * 46 + ridge * t * 52 + fbm(x * 0.05, z * 0.05, 2) * t * 10;
   }
@@ -261,7 +269,10 @@ const COL_ROCK = new THREE.Color(0x8b8780);
 const COL_SNOW = new THREE.Color(0xe8ecf2);
 
 export function buildTerrain() {
-  const segs = 220;
+  // E0: 220->300 (gleiche Vertex-DICHTE pro Meter wie vorher: 960/220≈4.36m,
+  // 1500/300=5m — minimal gröber, aber Terrain-Vertexzahl bleibt mit 90.601
+  // statt 48.841 handhabbar, siehe PLAN-EPISCHE-WELT.md Abschnitt 4).
+  const segs = 300;
   const geo = new THREE.PlaneGeometry(WORLD_SIZE, WORLD_SIZE, segs, segs);
   geo.rotateX(-Math.PI / 2);
 

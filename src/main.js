@@ -41,6 +41,7 @@ import { buildHallows } from './hallows.js';
 import { buildAnimagus, FORM_ORDER, FORM_LABEL } from './animagus.js';
 import { buildMarauderMap } from './marauders-map.js';
 import { buildTutorial } from './tutorial.js';
+import { createRegionManager } from './regions.js';
 import { loadSave as loadSaveFromStorage, writeSave as writeSaveToStorage, createExport, parseImport, SAVE_KEY, MAX_IMPORT_BYTES } from './save.js';
 
 function loadSave() { return loadSaveFromStorage(localStorage); }
@@ -90,6 +91,14 @@ const camera = new THREE.PerspectiveCamera(74, window.innerWidth / window.innerH
 // Die Kamera muss Teil des Szenegraphs sein, sonst rendert three.js ihre
 // Kinder (den Zauberstab) nicht mit (renderer.render traversiert nur scene).
 scene.add(camera);
+
+// PLAN-EPISCHE-WELT.md (E0d/E0e): Region-Streaming-Fundament. Braucht nur
+// `scene`, deshalb schon hier erzeugt statt als eigener Build-Step — spätere
+// Meilensteine (E4+) rufen einfach regionManager.register(...) in ihrem
+// jeweiligen Build-Step auf, ohne main.js sonst anfassen zu müssen. Aktuell
+// (E0) noch ohne registrierten Content — reines Fundament, siehe
+// TESTPLAN-1.0.md/Browser-Verifikation für den Wake/Sleep-Nachweis.
+const regionManager = createRegionManager(scene);
 
 window.addEventListener('resize', () => {
   camera.aspect = window.innerWidth / window.innerHeight;
@@ -954,6 +963,7 @@ function frame(dt) {
     fahlholz.update(dt);
     fauna.update(dt, player, spells.lumosOn, move.sprinting);
     interact.update(player);
+    regionManager.update(dt, player);
     puzzles.update(dt, player, sky.state);
     fx.update(dt);
     camera.position.add(fx.shakeOffset);
@@ -1046,6 +1056,7 @@ buildWorld().then(() => {
   window.__game = {
     player, sky, camera, renderer, scene,
     wand, spells, fx, health, creatures, puzzles, moor, dementors, weather, post, village, train, willow, interact, npc, hud, grove, broom, fahlholz, fauna, economy, wilderer, mount, home, dark, companion, hallows, animagus, marauders, tutorial,
+    regions: regionManager,
     get save() { return save; },
     get fps() { return fpsEMA; },
     get pixelRatio() { return pixelRatio; },
