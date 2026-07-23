@@ -492,7 +492,16 @@ function buildDecor(root, glowTex) {
     gateGroup.add(rockMesh);
   }
   root.add(gateGroup);
-  const gateBlocker = addBoxBlocker(GATE.x - 5, GATE.x + 5, gateY - 1, gateY + 3, GATE.z - 1.6, GATE.z + 1.6);
+  // Kollisionsbox eng an den tatsächlichen Gesteinshaufen angelehnt (Rock-
+  // Offsets oben: x±1.7, z±0.8, dazu Radius bis 1.1 -> Worst-Case-Ausdehnung
+  // x±2.8/z±1.9). Vorher war die Box mit x±5 deutlich breiter als das
+  // sichtbare Geröll — der Spieler lief spürbar gegen eine unsichtbare Wand,
+  // weit außerhalb der sichtbaren Steine (gemeldeter Bug: "unsichtbarer
+  // Stein"). Das eigentliche Rätsel-Gate ist ohnehin der `enabled`-Getter am
+  // Ei-Interact weiter unten (gateOpened && !eggStolen) — diese Box muss nur
+  // noch verhindern, direkt DURCH die sichtbaren Felsen zu laufen, nicht die
+  // gesamte offene Fläche drumherum sperren.
+  const gateBlocker = addBoxBlocker(GATE.x - 3, GATE.x + 3, gateY - 1, gateY + 3, GATE.z - 2, GATE.z + 2);
   const gateBaseY = gateGroup.position.y;
 
   // 3 Feuerrunen: Sockel + erlöschende/glühende Rune (Sprite), Muster wie
