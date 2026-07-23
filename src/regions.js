@@ -60,6 +60,10 @@ export function createRegionManager(scene) {
       get built() { return region.built; },
       get awake() { return region.awake; },
       get meshes() { return region.handle?.meshes || []; },
+      // E4+: echte Regionen (Bosse, Ziel-Registry-Objekte) müssen von main.js
+      // erreichbar sein (Spruch-Zielliste, Bossbar, Trank-Effekte) — null vor
+      // dem ersten Wecken, danach das von build() zurückgegebene Objekt.
+      get handle() { return region.handle; },
       setAwake: (v) => setAwake(region, v),
       update: (dt, player) => updateOne(region, dt, player),
     };

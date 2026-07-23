@@ -75,6 +75,21 @@ export const HUEGELGRAB = { x: 350, z: -10, r: 12, h: 9 };
 // Bodenunterschiede selbst aus (wildmark.js).
 export const KATE = { x: 230, z: 140, r: 10 };
 
+// ---------- Aschenklamm (E4, PLAN-EPISCHE-WELT.md) ----------
+// Vulkanische Schlucht im Osten, jenseits der Wildmark. Zentrum (395,110),
+// d0≈411 — ≥110m Puffer bis zum neuen Bergring-Start (520, siehe E0), also
+// sicher innerhalb des begehbaren Rings. Abstände zu den nächsten Alt-/
+// Wildmark-Zonen (Zentren, gegen die echten Konstanten oben nachgerechnet):
+// Silberauen 107,4 · Fahlholz 112,4 · Hügelgrab 128,2 · Kate 167,7 · GROVE
+// 250,1 — der Einfluss-Radius hier (r+blend=67) plus der jeweils größte
+// bestehende Einfluss (Hügelgrab r×2,6=31,2, der nächste) bleibt mit 98,2m
+// klar unter jedem dieser Abstände, keine Terrain-Überlappung. Der "Lavasee"
+// selbst ist bewusst KEIN Terrain-Tiefpunkt (kein Konflikt mit dem
+// höhenbasierten Schwimm-Trigger aus player.js) — nur eine sanfte Senke als
+// Schluchtboden, das Lava-Optik-Mesh + sein Sperr-Ring sitzen in
+// aschenklamm.js oben auf normaler Gehhöhe.
+export const ASCHENKLAMM = { x: 395, z: 110, r: 45, blend: 22, h: 3.5 };
+
 // Wege als Polylinien (für Färbung + Freihalten von Bäumen)
 export const PATHS = [
   [[0, 46], [0, 168]],                       // Tor → Kreuzung (über Viadukt)
@@ -91,6 +106,7 @@ export const PATHS = [
   [[300, 60], [290, 150]],                   // Silberauen → Fahlholz
   [[290, 150], [230, 140]],                  // Fahlholz → Wispernde Kate
   [[230, 140], [95, 105]],                   // Kate → zurück zur Waldlichtung
+  [[230, 140], [310, 125], [395, 110]],      // Kate → Aschenklamm (E4)
 ];
 
 // Kürzester Abstand zu EINER Polylinie (nicht dem gesamten PATHS-Bestand) —
@@ -232,6 +248,14 @@ export function terrainHeight(x, z) {
     const d = Math.sqrt((x - HUEGELGRAB.x) ** 2 + (z - HUEGELGRAB.z) ** 2);
     const m = 1 - smoothstep(HUEGELGRAB.r, HUEGELGRAB.r * 2.6, d);
     h = lerp(h, HUEGELGRAB.h + fbm(x * 0.06, z * 0.06, 2) * 1, m * 0.9);
+  }
+
+  // Aschenklamm (E4) — sanfte Senke wie MOOR, aber etwas rauer (fbm-Skala
+  // gröber, wirkt zerklüfteter/vulkanischer statt matschig-glatt).
+  {
+    const d = Math.sqrt((x - ASCHENKLAMM.x) ** 2 + (z - ASCHENKLAMM.z) ** 2);
+    const m = 1 - smoothstep(ASCHENKLAMM.r, ASCHENKLAMM.r + ASCHENKLAMM.blend, d);
+    h = lerp(h, ASCHENKLAMM.h + fbm(x * 0.045, z * 0.045, 3) * 2.2, m);
   }
 
   // Sicherheitsnetz gegen unsichtbares "Phantom-Wasser": das Grund-Rauschen

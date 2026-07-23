@@ -9,7 +9,7 @@
 // eigentliche Versionierung läuft über SAVE_VERSION im `v`-Feld des
 // gespeicherten Objekts, nicht über den Schlüsselnamen.
 export const SAVE_KEY = 'hogwarts3d-save-v1';
-export const SAVE_VERSION = 6; // v5 (S1-S12) + v6 (Sonnet-5-Polish: tutorial/map/ui)
+export const SAVE_VERSION = 7; // v5 (S1-S12) + v6 (Sonnet-5-Polish) + v7 (PLAN-EPISCHE-WELT E4: Aschenklamm/Siegel)
 export const EXPORT_FORMAT = 'hogwarts3d-save';
 export const MAX_IMPORT_BYTES = 250_000;
 
@@ -35,7 +35,8 @@ export const DEFAULT_SAVE = {
   dunkel: { buch: 0, pfad: 'hell', male: 0 },
   heim: {
     kate: 0,
-    zutaten: { glitzer: 0, seide: 0, stern: 0, essenz: 0, leuchtkraut: 0 },
+    // schuppe (E4): Drachenschuppe — fällt nur beim Sieg über Aschenschwinge ab.
+    zutaten: { glitzer: 0, seide: 0, stern: 0, essenz: 0, leuchtkraut: 0, schuppe: 0 },
     trank: { id: '', restT: 0 },
   },
   begleiter: { aktiv: '', frei: [] },
@@ -45,6 +46,11 @@ export const DEFAULT_SAVE = {
   tutorial: { seen: [] },
   map: { discovered: [] },
   ui: { mapHelpSeen: false },
+  // PLAN-EPISCHE-WELT.md (v7): Aschenklamm-Region (E4) + "Vier Siegel"-Meta-
+  // Strang-Grundgerüst (E10) — weitere Siegel-Felder kommen erst mit den
+  // jeweiligen Regionen dazu (E5-E7), additiv wie immer.
+  aschenklamm: { eggStolen: 0, dragonDefeated: 0, chestCollected: 0 },
+  siegel: { drache: 0 },
 };
 
 // ---------- kleine defensive Primitiv-Helfer ----------
@@ -115,6 +121,7 @@ export function normalizeSave(value) {
         stern: num(zutatenRaw.stern, 0),
         essenz: num(zutatenRaw.essenz, 0),
         leuchtkraut: num(zutatenRaw.leuchtkraut, 0),
+        schuppe: num(zutatenRaw.schuppe, 0),
       },
       trank: { id: str(trankRaw.id, ''), restT: num(trankRaw.restT, 0) },
     },
@@ -132,6 +139,12 @@ export function normalizeSave(value) {
     tutorial: { seen: strArr(obj(raw.tutorial).seen) },
     map: { discovered: strArr(obj(raw.map).discovered) },
     ui: { mapHelpSeen: bool(obj(raw.ui).mapHelpSeen) },
+    aschenklamm: {
+      eggStolen: num(obj(raw.aschenklamm).eggStolen, 0),
+      dragonDefeated: num(obj(raw.aschenklamm).dragonDefeated, 0),
+      chestCollected: num(obj(raw.aschenklamm).chestCollected, 0),
+    },
+    siegel: { drache: num(obj(raw.siegel).drache, 0) },
   };
 }
 

@@ -3,7 +3,7 @@
 // automatischer Qualitätsanpassung (Render-Auflösung nach FPS).
 
 import * as THREE from 'three';
-import { buildTerrain, buildWater } from './terrain.js';
+import { buildTerrain, buildWater, ASCHENKLAMM } from './terrain.js';
 import { SkySystem } from './sky.js';
 import { buildCastle } from './castle.js';
 import { buildStructures } from './structures.js';
@@ -43,6 +43,7 @@ import { buildMarauderMap } from './marauders-map.js';
 import { buildTutorial } from './tutorial.js';
 import { createRegionManager } from './regions.js';
 import { createAtmosphereSystem } from './atmosphere.js';
+import { buildAschenklamm } from './aschenklamm.js';
 import { loadSave as loadSaveFromStorage, writeSave as writeSaveToStorage, createExport, parseImport, SAVE_KEY, MAX_IMPORT_BYTES } from './save.js';
 
 function loadSave() { return loadSaveFromStorage(localStorage); }
@@ -123,6 +124,7 @@ post.onDegrade = () => hud.showToast('Grafik automatisch reduziert (Bloom aus)',
 
 let sky, water, castle, structures, moor, life, collectibles, player;
 let fx, wand, spells, health, creatures, puzzles, dementors, weather, village, train, willow, interact, npc, grove, broom, fahlholz, fauna, economy, wilderer, mount, kate, home, dark, companion, hallows, huegelgrab, animagus, tutorial, marauders;
+let aschenklammRegion; // E4: RegionManager-Handle (regions.js) — Register-Aufruf selbst läuft eigenständig als Build-Step weiter unten
 let lanternWasCollected = false; // erkennt den Moment, in dem die Laterne live geborgen wird
 let natureSwayMaterials = [];
 let natureTreeSpots = []; // S2: echte Baum-Positionen für Bowtruckles (fauna.js)
@@ -271,6 +273,32 @@ const buildSteps = [
     fahlholz = buildFahlholz(scene);
     huegelgrab = buildHuegelgrab(scene);
     kate = buildKate(scene, glowTex);
+  }],
+  // E4 (PLAN-EPISCHE-WELT.md): Region-Registrierung ist bewusst billig — die
+  // eigentliche Aschenklamm (Terrain-Deko, Drache, Rätsel, Quest) baut erst
+  // buildAschenklamm() lazy beim ersten Wecken (regions.js), NICHT hier.
+  // Braucht health/interact/spells (Kreaturen & Gesundheit/NPCs & Quests
+  // laufen bereits) — reine Registrierung, keine echte 3D-Arbeit.
+  ['Aschenklamm (Region)', () => {
+    aschenklammRegion = regionManager.register({
+      key: 'aschenklamm',
+      center: { x: ASCHENKLAMM.x, z: ASCHENKLAMM.z },
+      // wakeRadius < sleepRadius (Hysterese, Stolperfalle #15) — Puffer bis
+      // zum nächsten Alt-Bestand (Hügelgrab/Kate/Fahlholz, ≥107m entfernt,
+      // siehe terrain.js-Kommentar) bleibt auch bei sleepRadius=130 gewahrt.
+      wakeRadius: 90,
+      sleepRadius: 130,
+      build: (root, deps) => buildAschenklamm(root, deps),
+      deps: {
+        glowTex, hud, audio, fx, health, interact, spells,
+        aschenklamm: save.aschenklamm, siegel: save.siegel, heim: save.heim,
+        onChange: () => persist(),
+      },
+    });
+    atmosphere.registerZone({
+      center: { x: ASCHENKLAMM.x, z: ASCHENKLAMM.z }, radius: ASCHENKLAMM.r + 15, feather: 70,
+      color: 0xff4420, fogFarMul: 0.78, ambientMul: 1.12, soundId: 'aschenklamm',
+    });
   }],
   ['Zuhause', () => {
     home = buildHome(scene, camera, glowTex, hud, audio, fx, health, interact, economy, kate, {
@@ -485,6 +513,8 @@ function persist() {
     tutorial: save.tutorial,
     map: save.map,
     ui: save.ui,
+    aschenklamm: save.aschenklamm,
+    siegel: save.siegel,
   });
 }
 
@@ -637,7 +667,7 @@ function performReset() {
   Object.assign(save.mounts, { hippo: 0, thestral: 0, sattel: 0 });
   Object.assign(save.dunkel, { buch: 0, pfad: 'hell', male: 0 });
   save.heim.kate = 0;
-  Object.assign(save.heim.zutaten, { glitzer: 0, seide: 0, stern: 0, essenz: 0, leuchtkraut: 0 });
+  Object.assign(save.heim.zutaten, { glitzer: 0, seide: 0, stern: 0, essenz: 0, leuchtkraut: 0, schuppe: 0 });
   Object.assign(save.heim.trank, { id: '', restT: 0 });
   // Trank-Effekte sofort zurücksetzen statt bis zum nächsten Frame zu warten
   // (das übliche Sync-Muster oben liefe sonst noch 1 Frame mit alten Werten).
@@ -661,6 +691,12 @@ function performReset() {
   Object.assign(save.ui, { mapHelpSeen: false });
   if (tutorial) tutorial.restore();
   if (marauders) marauders.restore();
+  // E4: Aschenklamm nur zurücksetzen, wenn die Region überhaupt schon gebaut
+  // wurde (RegionManager baut lazy — vor dem ersten Betreten existiert noch
+  // kein handle, dann bleibt nur der Save-Reset unten nötig).
+  Object.assign(save.aschenklamm, { eggStolen: 0, dragonDefeated: 0, chestCollected: 0 });
+  Object.assign(save.siegel, { drache: 0 });
+  aschenklammRegion.handle?.restore?.();
   refreshStatusLines();
   persist();
   hud.showToast('Fortschritt zurückgesetzt');
@@ -905,8 +941,13 @@ function frame(dt) {
     // hallows.king/phantomGhosts (S10): Bleicher König + seine Phase-2-
     // Geister-Beschwörung sind ebenfalls gültige Spruchziele (alive-Flag
     // gated wie überall sonst).
+    // aschenklammRegion.handle?.dragon (E4): existiert erst, sobald die Region
+    // einmal geweckt wurde (RegionManager baut lazy) — davor liefert die
+    // Ternary ein leeres Array, kein Platzhalter-Objekt (sonst würde
+    // spells.js' `c.alive`-Check auf einem undefined-Feld crashen).
     spells.update(dt, camera, creatures.list.concat(dementors.list).concat(wilderer.list)
-      .concat([hallows.king]).concat(hallows.phantomGhosts), fauna.foxes);
+      .concat([hallows.king]).concat(hallows.phantomGhosts)
+      .concat(aschenklammRegion.handle?.dragon ? [aschenklammRegion.handle.dragon] : []), fauna.foxes);
     // sky.update() läuft weiter unten, aber creatures braucht den Tag/Nacht-
     // Stand vom LETZTEN Frame — nightGlow ändert sich nur sehr langsam
     // (300s/Zyklus), eine Frame Verzögerung ist unmerklich.
@@ -937,6 +978,9 @@ function frame(dt) {
       // S10 Meister des Todes: +1 Max-Herz stapelt sich mit dem Herztrank.
       health.tempHeartsBonus = (active && t.id === 'herz' ? 2 : 0) + (hallows.masterOfDeath ? 1 : 0);
       dementors.frostImmune = active && t.id === 'frost';
+      // E4 Feuerschutztrank: negiert den Feueratem-Schaden der Aschenschwinge
+      // — analog zu frostImmune, nur gesetzt, wenn die Region bereits gebaut ist.
+      if (aschenklammRegion.handle) aschenklammRegion.handle.fireImmune = active && t.id === 'feuerschutz';
       // S10 Elderstab: Schaden ×2 / Cooldown ×0.6, stapelt sich multiplikativ
       // mit dem Dunklen Sud (×1.5).
       const potionDmgMul = active && t.id === 'dunkel' && save.dunkel.pfad === 'dunkel' ? 1.5 : 1;
@@ -1012,7 +1056,13 @@ function frame(dt) {
     hud.setSpell(wand.activeSpell, { ...spells.cooldowns, mal: dark.malCooldown });
     hud.setHearts(health.hearts, health.effectiveMaxHearts);
     const troll = creatures.troll;
-    hud.setBoss(['aggro', 'telegraph', 'slam'].includes(troll.state) ? troll.hp / troll.maxHp : null);
+    const trollBoss = ['aggro', 'telegraph', 'slam'].includes(troll.state) ? troll.hp / troll.maxHp : null;
+    // E4: gleiche Bossbar wie beim Troll, mitgenutzt (zeitlich nie
+    // überlappend — beide Regionen liegen weit auseinander).
+    const dragon = aschenklammRegion.handle?.dragon;
+    const dragonBoss = dragon && ['flying', 'telegraph', 'firebreath', 'staggered'].includes(dragon.state)
+      ? dragon.hp / dragon.maxHp : null;
+    hud.setBoss(trollBoss ?? dragonBoss);
     hud.setMoor(moor.insideFactor(player.pos));
     if (moor.laterneCollected) {
       if (!lanternWasCollected) { lanternWasCollected = true; showLanternWon(); persist(); }
@@ -1064,6 +1114,7 @@ buildWorld().then(() => {
     wand, spells, fx, health, creatures, puzzles, moor, dementors, weather, post, village, train, willow, interact, npc, hud, grove, broom, fahlholz, fauna, economy, wilderer, mount, home, dark, companion, hallows, animagus, marauders, tutorial,
     regions: regionManager,
     atmosphere,
+    get aschenklamm() { return aschenklammRegion.handle; },
     get save() { return save; },
     get fps() { return fpsEMA; },
     get pixelRatio() { return pixelRatio; },

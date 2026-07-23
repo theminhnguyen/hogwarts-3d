@@ -28,8 +28,12 @@ const RECIPES = [
   // Trank ungenutzt — passt zur "Tränke: 5 min"-Balancing-Zeile, die
   // keine Ausnahme für den Animagus-Trank vorsieht.
   { id: 'animagus', name: 'Trank der zweiten Gestalt', need: { stern: 1, seide: 1, leuchtkraut: 1 }, desc: 'Bereit fürs Ritual im Sturm am Steinkreis (5 min)' },
+  // E4 (PLAN-EPISCHE-WELT.md): schuppe fällt nur beim Sieg über Aschenschwinge
+  // ab — kein eigenes Unlock-Flag nötig (Muster wie alle anderen Rezepte:
+  // "brauchbar sobald Zutat vorhanden", nicht per Flag gesperrt).
+  { id: 'feuerschutz', name: 'Feuerschutztrank', need: { schuppe: 1, essenz: 1 }, desc: 'Immunität gegen Drachenfeuer' },
 ];
-const ZUTAT_NAMES = { glitzer: 'Glitzerstaub', seide: 'Spinnenseide', stern: 'Sternsplitter', essenz: 'Dunkle Essenz', leuchtkraut: 'Leuchtkraut' };
+const ZUTAT_NAMES = { glitzer: 'Glitzerstaub', seide: 'Spinnenseide', stern: 'Sternsplitter', essenz: 'Dunkle Essenz', leuchtkraut: 'Leuchtkraut', schuppe: 'Drachenschuppe' };
 
 // Meteor-Nächte (Sternsplitter): in klaren Nächten 15% Chance beim
 // Abend-Übergang, 2 Splitter landen zufällig in der Wildmark, verschwinden
@@ -191,8 +195,8 @@ export function buildHome(scene, camera, glowTex, hud, audio, fx, health, intera
     },
   });
 
-  // ---------- Braukessel: 5 Rezept-Stationen um den Kessel (S11: +animagus) ----------
-  const cauldronAngles = [-0.9, -0.45, 0, 0.45, 0.9];
+  // ---------- Braukessel: 6 Rezept-Stationen um den Kessel (E4: +feuerschutz) ----------
+  const cauldronAngles = [-0.9, -0.45, 0, 0.45, 0.9, 1.35];
   RECIPES.forEach((r, i) => {
     const a = cauldronAngles[i];
     const sx = cauldronX + Math.sin(a) * 0.85, sz = cauldronZ + Math.cos(a) * 0.85 - 0.3;

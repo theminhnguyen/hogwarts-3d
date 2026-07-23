@@ -6,7 +6,7 @@ import { tint, addCircleBlocker } from './geo.js';
 import {
   terrainHeight, distToPaths, distToPolyline, WATER_LEVEL,
   PLATEAU, LAKE, QUIDDITCH, HAGRID, STONES, BOATHOUSE, MOOR, DORF, TRASSE,
-  SILBERAUEN, FAHLHOLZ, HUEGELGRAB, KATE,
+  SILBERAUEN, FAHLHOLZ, HUEGELGRAB, KATE, ASCHENKLAMM,
 } from './terrain.js';
 import { fbm, mulberry32 } from './noise.js';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
@@ -161,6 +161,7 @@ function spotFree(x, z, h) {
   if (Math.hypot(x - FAHLHOLZ.x, z - FAHLHOLZ.z) < FAHLHOLZ.r + 5) return false; // eigener Mini-Batch
   if (Math.hypot(x - HUEGELGRAB.x, z - HUEGELGRAB.z) < HUEGELGRAB.r + 8) return false; // Grashügel frei
   if (Math.hypot(x - KATE.x, z - KATE.z) < KATE.r + 6) return false; // Gebäude-Grundstück
+  if (Math.hypot(x - ASCHENKLAMM.x, z - ASCHENKLAMM.z) < ASCHENKLAMM.r + 10) return false; // Lavaklamm frei
   return true;
 }
 
@@ -266,6 +267,7 @@ export function buildNature(scene) {
     if (Math.hypot(x - FAHLHOLZ.x, z - FAHLHOLZ.z) < FAHLHOLZ.r + 5) continue;
     if (Math.hypot(x - HUEGELGRAB.x, z - HUEGELGRAB.z) < HUEGELGRAB.r + 5) continue;
     if (Math.hypot(x - KATE.x, z - KATE.z) < KATE.r + 6) continue;
+    if (Math.hypot(x - ASCHENKLAMM.x, z - ASCHENKLAMM.z) < ASCHENKLAMM.r + 10) continue;
     const s = 0.5 + rng() * rng() * 2.2;
     rocks.push({ x, y: h + s * 0.2, z, ry: rng() * Math.PI * 2, s, tint: rng() });
     if (s > 1.0) addCircleBlocker(x, z, s * 0.85, h - 1, h + s);
@@ -287,6 +289,7 @@ export function buildNature(scene) {
     // Wiese) und Kate (staubiges Grundstück) bleiben grasfrei.
     if (Math.hypot(x - FAHLHOLZ.x, z - FAHLHOLZ.z) < FAHLHOLZ.r + 5) continue;
     if (Math.hypot(x - KATE.x, z - KATE.z) < KATE.r + 6) continue;
+    if (Math.hypot(x - ASCHENKLAMM.x, z - ASCHENKLAMM.z) < ASCHENKLAMM.r + 10) continue;
     grass.push({ x, y: h, z, ry: rng() * Math.PI, s: 0.7 + rng() * 0.7, tint: rng() });
   }
 
