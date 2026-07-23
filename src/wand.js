@@ -12,6 +12,11 @@ export const SPELLS = {
   leviosa:  { name: 'Leviosa',  emoji: '🪄', color: 0xb08cff, cooldown: 0.2 },
   lumos:    { name: 'Lumos',    emoji: '💡', color: 0x9fc4ff, cooldown: 0.3 },
   patronum: { name: 'Expecto Patronum', emoji: '🦌', color: 0xcfe8ff, cooldown: 8 },
+  // E5 (PLAN-EPISCHE-WELT.md): neue Mechanik, freigeschaltet am Eisaltar in
+  // den Frostzinnen (spells.unlockEisblitz(), Muster wie unlockPatronum()).
+  // Eigene Taste 'I' statt einer weiteren Ziffer — alle Digits 1-9 sind
+  // bereits an stupor..mal vergeben (siehe main.js DIGIT_SPELLS).
+  eisblitz: { name: 'Eisblitz', emoji: '❄️', color: 0x9fe0ff, cooldown: 1.1, key: 'I' },
   // Verbotene Sprüche (S8): eigene dunkelgrüne/violette Chips, feste Taste
   // 6/7/8 (siehe Plan Abschnitt 3) — der `key` überschreibt die sonst aus
   // der SPELL_ORDER-Position abgeleitete Chip-Nummer (hud.js buildSpellbar),

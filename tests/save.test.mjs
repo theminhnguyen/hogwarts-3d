@@ -43,7 +43,7 @@ function fullSave() {
     dunkel: { buch: 1, pfad: 'dunkel', male: 2 },
     heim: {
       kate: 1,
-      zutaten: { glitzer: 3, seide: 2, stern: 1, essenz: 4, leuchtkraut: 5, schuppe: 2 },
+      zutaten: { glitzer: 3, seide: 2, stern: 1, essenz: 4, leuchtkraut: 5, schuppe: 2, frostkristall: 1 },
       trank: { id: 'animagus', restT: 30 },
     },
     begleiter: { aktiv: 'musch', frei: ['musch', 'piniva'] },
@@ -53,7 +53,8 @@ function fullSave() {
     map: { discovered: ['schloss', 'saal'] },
     ui: { mapHelpSeen: true },
     aschenklamm: { eggStolen: 1, dragonDefeated: 1, chestCollected: 1 },
-    siegel: { drache: 1 },
+    frostzinnen: { eisblitzLearned: 1, giantDefeated: 1, chestCollected: 1 },
+    siegel: { drache: 1, frost: 1 },
   };
 }
 
@@ -93,7 +94,7 @@ test('normalizeSave ergänzt aschenklamm/siegel/heim.zutaten.schuppe bei einem a
   };
   const result = normalizeSave(oldSave);
   assert.deepEqual(result.aschenklamm, { eggStolen: 0, dragonDefeated: 0, chestCollected: 0 });
-  assert.deepEqual(result.siegel, { drache: 0 });
+  assert.deepEqual(result.siegel, { drache: 0, frost: 0 });
   assert.equal(result.heim.zutaten.schuppe, 0);
   // Alte Felder bleiben erhalten, nicht durch den neuen Default ersetzt.
   assert.deepEqual(result.collected, ['a']);
@@ -101,6 +102,24 @@ test('normalizeSave ergänzt aschenklamm/siegel/heim.zutaten.schuppe bei einem a
   assert.deepEqual(result.tutorial, { seen: ['start'] });
   assert.equal(result.heim.zutaten.glitzer, 2);
   assert.equal(result.heim.zutaten.leuchtkraut, 3);
+});
+
+test('normalizeSave ergänzt frostzinnen/siegel.frost/heim.zutaten.frostkristall bei einem alten Save ohne diese Felder (v8)', () => {
+  const oldSave = {
+    collected: ['a'], gold: 5,
+    aschenklamm: { eggStolen: 1, dragonDefeated: 1, chestCollected: 1 },
+    siegel: { drache: 1 },
+    heim: { kate: 1, zutaten: { glitzer: 2, seide: 1, stern: 0, essenz: 0, leuchtkraut: 3, schuppe: 2 } },
+  };
+  const result = normalizeSave(oldSave);
+  assert.deepEqual(result.frostzinnen, { eisblitzLearned: 0, giantDefeated: 0, chestCollected: 0 });
+  assert.deepEqual(result.siegel, { drache: 1, frost: 0 });
+  assert.equal(result.heim.zutaten.frostkristall, 0);
+  // Alte v7-Felder bleiben erhalten, nicht durch den neuen Default ersetzt.
+  assert.deepEqual(result.aschenklamm, { eggStolen: 1, dragonDefeated: 1, chestCollected: 1 });
+  assert.equal(result.heim.zutaten.schuppe, 2);
+  assert.deepEqual(result.collected, ['a']);
+  assert.equal(result.gold, 5);
 });
 
 test('normalizeSave lehnt falsche Typen pro Feld ab, statt sie zu übernehmen', () => {

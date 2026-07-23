@@ -280,7 +280,12 @@ class Dragon {
     }
     // Sonst nur im Verwundbarkeits-Fenster überhaupt verletzbar.
     if (this.state !== 'staggered') return;
+    // Eisblitz (E5): "Region-Verzahnung Eis→Drache" aus dem Plan (Abschnitt
+    // 6.2/6.3) — ein optionaler Bonus für Spieler, die zuerst die
+    // Frostzinnen gemacht haben, NIE Voraussetzung (Eisblitz existiert
+    // unabhängig davon, ob E5 schon gespielt wurde).
     const dmg = spellId === 'avada' ? 4
+      : spellId === 'eisblitz' ? 2
       : spellId === 'crucio' ? 0.25
       : spellId === 'claw' ? 0.5
       : (spellId === 'stupor' || spellId === 'kick' || spellId === 'bite') ? 1 : 0;
@@ -661,7 +666,11 @@ export function buildAschenklamm(root, deps) {
   }
 
   system.onDragonChest = () => {
-    health.upgradeMaxHearts(7);
+    // +1 relativ zum aktuellen Maximum (nicht fest "7") — Dragon/Frostriese
+    // (E4/E5) sind gleichrangige Bosse, die in beliebiger Reihenfolge
+    // gespielt werden können; ein hartes Ziel hätte den zweiten Bonus
+    // stillschweigend verschluckt, falls er zuerst käme.
+    health.upgradeMaxHearts(health.maxHearts + 1);
     hud.setHearts(health.hearts, health.effectiveMaxHearts);
     heim.zutaten.schuppe += 3;
     aschenklamm.dragonDefeated = 1;

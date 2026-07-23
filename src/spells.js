@@ -23,6 +23,11 @@ export const TUNING = {
   },
   lumos: { cooldown: 0.3 },
   patronum: { cooldown: 8, range: 26, dur: 2.8, repelRadius: 10 },
+  // E5: schwererer, etwas langsamerer Bolzen als Stupor (fühlt sich nach
+  // Eis-Wucht statt Blitz an) — löst die Frostrunen aus UND ist der einzige
+  // Spruch, der den Frostriesen NICHT verletzt (eigenes Element, Symmetrie
+  // zu Incendio/Aschenschwinge).
+  eisblitz: { speed: 32, dmg: 1, cooldown: 1.1, ttl: 2.4, gravity: -5 },
   // Verbotene Sprüche (S8, nur dunkler Pfad — siehe cast()-Gate):
   avada:   { speed: 42, cooldown: 8, ttl: 2.2 },
   crucio:  { cooldown: 6, dur: 2, range: 9, coneAngle: 15 * Math.PI / 180, tickInterval: 0.5 },
@@ -106,6 +111,7 @@ export class SpellSystem {
     // Expecto Patronum: erst nach dem Hauspokal freigeschaltet (Abschnitt
     // 4.1). Charge-Hirsch wird lazy gebaut (nur falls je gecastet).
     this.epUnlocked = false;
+    this.eisblitzUnlocked = false; // E5: erst nach dem Eisaltar in den Frostzinnen
     this._darkSpellsUnlocked = false; // S8: erst nach Grimoire-Fund
     this._patronusModel = null;
     this._chargeT = -1; // -1 = kein aktiver Charge
@@ -148,6 +154,18 @@ export class SpellSystem {
     this.hud?.buildSpellbar(SPELL_ORDER.map(id => ({ id, ...SPELLS[id] })));
     if (showToast) {
       this.hud?.showToast('🦌 Du spürst eine neue Kraft … EXPECTO PATRONUM! (Taste 5)', 6);
+    }
+  }
+
+  // E5: schaltet Eisblitz frei (Eisaltar in den Frostzinnen). Idempotent wie
+  // unlockPatronum() — dasselbe Muster (SPELL_ORDER.push + Spellbar neu bauen).
+  unlockEisblitz(showToast = true) {
+    if (this.eisblitzUnlocked) return;
+    this.eisblitzUnlocked = true;
+    if (!SPELL_ORDER.includes('eisblitz')) SPELL_ORDER.push('eisblitz');
+    this.hud?.buildSpellbar(SPELL_ORDER.map(id => ({ id, ...SPELLS[id] })));
+    if (showToast) {
+      this.hud?.showToast('❄️ Der Eisaltar lehrt dich einen neuen Spruch … EISBLITZ! (Taste I)', 6);
     }
   }
 
@@ -339,6 +357,9 @@ export class SpellSystem {
     } else if (id === 'incendio') {
       this.audio.castIncendio?.();
       this._fireBolt('incendio', camera);
+    } else if (id === 'eisblitz') {
+      this.audio.castEisblitz?.();
+      this._fireBolt('eisblitz', camera);
     } else if (id === 'leviosa') {
       this._leviosaGrab(camera);
     } else if (id === 'lumos') {

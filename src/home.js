@@ -32,8 +32,17 @@ const RECIPES = [
   // ab — kein eigenes Unlock-Flag nötig (Muster wie alle anderen Rezepte:
   // "brauchbar sobald Zutat vorhanden", nicht per Flag gesperrt).
   { id: 'feuerschutz', name: 'Feuerschutztrank', need: { schuppe: 1, essenz: 1 }, desc: 'Immunität gegen Drachenfeuer' },
+  // E5 (PLAN-EPISCHE-WELT.md Abschnitt 5): "Eisatem" ist EIGENS benannt statt
+  // die bestehende Frostbann-Zutatenkombi wiederzuverwenden — Frostbann
+  // schützt vor Dementoren-Kälte (eigenes Ziel-System), Eisatem vor dem
+  // Eiswurf des Frostriesen (eigenes region-lokales Flag) — beide Effekte
+  // heißen "Frost", sind aber verschiedene Mechaniken, daher getrennt.
+  { id: 'eisatem', name: 'Eisatem-Trank', need: { frostkristall: 1, essenz: 1 }, desc: 'Immunität gegen die Eiswürfe des Frostriesen' },
 ];
-const ZUTAT_NAMES = { glitzer: 'Glitzerstaub', seide: 'Spinnenseide', stern: 'Sternsplitter', essenz: 'Dunkle Essenz', leuchtkraut: 'Leuchtkraut', schuppe: 'Drachenschuppe' };
+const ZUTAT_NAMES = {
+  glitzer: 'Glitzerstaub', seide: 'Spinnenseide', stern: 'Sternsplitter', essenz: 'Dunkle Essenz',
+  leuchtkraut: 'Leuchtkraut', schuppe: 'Drachenschuppe', frostkristall: 'Frostkristall',
+};
 
 // Meteor-Nächte (Sternsplitter): in klaren Nächten 15% Chance beim
 // Abend-Übergang, 2 Splitter landen zufällig in der Wildmark, verschwinden
@@ -195,8 +204,8 @@ export function buildHome(scene, camera, glowTex, hud, audio, fx, health, intera
     },
   });
 
-  // ---------- Braukessel: 6 Rezept-Stationen um den Kessel (E4: +feuerschutz) ----------
-  const cauldronAngles = [-0.9, -0.45, 0, 0.45, 0.9, 1.35];
+  // ---------- Braukessel: 7 Rezept-Stationen um den Kessel (E5: +eisatem) ----------
+  const cauldronAngles = [-0.9, -0.45, 0, 0.45, 0.9, 1.35, 1.8];
   RECIPES.forEach((r, i) => {
     const a = cauldronAngles[i];
     const sx = cauldronX + Math.sin(a) * 0.85, sz = cauldronZ + Math.cos(a) * 0.85 - 0.3;

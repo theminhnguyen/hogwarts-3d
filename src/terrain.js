@@ -90,6 +90,20 @@ export const KATE = { x: 230, z: 140, r: 10 };
 // aschenklamm.js oben auf normaler Gehhöhe.
 export const ASCHENKLAMM = { x: 395, z: 110, r: 45, blend: 22, h: 3.5 };
 
+// ---------- Frostzinnen (E5, PLAN-EPISCHE-WELT.md) ----------
+// Eisige Bergzinnen im Norden, jenseits von Dorf/Bahnhof. Zentrum (0,-410),
+// d0=410 — ≥110m Puffer bis zum Bergring-Start (520, wie Aschenklamm).
+// Abstände zu den nächsten Alt-Zonen (echte Konstanten oben nachgerechnet):
+// Dorf 193,1 · Bahnhof 208,9 · Nebelmoor 335,9 · Schloss-Plateau 390 ·
+// Steinkreis 348,9 — der Einfluss-Radius hier (r+blend=67) plus Dorfs
+// größter bestehender Einfluss (r×1,9=76, "Ebene Spielflächen"-Muster)
+// bleibt mit 143m klar unter 193,1m, keine Terrain-Überlappung. Der
+// "gefrorene See" ist bewusst fest begehbar (kein Terrain-Tiefpunkt UNTER
+// der Wasserlinie, keine Loch-Mechanik) — player.js triggert Schwimmen rein
+// höhenbasiert, ein Eis-Loch würfe den Spieler unkontrolliert ins
+// Schwimm-System (Stolperfalle aus Plan-Abschnitt 6.3).
+export const FROSTZINNEN = { x: 0, z: -410, r: 45, blend: 22, h: 9 };
+
 // Wege als Polylinien (für Färbung + Freihalten von Bäumen)
 export const PATHS = [
   [[0, 46], [0, 168]],                       // Tor → Kreuzung (über Viadukt)
@@ -107,6 +121,7 @@ export const PATHS = [
   [[290, 150], [230, 140]],                  // Fahlholz → Wispernde Kate
   [[230, 140], [95, 105]],                   // Kate → zurück zur Waldlichtung
   [[230, 140], [310, 125], [395, 110]],      // Kate → Aschenklamm (E4)
+  [[-70, -230], [-30, -320], [0, -410]],     // Dorf → Frostzinnen (E5)
 ];
 
 // Kürzester Abstand zu EINER Polylinie (nicht dem gesamten PATHS-Bestand) —
@@ -258,6 +273,14 @@ export function terrainHeight(x, z) {
     h = lerp(h, ASCHENKLAMM.h + fbm(x * 0.045, z * 0.045, 3) * 2.2, m);
   }
 
+  // Frostzinnen (E5) — kleines, zerklüftetes Eis-Plateau (Muster Steinkreis-
+  // Hügel, aber wie Aschenklamm mit weichem Blend statt hartem Rand).
+  {
+    const d = Math.sqrt((x - FROSTZINNEN.x) ** 2 + (z - FROSTZINNEN.z) ** 2);
+    const m = 1 - smoothstep(FROSTZINNEN.r, FROSTZINNEN.r + FROSTZINNEN.blend, d);
+    h = lerp(h, FROSTZINNEN.h + fbm(x * 0.05, z * 0.05, 3) * 2.5, m);
+  }
+
   // Sicherheitsnetz gegen unsichtbares "Phantom-Wasser": das Grund-Rauschen
   // (Skala 0.0052, Wellenlänge ~190m) kann UNABHÄNGIG vom See irgendwo auf
   // der Karte unter die Schwimm-Schwelle (WATER_LEVEL-1.2) absacken, ohne
@@ -323,6 +346,12 @@ export function buildTerrain() {
     c.lerp(COL_ROCK, Math.max(steep, smoothstep(24, 40, y)));
     // Schnee bleibt nur auf flacheren Lagen liegen
     c.lerp(COL_SNOW, smoothstep(44, 62, y) * smoothstep(0.5, 0.78, ny));
+    // Frostzinnen (E5): Schneedecke unabhängig von der Höhe, nur nach Nähe
+    // zur Zone — sonst bliebe das "eisige" Plateau grün wie der Rest der Welt.
+    {
+      const df = Math.hypot(x - FROSTZINNEN.x, z - FROSTZINNEN.z);
+      c.lerp(COL_SNOW, (1 - smoothstep(FROSTZINNEN.r, FROSTZINNEN.r + FROSTZINNEN.blend + 25, df)) * 0.9);
+    }
     // Wege
     const pd = distToPaths(x, z);
     if (pd < 5.5) c.lerp(COL_DIRT, (1 - smoothstep(2.6, 5.5, pd)) * 0.85);

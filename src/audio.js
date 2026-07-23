@@ -1312,6 +1312,91 @@ export class SoundManager {
     o.start(t); o.stop(t + 0.24);
   }
 
+  // Eisblitz-Cast (E5): heller, gläsern klirrender Ton statt Stupors
+  // Sawtooth-Crack — vermittelt "Frost", nicht "Blitz".
+  castEisblitz() {
+    if (!this.ctx || this.muted) return;
+    const ctx = this.ctx, t = ctx.currentTime;
+    const o = ctx.createOscillator();
+    o.type = 'triangle';
+    o.frequency.setValueAtTime(1400, t);
+    o.frequency.exponentialRampToValueAtTime(900, t + 0.18);
+    const g = ctx.createGain();
+    this._env(g, t, 0.004, 0.2, 0.16);
+    o.connect(g).connect(this.master);
+    o.start(t); o.stop(t + 0.22);
+
+    const src = ctx.createBufferSource();
+    src.buffer = this.noiseBuf;
+    const f = ctx.createBiquadFilter();
+    f.type = 'highpass'; f.frequency.value = 2200;
+    const ng = ctx.createGain();
+    this._env(ng, t, 0.003, 0.14, 0.12);
+    src.connect(f).connect(ng).connect(this.master);
+    src.start(t, Math.random() * 1.5, 0.16);
+  }
+
+  // Frostriese (E5): tiefes, raues Brüllen mit Frost-Zischen — ähnliches
+  // Muster wie dragonRoar()/trollRoar(), aber kälter timbriert (Bandpass
+  // statt Lowpass auf dem Rauschanteil).
+  frostGiantRoar() {
+    if (!this.ctx || this.muted) return;
+    const ctx = this.ctx, t = ctx.currentTime;
+    const o = ctx.createOscillator();
+    o.type = 'sawtooth';
+    o.frequency.setValueAtTime(70, t);
+    o.frequency.linearRampToValueAtTime(110, t + 0.2);
+    o.frequency.linearRampToValueAtTime(50, t + 0.8);
+    const f = ctx.createBiquadFilter();
+    f.type = 'lowpass'; f.frequency.value = 380;
+    const g = ctx.createGain();
+    this._env(g, t, 0.05, 0.6, 0.45);
+    o.connect(f).connect(g).connect(this.master);
+    o.start(t); o.stop(t + 1.1);
+
+    const src = ctx.createBufferSource();
+    src.buffer = this.noiseBuf;
+    const nf = ctx.createBiquadFilter();
+    nf.type = 'bandpass'; nf.frequency.value = 1800; nf.Q.value = 0.9;
+    const ng = ctx.createGain();
+    this._env(ng, t, 0.05, 0.4, 0.3);
+    src.connect(nf).connect(ng).connect(this.master);
+    src.start(t, Math.random() * 1.5, 0.7);
+  }
+
+  // Eiswurf: kurzes Zischen + dumpfer Absprung, begleitet den Bolzen-Abschuss.
+  frostGiantThrow() {
+    if (!this.ctx || this.muted) return;
+    const ctx = this.ctx, t = ctx.currentTime;
+    const src = ctx.createBufferSource();
+    src.buffer = this.noiseBuf;
+    const f = ctx.createBiquadFilter();
+    f.type = 'bandpass';
+    f.frequency.setValueAtTime(1600, t);
+    f.frequency.exponentialRampToValueAtTime(600, t + 0.3);
+    f.Q.value = 1.3;
+    const g = ctx.createGain();
+    this._env(g, t, 0.01, 0.3, 0.32);
+    src.connect(f).connect(g).connect(this.master);
+    src.start(t, Math.random() * 1.5, 0.35);
+  }
+
+  // Treffer im Verwundbarkeits-Fenster (analog dragonHit, kälter timbriert).
+  frostGiantHit() {
+    if (!this.ctx || this.muted) return;
+    const ctx = this.ctx, t = ctx.currentTime;
+    const o = ctx.createOscillator();
+    o.type = 'square';
+    o.frequency.setValueAtTime(200, t);
+    o.frequency.exponentialRampToValueAtTime(80, t + 0.2);
+    const f = ctx.createBiquadFilter();
+    f.type = 'lowpass'; f.frequency.value = 900;
+    const g = ctx.createGain();
+    this._env(g, t, 0.002, 0.24, 0.26);
+    o.connect(f).connect(g).connect(this.master);
+    o.start(t); o.stop(t + 0.26);
+  }
+
   // gloom (0..1, von weather.js): bei Regen/Sturm verstummen Vögel/Grillen.
   // owlProximity (0..1, von main.js): Nähe zur Eulerei, gated Eulenrufe nachts.
   update(daylight, gloom = 0, owlProximity = 0) {

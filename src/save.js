@@ -9,7 +9,7 @@
 // eigentliche Versionierung läuft über SAVE_VERSION im `v`-Feld des
 // gespeicherten Objekts, nicht über den Schlüsselnamen.
 export const SAVE_KEY = 'hogwarts3d-save-v1';
-export const SAVE_VERSION = 7; // v5 (S1-S12) + v6 (Sonnet-5-Polish) + v7 (PLAN-EPISCHE-WELT E4: Aschenklamm/Siegel)
+export const SAVE_VERSION = 8; // v5 (S1-S12) + v6 (Sonnet-5-Polish) + v7 (E4: Aschenklamm/Siegel) + v8 (E5: Frostzinnen/Eisblitz)
 export const EXPORT_FORMAT = 'hogwarts3d-save';
 export const MAX_IMPORT_BYTES = 250_000;
 
@@ -36,7 +36,8 @@ export const DEFAULT_SAVE = {
   heim: {
     kate: 0,
     // schuppe (E4): Drachenschuppe — fällt nur beim Sieg über Aschenschwinge ab.
-    zutaten: { glitzer: 0, seide: 0, stern: 0, essenz: 0, leuchtkraut: 0, schuppe: 0 },
+    // frostkristall (E5): fällt nur beim Sieg über den Frostriesen ab.
+    zutaten: { glitzer: 0, seide: 0, stern: 0, essenz: 0, leuchtkraut: 0, schuppe: 0, frostkristall: 0 },
     trank: { id: '', restT: 0 },
   },
   begleiter: { aktiv: '', frei: [] },
@@ -50,7 +51,11 @@ export const DEFAULT_SAVE = {
   // Strang-Grundgerüst (E10) — weitere Siegel-Felder kommen erst mit den
   // jeweiligen Regionen dazu (E5-E7), additiv wie immer.
   aschenklamm: { eggStolen: 0, dragonDefeated: 0, chestCollected: 0 },
-  siegel: { drache: 0 },
+  // PLAN-EPISCHE-WELT.md (v8): Frostzinnen-Region (E5) — eisblitzLearned
+  // trackt den neuen Spruch separat vom SPELL_ORDER-Array (das lebt nur im
+  // Speicher, siehe spells.js unlockEisblitz()-Muster wie unlockPatronum()).
+  frostzinnen: { eisblitzLearned: 0, giantDefeated: 0, chestCollected: 0 },
+  siegel: { drache: 0, frost: 0 },
 };
 
 // ---------- kleine defensive Primitiv-Helfer ----------
@@ -122,6 +127,7 @@ export function normalizeSave(value) {
         essenz: num(zutatenRaw.essenz, 0),
         leuchtkraut: num(zutatenRaw.leuchtkraut, 0),
         schuppe: num(zutatenRaw.schuppe, 0),
+        frostkristall: num(zutatenRaw.frostkristall, 0),
       },
       trank: { id: str(trankRaw.id, ''), restT: num(trankRaw.restT, 0) },
     },
@@ -144,7 +150,15 @@ export function normalizeSave(value) {
       dragonDefeated: num(obj(raw.aschenklamm).dragonDefeated, 0),
       chestCollected: num(obj(raw.aschenklamm).chestCollected, 0),
     },
-    siegel: { drache: num(obj(raw.siegel).drache, 0) },
+    frostzinnen: {
+      eisblitzLearned: num(obj(raw.frostzinnen).eisblitzLearned, 0),
+      giantDefeated: num(obj(raw.frostzinnen).giantDefeated, 0),
+      chestCollected: num(obj(raw.frostzinnen).chestCollected, 0),
+    },
+    siegel: {
+      drache: num(obj(raw.siegel).drache, 0),
+      frost: num(obj(raw.siegel).frost, 0),
+    },
   };
 }
 
