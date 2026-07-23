@@ -201,7 +201,13 @@ function buildChunkedInstances(scene, geo, placements, { castShadow = true, doub
       s.set(p.s, p.s * (p.sy || 1), p.s);
       m.compose(v, q, s);
       im.setMatrixAt(i, m);
-      col.setScalar(0.85 + ((p.tint ?? 0.5)) * 0.3);
+      // E3 (PLAN-EPISCHE-WELT.md): "bessere Rinde/Laub-Töne" — statt reiner
+      // Grauwert-Helligkeit jetzt ein leichter Warm/Kalt-Farbstich pro
+      // Instanz (manche Bäume/Felsen minimal wärmer, andere kühler), on top
+      // der bereits vorhandenen Helligkeits-Streuung.
+      const b = 0.85 + ((p.tint ?? 0.5)) * 0.3;
+      const warmth = ((p.tint ?? 0.5) - 0.5) * 0.12;
+      col.setRGB(b + warmth, b, b - warmth * 0.6);
       im.setColorAt(i, col);
     });
     im.castShadow = castShadow;

@@ -185,7 +185,12 @@ export class SkySystem {
     return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')} Uhr`;
   }
 
-  update(dt, playerPos, gloom = 0) {
+  // regionTint (E3, PLAN-EPISCHE-WELT.md): { color, amount, fogFarMul } von
+  // atmosphere.js — gleiche Lerp-Mechanik wie `gloom` oben, nur mit
+  // beliebiger Zielfarbe statt festem Sturm-Grau. Additiv NACH dem gloom-
+  // Block angewendet (beide Effekte sind praktisch nie gleichzeitig aktiv:
+  // Wetter ist global, Regionsfärbung ortsgebunden).
+  update(dt, playerPos, gloom = 0, regionTint = null) {
     if (!this.paused) this.timeOfDay = (this.timeOfDay + dt / DAY_LENGTH) % 1;
     const t = this.timeOfDay;
 
@@ -265,6 +270,17 @@ export class SkySystem {
       this.scene.fog.color.lerp(this._gray, gloom * 0.5);
       this.sun.intensity *= 1 - 0.5 * gloom;
       this.hemi.intensity *= 1 - 0.3 * gloom;
+    }
+
+    // Regions-Atmosphäre (E3): sanfte Färbung beim Betreten einer Region.
+    if (regionTint && regionTint.amount > 0) {
+      const a = regionTint.amount;
+      this.skyUniforms.uZenith.value.lerp(regionTint.color, a * 0.5);
+      this.skyUniforms.uHorizon.value.lerp(regionTint.color, a * 0.5);
+      this.scene.fog.color.lerp(regionTint.color, a * 0.4);
+      if (regionTint.fogFarMul && regionTint.fogFarMul !== 1) {
+        this.scene.fog.far *= 1 - (1 - regionTint.fogFarMul) * a;
+      }
     }
 
     // Kuppel & Sterne folgen dem Spieler

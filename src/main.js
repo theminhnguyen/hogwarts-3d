@@ -42,6 +42,7 @@ import { buildAnimagus, FORM_ORDER, FORM_LABEL } from './animagus.js';
 import { buildMarauderMap } from './marauders-map.js';
 import { buildTutorial } from './tutorial.js';
 import { createRegionManager } from './regions.js';
+import { createAtmosphereSystem } from './atmosphere.js';
 import { loadSave as loadSaveFromStorage, writeSave as writeSaveToStorage, createExport, parseImport, SAVE_KEY, MAX_IMPORT_BYTES } from './save.js';
 
 function loadSave() { return loadSaveFromStorage(localStorage); }
@@ -99,6 +100,10 @@ scene.add(camera);
 // (E0) noch ohne registrierten Content — reines Fundament, siehe
 // TESTPLAN-1.0.md/Browser-Verifikation für den Wake/Sleep-Nachweis.
 const regionManager = createRegionManager(scene);
+// PLAN-EPISCHE-WELT.md (E3): Regions-Atmosphäre-Fundament, ebenfalls noch
+// ohne registrierte echte Zonen — die neuen Regionen (E4+) registrieren
+// sich hier mit ihrer jeweiligen Himmelsfärbung/Nebel/Ambient-Sound.
+const atmosphere = createAtmosphereSystem();
 
 window.addEventListener('resize', () => {
   camera.aspect = window.innerWidth / window.innerHeight;
@@ -969,7 +974,8 @@ function frame(dt) {
     camera.position.add(fx.shakeOffset);
     health.update(dt);
 
-    sky.update(dt, player.pos, weather.gloom);
+    const atmo = atmosphere.update(player.pos);
+    sky.update(dt, player.pos, weather.gloom, atmo.regionTint);
     sky.hemi.intensity += weather.lightningBoost; // Blitz-Aufhellung, additiv nach dem normalen Tag/Nacht-Update
     castle.update(dt, time, sky.state.nightGlow);
     structures.update(sky.state.nightGlow, time);
@@ -1057,6 +1063,7 @@ buildWorld().then(() => {
     player, sky, camera, renderer, scene,
     wand, spells, fx, health, creatures, puzzles, moor, dementors, weather, post, village, train, willow, interact, npc, hud, grove, broom, fahlholz, fauna, economy, wilderer, mount, home, dark, companion, hallows, animagus, marauders, tutorial,
     regions: regionManager,
+    atmosphere,
     get save() { return save; },
     get fps() { return fpsEMA; },
     get pixelRatio() { return pixelRatio; },
