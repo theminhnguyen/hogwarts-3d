@@ -304,3 +304,46 @@ export function makeMoonTexture() {
   }
   return finish(c, { repeat: false });
 }
+
+// ---------- Ferne Drachen-Silhouette (E9, PLAN-EPISCHE-WELT.md 6.6) ----------
+// Reine Deko-Textur für einen Horizont-Sprite bei der Aschenklamm — Body/
+// Flügel/Schwanz als einfache dunkle Formen, keine Details nötig (wird nur
+// aus großer Distanz gesehen).
+export function makeDragonSilhouetteTexture() {
+  const S = 256;
+  const [c, ctx] = canvas(S);
+  ctx.clearRect(0, 0, S, S);
+  ctx.fillStyle = 'rgba(20,10,10,0.88)';
+  // Flügel (2 große Dreiecke, leicht nach hinten gepfeilt)
+  ctx.beginPath();
+  ctx.moveTo(S * 0.42, S * 0.5);
+  ctx.lineTo(S * 0.1, S * 0.18);
+  ctx.lineTo(S * 0.5, S * 0.42);
+  ctx.closePath();
+  ctx.fill();
+  ctx.beginPath();
+  ctx.moveTo(S * 0.5, S * 0.5);
+  ctx.lineTo(S * 0.62, S * 0.14);
+  ctx.lineTo(S * 0.58, S * 0.44);
+  ctx.closePath();
+  ctx.fill();
+  // Rumpf (Ellipse) + Hals/Kopf + Schwanz
+  ctx.beginPath();
+  ctx.ellipse(S * 0.48, S * 0.56, S * 0.16, S * 0.07, -0.15, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.beginPath();
+  ctx.moveTo(S * 0.6, S * 0.52);
+  ctx.lineTo(S * 0.78, S * 0.4);
+  ctx.lineTo(S * 0.74, S * 0.5);
+  ctx.lineTo(S * 0.6, S * 0.58);
+  ctx.closePath();
+  ctx.fill();
+  ctx.beginPath();
+  ctx.moveTo(S * 0.34, S * 0.58);
+  ctx.lineTo(S * 0.14, S * 0.72);
+  ctx.lineTo(S * 0.2, S * 0.6);
+  ctx.lineTo(S * 0.36, S * 0.54);
+  ctx.closePath();
+  ctx.fill();
+  return finish(c, { repeat: false });
+}

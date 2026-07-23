@@ -32,6 +32,7 @@ import { buildBroom } from './broom.js';
 import { buildFahlholz, buildHuegelgrab, buildKate } from './wildmark.js';
 import { buildHome } from './home.js';
 import { buildFauna } from './fauna.js';
+import { buildAmbient } from './ambient.js';
 import { EconomySystem } from './economy.js';
 import { buildWilderer } from './wilderer.js';
 import { buildMount } from './mount.js';
@@ -127,7 +128,7 @@ post.setQuality(save.grafik);
 post.onDegrade = () => hud.showToast('Grafik automatisch reduziert (Bloom aus)', 3.5);
 
 let sky, water, castle, structures, moor, life, collectibles, player;
-let fx, wand, spells, health, creatures, puzzles, dementors, weather, village, train, willow, interact, npc, grove, broom, fahlholz, fauna, economy, wilderer, mount, kate, home, dark, companion, hallows, huegelgrab, animagus, tutorial, marauders;
+let fx, wand, spells, health, creatures, puzzles, dementors, weather, village, train, willow, interact, npc, grove, broom, fahlholz, fauna, economy, wilderer, mount, kate, home, dark, companion, hallows, huegelgrab, animagus, tutorial, marauders, ambient;
 let aschenklammRegion; // E4: RegionManager-Handle (regions.js) — Register-Aufruf selbst läuft eigenständig als Build-Step weiter unten
 let frostzinnenRegion; // E5: dito für die Frostzinnen
 let silberhainRegion; // E6: dito für den Silberhain
@@ -420,6 +421,7 @@ const buildSteps = [
     // Riesenspinnen jagdbare Beute (Ökosystem-Kette Akromantula>Fuchs>Hase).
     setFaunaPrey(fauna.huntableBySpiders);
   }],
+  ['Ambient-Massen', () => { ambient = buildAmbient(scene); }],
   ['Wilderer & Duell', () => {
     wilderer = buildWilderer(scene, glowTex, hud, audio, fx, health, interact, economy, {
       heim: save.heim, dunkel: save.dunkel, wild: save.wild, hallows: save.hallows, spells,
@@ -1147,6 +1149,7 @@ function frame(dt) {
     wand.root.visible = !player.flying && !player.riding && !player.animalForm;
     fahlholz.update(dt);
     fauna.update(dt, player, spells.lumosOn, move.sprinting);
+    ambient.update(dt, sky.state);
     interact.update(player);
     regionManager.update(dt, player);
     puzzles.update(dt, player, sky.state);
@@ -1262,7 +1265,7 @@ buildWorld().then(() => {
   // Debug-/Test-Zugriff (bewusst öffentlich, hilft bei Fehlersuche)
   window.__game = {
     player, sky, camera, renderer, scene,
-    wand, spells, fx, health, creatures, puzzles, moor, dementors, weather, post, village, train, willow, interact, npc, hud, grove, broom, fahlholz, fauna, economy, wilderer, mount, home, dark, companion, hallows, animagus, marauders, tutorial,
+    wand, spells, fx, health, creatures, puzzles, moor, dementors, weather, post, village, train, willow, interact, npc, hud, grove, broom, fahlholz, fauna, ambient, economy, wilderer, mount, home, dark, companion, hallows, animagus, marauders, tutorial,
     regions: regionManager,
     atmosphere,
     get aschenklamm() { return aschenklammRegion.handle; },
