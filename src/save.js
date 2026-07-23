@@ -9,7 +9,7 @@
 // eigentliche Versionierung läuft über SAVE_VERSION im `v`-Feld des
 // gespeicherten Objekts, nicht über den Schlüsselnamen.
 export const SAVE_KEY = 'hogwarts3d-save-v1';
-export const SAVE_VERSION = 8; // v5 (S1-S12) + v6 (Sonnet-5-Polish) + v7 (E4: Aschenklamm/Siegel) + v8 (E5: Frostzinnen/Eisblitz)
+export const SAVE_VERSION = 9; // v5 (S1-S12) + v6 (Sonnet-5-Polish) + v7 (E4: Aschenklamm/Siegel) + v8 (E5: Frostzinnen/Eisblitz) + v9 (E6: Silberhain/Einhorn)
 export const EXPORT_FORMAT = 'hogwarts3d-save';
 export const MAX_IMPORT_BYTES = 250_000;
 
@@ -31,13 +31,14 @@ export const DEFAULT_SAVE = {
   ruf: 0,
   seenDeath: 0,
   wild: { aktivCamp: -1, befreit: 0, geerntet: 0 },
-  mounts: { hippo: 0, thestral: 0, sattel: 0 },
+  mounts: { hippo: 0, thestral: 0, einhorn: 0, sattel: 0 },
   dunkel: { buch: 0, pfad: 'hell', male: 0 },
   heim: {
     kate: 0,
     // schuppe (E4): Drachenschuppe — fällt nur beim Sieg über Aschenschwinge ab.
     // frostkristall (E5): fällt nur beim Sieg über den Frostriesen ab.
-    zutaten: { glitzer: 0, seide: 0, stern: 0, essenz: 0, leuchtkraut: 0, schuppe: 0, frostkristall: 0 },
+    // mondsilber (E6): fällt nur beim Lösen des Feenlicht-Rätsels in Silberhain ab.
+    zutaten: { glitzer: 0, seide: 0, stern: 0, essenz: 0, leuchtkraut: 0, schuppe: 0, frostkristall: 0, mondsilber: 0 },
     trank: { id: '', restT: 0 },
   },
   begleiter: { aktiv: '', frei: [] },
@@ -55,7 +56,15 @@ export const DEFAULT_SAVE = {
   // trackt den neuen Spruch separat vom SPELL_ORDER-Array (das lebt nur im
   // Speicher, siehe spells.js unlockEisblitz()-Muster wie unlockPatronum()).
   frostzinnen: { eisblitzLearned: 0, giantDefeated: 0, chestCollected: 0 },
-  siegel: { drache: 0, frost: 0 },
+  // PLAN-EPISCHE-WELT.md (v9): Silberhain-Region (E6) — keine Kampf-, sondern
+  // eine Zahm-/Rätsel-Region; puzzleSolved (Feenlicht-Pilzring) und
+  // chestCollected sind unabhängige Fortschritts-Flags. Ob das Einhorn
+  // gezähmt ist, lebt bewusst NICHT hier, sondern in mounts.einhorn (gleiches
+  // Muster wie mounts.hippo/thestral — kein Duplikat-Flag) — siegel.hain wird
+  // beim Zähmen direkt gesetzt. zentaurinQuestDone (stille Zentaurin) prüft
+  // mounts.einhorn selbst, statt einen eigenen Zähm-Zustand zu duplizieren.
+  silberhain: { puzzleSolved: 0, chestCollected: 0, zentaurinQuestDone: 0 },
+  siegel: { drache: 0, frost: 0, hain: 0 },
 };
 
 // ---------- kleine defensive Primitiv-Helfer ----------
@@ -109,6 +118,7 @@ export function normalizeSave(value) {
     mounts: {
       hippo: num(obj(raw.mounts).hippo, 0),
       thestral: num(obj(raw.mounts).thestral, 0),
+      einhorn: num(obj(raw.mounts).einhorn, 0),
       sattel: num(obj(raw.mounts).sattel, 0),
     },
     dunkel: {
@@ -128,6 +138,7 @@ export function normalizeSave(value) {
         leuchtkraut: num(zutatenRaw.leuchtkraut, 0),
         schuppe: num(zutatenRaw.schuppe, 0),
         frostkristall: num(zutatenRaw.frostkristall, 0),
+        mondsilber: num(zutatenRaw.mondsilber, 0),
       },
       trank: { id: str(trankRaw.id, ''), restT: num(trankRaw.restT, 0) },
     },
@@ -155,9 +166,15 @@ export function normalizeSave(value) {
       giantDefeated: num(obj(raw.frostzinnen).giantDefeated, 0),
       chestCollected: num(obj(raw.frostzinnen).chestCollected, 0),
     },
+    silberhain: {
+      puzzleSolved: num(obj(raw.silberhain).puzzleSolved, 0),
+      chestCollected: num(obj(raw.silberhain).chestCollected, 0),
+      zentaurinQuestDone: num(obj(raw.silberhain).zentaurinQuestDone, 0),
+    },
     siegel: {
       drache: num(obj(raw.siegel).drache, 0),
       frost: num(obj(raw.siegel).frost, 0),
+      hain: num(obj(raw.siegel).hain, 0),
     },
   };
 }

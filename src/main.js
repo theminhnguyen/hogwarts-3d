@@ -3,7 +3,7 @@
 // automatischer Qualitätsanpassung (Render-Auflösung nach FPS).
 
 import * as THREE from 'three';
-import { buildTerrain, buildWater, ASCHENKLAMM, FROSTZINNEN } from './terrain.js';
+import { buildTerrain, buildWater, ASCHENKLAMM, FROSTZINNEN, SILBERHAIN } from './terrain.js';
 import { SkySystem } from './sky.js';
 import { buildCastle } from './castle.js';
 import { buildStructures } from './structures.js';
@@ -45,6 +45,8 @@ import { createRegionManager } from './regions.js';
 import { createAtmosphereSystem } from './atmosphere.js';
 import { buildAschenklamm } from './aschenklamm.js';
 import { buildFrostzinnen } from './frostzinnen.js';
+import { buildSilberhain } from './silberhain.js';
+import { buildUnicorn } from './unicorn.js';
 import { loadSave as loadSaveFromStorage, writeSave as writeSaveToStorage, createExport, parseImport, SAVE_KEY, MAX_IMPORT_BYTES } from './save.js';
 
 function loadSave() { return loadSaveFromStorage(localStorage); }
@@ -127,6 +129,8 @@ let sky, water, castle, structures, moor, life, collectibles, player;
 let fx, wand, spells, health, creatures, puzzles, dementors, weather, village, train, willow, interact, npc, grove, broom, fahlholz, fauna, economy, wilderer, mount, kate, home, dark, companion, hallows, huegelgrab, animagus, tutorial, marauders;
 let aschenklammRegion; // E4: RegionManager-Handle (regions.js) — Register-Aufruf selbst läuft eigenständig als Build-Step weiter unten
 let frostzinnenRegion; // E5: dito für die Frostzinnen
+let silberhainRegion; // E6: dito für den Silberhain
+let unicornRegion; // E6: eigene Region (gleiches Zentrum wie Silberhain), siehe unicorn.js-Kopf-Kommentar
 let lanternWasCollected = false; // erkennt den Moment, in dem die Laterne live geborgen wird
 let natureSwayMaterials = [];
 let natureTreeSpots = []; // S2: echte Baum-Positionen für Bowtruckles (fauna.js)
@@ -324,6 +328,48 @@ const buildSteps = [
       color: 0xbfe0f0, fogFarMul: 0.85, ambientMul: 1.05, soundId: 'frostzinnen',
     });
   }],
+  // E6: gleiches Muster wie Aschenklamm/Frostzinnen — keine Kampfregion,
+  // daher kein health-Dep (Silberhain hat keinen Schaden-Pfad).
+  ['Silberhain (Region)', () => {
+    silberhainRegion = regionManager.register({
+      key: 'silberhain',
+      center: { x: SILBERHAIN.x, z: SILBERHAIN.z },
+      wakeRadius: 90,
+      sleepRadius: 130,
+      build: (root, deps) => buildSilberhain(root, deps),
+      deps: {
+        glowTex, hud, audio, fx, interact, spells, economy,
+        heim: save.heim, mounts: save.mounts, silberhain: save.silberhain,
+        onChange: () => persist(),
+      },
+    });
+    atmosphere.registerZone({
+      center: { x: SILBERHAIN.x, z: SILBERHAIN.z }, radius: SILBERHAIN.r + 15, feather: 70,
+      color: 0xf0e0ff, fogFarMul: 0.94, ambientMul: 1.1, soundId: 'silberhain',
+    });
+  }],
+  // E6: eigene Region fürs zähmbare Einhorn (gleiches Zentrum wie Silberhain,
+  // getrennte Datei — siehe unicorn.js-Kopf-Kommentar zur Begründung).
+  // Braucht camera (Reiter-Kamera-Kind) — deshalb kein health-Dep, aber
+  // camera zusätzlich zu den üblichen Region-Deps.
+  ['Einhorn (Region)', () => {
+    unicornRegion = regionManager.register({
+      key: 'einhorn',
+      center: { x: SILBERHAIN.x, z: SILBERHAIN.z },
+      wakeRadius: 90,
+      sleepRadius: 130,
+      build: (root, deps) => buildUnicorn(root, deps),
+      deps: {
+        camera, hud, audio, fx, interact,
+        mounts: save.mounts, siegel: save.siegel, dunkel: save.dunkel,
+        // Einhorn-Zähmung ändert die Mounts-Statuszeile im Pausenmenü —
+        // deshalb (anders als Aschenklamm/Frostzinnen) refreshStatusLines()
+        // zusätzlich zu persist() im selben Callback (mount.js-Muster:
+        // onMountChange rief bisher beides einzeln auf).
+        onChange: () => { persist(); refreshStatusLines(); },
+      },
+    });
+  }],
   ['Zuhause', () => {
     home = buildHome(scene, camera, glowTex, hud, audio, fx, health, interact, economy, kate, {
       heim: save.heim, sky, weather, puzzles, moor, spells, player,
@@ -446,6 +492,7 @@ function refreshStatusLines() {
   const mountNames = [];
   if (save.mounts.hippo) mountNames.push('Hippogreif');
   if (save.mounts.thestral) mountNames.push('Thestral');
+  if (save.mounts.einhorn) mountNames.push('Einhorn');
   if (mountNames.length) lines.push(`🐴 Mounts: ${mountNames.join(', ')}`);
   const hallowCount = (save.hallows.stab ? 1 : 0) + (save.hallows.umhang ? 1 : 0) + (save.hallows.stein ? 1 : 0);
   if (hallowCount > 0) lines.push(`☠️ Heiligtümer: ${hallowCount}/3${hallowCount === 3 ? ' — Meister des Todes' : ''}`);
@@ -539,6 +586,7 @@ function persist() {
     ui: save.ui,
     aschenklamm: save.aschenklamm,
     frostzinnen: save.frostzinnen,
+    silberhain: save.silberhain,
     siegel: save.siegel,
   });
 }
@@ -689,10 +737,10 @@ function performReset() {
   hud.setGold(0);
   save.seenDeath = 0;
   Object.assign(save.wild, { aktivCamp: -1, befreit: 0, geerntet: 0 });
-  Object.assign(save.mounts, { hippo: 0, thestral: 0, sattel: 0 });
+  Object.assign(save.mounts, { hippo: 0, thestral: 0, einhorn: 0, sattel: 0 });
   Object.assign(save.dunkel, { buch: 0, pfad: 'hell', male: 0 });
   save.heim.kate = 0;
-  Object.assign(save.heim.zutaten, { glitzer: 0, seide: 0, stern: 0, essenz: 0, leuchtkraut: 0, schuppe: 0, frostkristall: 0 });
+  Object.assign(save.heim.zutaten, { glitzer: 0, seide: 0, stern: 0, essenz: 0, leuchtkraut: 0, schuppe: 0, frostkristall: 0, mondsilber: 0 });
   Object.assign(save.heim.trank, { id: '', restT: 0 });
   // Trank-Effekte sofort zurücksetzen statt bis zum nächsten Frame zu warten
   // (das übliche Sync-Muster oben liefe sonst noch 1 Frame mit alten Werten).
@@ -721,9 +769,15 @@ function performReset() {
   // der Save-Reset unten).
   Object.assign(save.aschenklamm, { eggStolen: 0, dragonDefeated: 0, chestCollected: 0 });
   Object.assign(save.frostzinnen, { eisblitzLearned: 0, giantDefeated: 0, chestCollected: 0 });
-  Object.assign(save.siegel, { drache: 0, frost: 0 });
+  Object.assign(save.silberhain, { puzzleSolved: 0, chestCollected: 0, zentaurinQuestDone: 0 });
+  Object.assign(save.siegel, { drache: 0, frost: 0, hain: 0 });
   aschenklammRegion.handle?.restore?.();
   frostzinnenRegion.handle?.restore?.();
+  silberhainRegion.handle?.restore?.();
+  // Einhorn NACH dem obigen save.mounts-Reset (mounts.einhorn:0) aufrufen —
+  // unicorn.js' restore() liest mounts.einhorn live, ein Aufruf davor würde
+  // die wilde Instanz fälschlich weiter als "gezähmt" (unsichtbar) behandeln.
+  unicornRegion.handle?.restore?.();
   refreshStatusLines();
   persist();
   hud.showToast('Fortschritt zurückgesetzt');
@@ -892,14 +946,23 @@ window.addEventListener('keydown', (e) => {
     // Nicht während eines Mount-Ritts (geerdet ODER fliegend) UND nicht als
     // Tier (S11: "kein Reiten") — sonst würden sich Besen- und Mount-Flug
     // widersprechen (S6, K13-artige Absicherung).
-    if (broom.besenUnlocked && !player.swimming && !mount.riding && !player.animalForm) {
+    if (broom.besenUnlocked && !player.swimming && !mount.riding && !unicornRegion.handle?.riding && !player.animalForm) {
       player.flying = !player.flying;
       player.flightTuning = player.flying ? null : player.flightTuning; // null -> Besen-Default (player.js)
       hud.showToast(player.flying ? '🧹 Aufgestiegen!' : '🧹 Abgestiegen.', 1.4);
     }
   } else if (e.code === 'KeyR') {
-    // S11: "kein Reiten" als Tier.
-    if (!player.swimming && !player.animalForm) mount.whistle();
+    // S11: "kein Reiten" als Tier. E6: Einhorn hat Vorrang, sobald es geritten
+    // wird oder gezähmt ist (rarere, spätere Belohnung — Muster mount.js
+    // preferredKind(): Thestral > Hippogreif) — mount.whistle() selbst ist
+    // ein No-Op, solange kein Hippogreif/Thestral gezähmt ist, daher als
+    // Fallback immer sicher aufrufbar.
+    if (!player.swimming && !player.animalForm) {
+      if (unicornRegion.handle?.riding) unicornRegion.handle.whistle();
+      else if (mount.riding) mount.whistle();
+      else if (unicornRegion.handle?.tamed) unicornRegion.handle.whistle();
+      else mount.whistle();
+    }
   } else if (e.code === 'KeyG') {
     companion.toggle();
   } else if (e.code === 'KeyU') {
@@ -1015,6 +1078,8 @@ function frame(dt) {
       if (aschenklammRegion.handle) aschenklammRegion.handle.fireImmune = active && t.id === 'feuerschutz';
       // E5 Eisatem-Trank: negiert den Eiswurf-Schaden von Rimefell.
       if (frostzinnenRegion.handle) frostzinnenRegion.handle.iceThrowImmune = active && t.id === 'eisatem';
+      // E6 Feenlichttrank: das Einhorn lässt sich trotz dunklem Pfad zähmen.
+      if (unicornRegion.handle) unicornRegion.handle.calmPotion = active && t.id === 'feenlicht';
       // S10 Elderstab: Schaden ×2 / Cooldown ×0.6, stapelt sich multiplikativ
       // mit dem Dunklen Sud (×1.5).
       const potionDmgMul = active && t.id === 'dunkel' && save.dunkel.pfad === 'dunkel' ? 1.5 : 1;
@@ -1155,6 +1220,8 @@ buildWorld().then(() => {
     atmosphere,
     get aschenklamm() { return aschenklammRegion.handle; },
     get frostzinnen() { return frostzinnenRegion.handle; },
+    get silberhain() { return silberhainRegion.handle; },
+    get einhorn() { return unicornRegion.handle; },
     get save() { return save; },
     get fps() { return fpsEMA; },
     get pixelRatio() { return pixelRatio; },

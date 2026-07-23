@@ -104,6 +104,22 @@ export const ASCHENKLAMM = { x: 395, z: 110, r: 45, blend: 22, h: 3.5 };
 // Schwimm-System (Stolperfalle aus Plan-Abschnitt 6.3).
 export const FROSTZINNEN = { x: 0, z: -410, r: 45, blend: 22, h: 9 };
 
+// ---------- Silberhain (E6, PLAN-EPISCHE-WELT.md) ----------
+// Heller Feen-Wald im Südwesten. Plan-Vorschlag (-285,300) lag bei
+// nachgerechneter Distanz nur ~134,6m vom See-Zentrum entfernt (See selbst
+// hat bereits r=125!) — mit Einfluss-Radius 67 hätte das den Kern klar in
+// die See-Senke gelegt. Zentrum daher auf (-90,410) verschoben: d0≈419,8
+// (bleibt im Plan-Zielband 390-430, ≥100m Puffer bis Bergring-Start 520),
+// Abstand zum See 197,0 — der Kern (r=45) bleibt mit Nächstabstand 152m klar
+// außerhalb von See.r (125), nur der äußerste Blend-Rand (45-67m vom
+// Zentrum) reicht bis auf ~130m an den See heran, wo dessen eigener Randwert
+// bereits gegen 0 geht (gleiche Güteklasse wie die dokumentierten minimalen
+// Bergring-Einschläge bei Moor/Hügelgrab). Weitere Abstände: Bootshaus 252 ·
+// Hagrid 298 · Quidditch 413,6 · Schloss-Plateau (Einfluss 130) 439,4 — alle
+// klar frei. Sanfter Anstieg (kein Boss-Terrain wie Aschenklamm/Frostzinnen),
+// da Silberhain keine Kampfregion ist.
+export const SILBERHAIN = { x: -90, z: 410, r: 45, blend: 22, h: 6 };
+
 // Wege als Polylinien (für Färbung + Freihalten von Bäumen)
 export const PATHS = [
   [[0, 46], [0, 168]],                       // Tor → Kreuzung (über Viadukt)
@@ -122,6 +138,7 @@ export const PATHS = [
   [[230, 140], [95, 105]],                   // Kate → zurück zur Waldlichtung
   [[230, 140], [310, 125], [395, 110]],      // Kate → Aschenklamm (E4)
   [[-70, -230], [-30, -320], [0, -410]],     // Dorf → Frostzinnen (E5)
+  [[-140, 190], [-110, 300], [-90, 410]],    // Seeufer → Silberhain (E6)
 ];
 
 // Kürzester Abstand zu EINER Polylinie (nicht dem gesamten PATHS-Bestand) —
@@ -281,6 +298,14 @@ export function terrainHeight(x, z) {
     h = lerp(h, FROSTZINNEN.h + fbm(x * 0.05, z * 0.05, 3) * 2.5, m);
   }
 
+  // Silberhain (E6) — sanfter Hain-Boden, feineres Rauschen als die beiden
+  // Boss-Zonen (keine Kampfregion, soll ruhig/eben wirken statt zerklüftet).
+  {
+    const d = Math.sqrt((x - SILBERHAIN.x) ** 2 + (z - SILBERHAIN.z) ** 2);
+    const m = 1 - smoothstep(SILBERHAIN.r, SILBERHAIN.r + SILBERHAIN.blend, d);
+    h = lerp(h, SILBERHAIN.h + fbm(x * 0.035, z * 0.035, 3) * 1.6, m);
+  }
+
   // Sicherheitsnetz gegen unsichtbares "Phantom-Wasser": das Grund-Rauschen
   // (Skala 0.0052, Wellenlänge ~190m) kann UNABHÄNGIG vom See irgendwo auf
   // der Karte unter die Schwimm-Schwelle (WATER_LEVEL-1.2) absacken, ohne
@@ -314,6 +339,7 @@ const COL_DIRT = new THREE.Color(0x9c825e);
 const COL_SAND = new THREE.Color(0xb0a077);
 const COL_ROCK = new THREE.Color(0x8b8780);
 const COL_SNOW = new THREE.Color(0xe8ecf2);
+const COL_GOLD = new THREE.Color(0xd8c078); // Silberhain (E6): warm-goldener Waldboden
 
 export function buildTerrain() {
   // E0: 220->300 (gleiche Vertex-DICHTE pro Meter wie vorher: 960/220≈4.36m,
@@ -351,6 +377,11 @@ export function buildTerrain() {
     {
       const df = Math.hypot(x - FROSTZINNEN.x, z - FROSTZINNEN.z);
       c.lerp(COL_SNOW, (1 - smoothstep(FROSTZINNEN.r, FROSTZINNEN.r + FROSTZINNEN.blend + 25, df)) * 0.9);
+    }
+    // Silberhain (E6): warmer Goldton statt Schnee — "heller magischer Wald".
+    {
+      const ds = Math.hypot(x - SILBERHAIN.x, z - SILBERHAIN.z);
+      c.lerp(COL_GOLD, (1 - smoothstep(SILBERHAIN.r, SILBERHAIN.r + SILBERHAIN.blend + 25, ds)) * 0.8);
     }
     // Wege
     const pd = distToPaths(x, z);

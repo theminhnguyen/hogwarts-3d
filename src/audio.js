@@ -1397,6 +1397,55 @@ export class SoundManager {
     o.start(t); o.stop(t + 0.26);
   }
 
+  // Einhorn (E6): heller, sanfter Wiehern-Ton bei erfolgreicher Zähmung —
+  // bewusst hell/rein statt der tiefen Bosstöne (dragonRoar/frostGiantRoar),
+  // passend zum friedlichen Charakter der Region.
+  unicornWhinny() {
+    if (!this.ctx || this.muted) return;
+    const ctx = this.ctx, t = ctx.currentTime;
+    const o = ctx.createOscillator();
+    o.type = 'triangle';
+    o.frequency.setValueAtTime(660, t);
+    o.frequency.linearRampToValueAtTime(880, t + 0.12);
+    o.frequency.linearRampToValueAtTime(740, t + 0.32);
+    const g = ctx.createGain();
+    this._env(g, t, 0.01, 0.2, 0.4);
+    o.connect(g).connect(this.master);
+    o.start(t); o.stop(t + 0.45);
+  }
+
+  // Zentauren-Bogenduell (E6): heller, elegant timbrierter Pfeilabschuss —
+  // Muster wie wildererBolt(), aber Sinus statt Sawtooth (kein Kampf-Grimm).
+  centaurBowRelease() {
+    if (!this.ctx || this.muted) return;
+    const ctx = this.ctx, t = ctx.currentTime;
+    const o = ctx.createOscillator();
+    o.type = 'sine';
+    o.frequency.setValueAtTime(520, t);
+    o.frequency.exponentialRampToValueAtTime(180, t + 0.14);
+    const f = ctx.createBiquadFilter();
+    f.type = 'bandpass'; f.frequency.value = 700; f.Q.value = 1.6;
+    const g = ctx.createGain();
+    this._env(g, t, 0.002, 0.12, 0.16);
+    o.connect(f).connect(g).connect(this.master);
+    o.start(t); o.stop(t + 0.18);
+  }
+
+  // Feenlicht-Rätsel (E6): ein Pilz im Ring leuchtet auf — Muster wie
+  // runeTone(), aber Sinus statt Triangle (weicher, "feenhafter").
+  feenlichtTone(index) {
+    if (!this.ctx || this.muted) return;
+    const freqs = [523.25, 587.33, 659.25, 698.46, 783.99];
+    const ctx = this.ctx, t = ctx.currentTime;
+    const o = ctx.createOscillator();
+    o.type = 'sine';
+    o.frequency.value = freqs[index % freqs.length] ?? freqs[0];
+    const g = ctx.createGain();
+    this._env(g, t, 0.015, 0.16, 0.5);
+    o.connect(g).connect(this.master);
+    o.start(t); o.stop(t + 0.55);
+  }
+
   // gloom (0..1, von weather.js): bei Regen/Sturm verstummen Vögel/Grillen.
   // owlProximity (0..1, von main.js): Nähe zur Eulerei, gated Eulenrufe nachts.
   update(daylight, gloom = 0, owlProximity = 0) {

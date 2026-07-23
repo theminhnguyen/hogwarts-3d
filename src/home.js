@@ -38,6 +38,12 @@ const RECIPES = [
   // Eiswurf des Frostriesen (eigenes region-lokales Flag) — beide Effekte
   // heißen "Frost", sind aber verschiedene Mechaniken, daher getrennt.
   { id: 'eisatem', name: 'Eisatem-Trank', need: { frostkristall: 1, essenz: 1 }, desc: 'Immunität gegen die Eiswürfe des Frostriesen' },
+  // E6 (PLAN-EPISCHE-WELT.md Abschnitt 6.4): mondsilber fällt nur beim Lösen
+  // des Feenlicht-Rätsels in Silberhain ab. Effekt bewusst KEINE neue
+  // Immunität/Buff-Mechanik, sondern ein eigenständiges, in unicorn.js
+  // gelesenes Flag (Muster fireImmune/iceThrowImmune) — ein scheues Einhorn
+  // lässt sich auch auf dem dunklen Pfad zähmen, solange der Trank wirkt.
+  { id: 'feenlicht', name: 'Feenlichttrank', need: { mondsilber: 1, stern: 1 }, desc: 'Ein scheues Einhorn vertraut dir, egal welchem Pfad du folgst' },
 ];
 const ZUTAT_NAMES = {
   glitzer: 'Glitzerstaub', seide: 'Spinnenseide', stern: 'Sternsplitter', essenz: 'Dunkle Essenz',
@@ -204,8 +210,8 @@ export function buildHome(scene, camera, glowTex, hud, audio, fx, health, intera
     },
   });
 
-  // ---------- Braukessel: 7 Rezept-Stationen um den Kessel (E5: +eisatem) ----------
-  const cauldronAngles = [-0.9, -0.45, 0, 0.45, 0.9, 1.35, 1.8];
+  // ---------- Braukessel: 8 Rezept-Stationen um den Kessel (E6: +feenlicht) ----------
+  const cauldronAngles = [-0.9, -0.45, 0, 0.45, 0.9, 1.35, 1.8, 2.25];
   RECIPES.forEach((r, i) => {
     const a = cauldronAngles[i];
     const sx = cauldronX + Math.sin(a) * 0.85, sz = cauldronZ + Math.cos(a) * 0.85 - 0.3;
