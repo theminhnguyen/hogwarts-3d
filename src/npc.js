@@ -10,6 +10,7 @@ import { ARTIFACT_ORDER } from './puzzles.js';
 import { GeoBatch } from './geo.js';
 import { getMaterials } from './materials.js';
 import { RUF_HIGH, RUF_LOW } from './economy.js';
+import { buildLimbChain } from './model.js';
 
 const HOUSE_COLORS = [0xa62b2b, 0x2b6b35, 0x2b4b9b, 0xbfa32b];
 const HAIR_COLORS = [0x2a1c10, 0x1a1a1a, 0x5a3c22, 0x8a7050];
@@ -40,32 +41,110 @@ const PUZZLE_HINTS = {
 
 function clamp01(v) { return Math.max(0, Math.min(1, v)); }
 
-// ---------- Figur: Robe (Kegel) + Kopf (Kugel) + Haar (Halbkugel) + Schal (Torus-Segment) ----------
+// E2 (PLAN-EPISCHE-WELT.md): 3 Haar-Varianten für optische Vielfalt unter
+// den Schülern/Hexern — Style 0 ist die ursprüngliche Halbkugel (unverändert
+// für alle Aufrufer, die keinen Style übergeben), 1=Zopf, 2=Kurzhaar.
+function buildHair(hairMat, style) {
+  const group = new THREE.Group();
+  if (style === 1) {
+    const cap = new THREE.Mesh(new THREE.SphereGeometry(0.19, 8, 5, 0, Math.PI * 2, 0, Math.PI * 0.5), hairMat);
+    group.add(cap);
+    const tail = new THREE.Mesh(new THREE.ConeGeometry(0.05, 0.32, 6), hairMat);
+    tail.rotation.x = Math.PI / 2.4;
+    tail.position.set(0, -0.05, -0.2);
+    group.add(tail);
+  } else if (style === 2) {
+    const cap = new THREE.Mesh(new THREE.SphereGeometry(0.205, 8, 5, 0, Math.PI * 2, 0, Math.PI * 0.35), hairMat);
+    group.add(cap);
+  } else {
+    const cap = new THREE.Mesh(new THREE.SphereGeometry(0.2, 8, 5, 0, Math.PI * 2, 0, Math.PI * 0.55), hairMat);
+    group.add(cap);
+  }
+  return group;
+}
+
+// ---------- Figur: Beine + Robe (Kegel) + Arme + Kopf (Kugel+Gesicht) +
+// Haar (Halbkugel/Variante) + Schal (Torus-Segment) ----------
 // Exportiert (S4): wilderer.js braucht dieselbe Basis für Wilderer (Kapuze)
 // und Ondra — Extraktion statt Duplikat, da die Geometrie WIRKLICH identisch
 // ist (anders als Wizard/Student, deren KI-Verhalten bewusst auseinanderläuft).
 // hatColor (S2, optional): Spitzhut (Hexer). hooded (S4, optional): Kapuze
 // über dem Kopf STATT Haar — für Wilderer, verdeckt das Gesicht bewusst.
-export function buildFigure(scarfColor, hairColor, robeColor = ROBE_DARK, hatColor = null, hooded = false) {
+// hairStyle (E2, optional): 0/1/2, siehe buildHair() — Default 0 hält jeden
+// bestehenden Aufrufer ohne Änderung optisch identisch zu vorher.
+export function buildFigure(scarfColor, hairColor, robeColor = ROBE_DARK, hatColor = null, hooded = false, hairStyle = 0) {
   const group = new THREE.Group();
 
+  // E2: Beine — 2-Segment-Gelenkketten (Astketten-Muster aus model.js),
+  // nur das Hüftgelenk animiert (siehe animateFigure), Knie bleibt in einer
+  // leichten statischen Ruhehaltung. Robe (unten) endet jetzt an der Hüfte
+  // (y=0.5) statt am Boden — die Beine füllen den Rest bis y=0.
   const robeMat = new THREE.MeshLambertMaterial({ color: robeColor, flatShading: true, transparent: true });
-  const robe = new THREE.Mesh(new THREE.ConeGeometry(0.34, 1.15, 8), robeMat);
-  robe.position.y = 0.575;
+  const legs = [];
+  for (const s of [-1, 1]) {
+    const chain = buildLimbChain(group, {
+      pos: { x: s * 0.10, y: 0.5, z: 0 },
+      down: true,
+      segments: [
+        { length: 0.28, radiusTop: 0.075, radiusBot: 0.06, radialSegs: 6, material: robeMat },
+        { length: 0.22, radiusTop: 0.06, radiusBot: 0.05, radialSegs: 5, material: robeMat, restRotX: 0.05 },
+      ],
+    });
+    legs.push(chain.joints[0]);
+  }
+
+  // Robe: verkürzter Kegel (Hüfte bis Schulter) — gleiche Proportionen/
+  // Verjüngung wie zuvor, nur nicht mehr bis zum Boden.
+  const robe = new THREE.Mesh(new THREE.ConeGeometry(0.34, 0.68, 8), robeMat);
+  robe.position.y = 0.84;
   robe.castShadow = true;
   group.add(robe);
 
+  // E2: Arme — 2-Segment-Gelenkketten, Schulter animiert (gegenphasig zu
+  // den Beinen), Ellbogen in statischer Ruhehaltung. Ansatzhöhe y=0.75 (im
+  // breiteren unteren Drittel des Robenkegels, siehe Kommentar oben).
   const headMat = new THREE.MeshLambertMaterial({ color: SKIN, flatShading: true, transparent: true });
+  const arms = [];
+  for (const s of [-1, 1]) {
+    const chain = buildLimbChain(group, {
+      pos: { x: s * 0.20, y: 0.75, z: 0 },
+      down: true,
+      segments: [
+        { length: 0.26, radiusTop: 0.055, radiusBot: 0.048, radialSegs: 5, material: robeMat, restRotX: 0.1 },
+        { length: 0.22, radiusTop: 0.045, radiusBot: 0.04, radialSegs: 5, material: robeMat, restRotX: 0.15 },
+      ],
+    });
+    const hand = new THREE.Mesh(new THREE.SphereGeometry(0.045, 5, 4), headMat);
+    hand.position.y = -0.22;
+    chain.joints[1].add(hand);
+    arms.push(chain.joints[0]);
+  }
+
   const head = new THREE.Mesh(new THREE.SphereGeometry(0.19, 8, 6), headMat);
   head.position.y = 1.28;
   group.add(head);
 
-  const mats = [robeMat, headMat];
+  // E2: Mini-Gesicht — Nase/Augen/Mund als Kinder von `head`, damit sie den
+  // Kopf-Bob in animateFigure automatisch mitmachen (kein eigener Code nötig).
+  const faceMat = new THREE.MeshLambertMaterial({ color: 0x1c1410, flatShading: true, transparent: true });
+  const nose = new THREE.Mesh(new THREE.ConeGeometry(0.025, 0.055, 5), headMat);
+  nose.rotation.x = Math.PI / 2;
+  nose.position.set(0, 0.02, 0.185);
+  head.add(nose);
+  for (const s of [-1, 1]) {
+    const eye = new THREE.Mesh(new THREE.SphereGeometry(0.017, 5, 4), faceMat);
+    eye.position.set(s * 0.07, 0.03, 0.15);
+    head.add(eye);
+  }
+  const mouth = new THREE.Mesh(new THREE.BoxGeometry(0.06, 0.012, 0.01), faceMat);
+  mouth.position.set(0, -0.05, 0.175);
+  head.add(mouth);
+
+  const mats = [robeMat, headMat, faceMat];
   let hair = null;
   if (!hooded) {
     const hairMat = new THREE.MeshLambertMaterial({ color: hairColor, flatShading: true, transparent: true });
-    const hairGeo = new THREE.SphereGeometry(0.2, 8, 5, 0, Math.PI * 2, 0, Math.PI * 0.55);
-    hair = new THREE.Mesh(hairGeo, hairMat);
+    hair = buildHair(hairMat, hairStyle);
     hair.position.y = 1.3;
     group.add(hair);
     mats.push(hairMat);
@@ -104,7 +183,7 @@ export function buildFigure(scarfColor, hairColor, robeColor = ROBE_DARK, hatCol
     mats.push(hoodMat);
   }
 
-  return { group, robe, head, hair, mats, t: Math.random() * 10 };
+  return { group, robe, head, hair, legs, arms, mats, t: Math.random() * 10 };
 }
 
 export function animateFigure(fig, dt, walking) {
@@ -113,6 +192,17 @@ export function animateFigure(fig, dt, walking) {
   const bobAmp = walking ? 0.035 : 0.015;
   fig.head.position.y = 1.28 + Math.sin(fig.t * freq) * bobAmp;
   fig.robe.rotation.z = Math.sin(fig.t * freq) * (walking ? 0.14 : 0.03);
+  // E2: Arme/Beine schwingen im selben Takt wie der Kopf-Bob, gegenphasig
+  // zueinander (rechtes Bein vor <-> linker Arm vor) — nur Hüft-/Schulter-
+  // gelenk animiert, Knie/Ellbogen bleiben in ihrer Ruhehaltung (Muster wie
+  // Troll-Beine: EIN Gelenk pro Gliedmaße reicht für einen lesbaren Gang).
+  const legAmp = walking ? 0.5 : 0.04;
+  const armAmp = walking ? 0.4 : 0.03;
+  const phase = Math.sin(fig.t * freq);
+  fig.legs[0].rotation.x = phase * legAmp;
+  fig.legs[1].rotation.x = -phase * legAmp;
+  fig.arms[0].rotation.x = -phase * armAmp + 0.1;
+  fig.arms[1].rotation.x = phase * armAmp + 0.1;
 }
 
 export function setFigureOpacity(fig, f) {
@@ -128,7 +218,7 @@ const RUF_FLEE_RANGE = 6, RUF_GREET_RANGE = 4, RUF_FLEE_SPEED = 2.6;
 // ---------- Wandernde Schüler: reine Deko, kein Interakt ----------
 class Student {
   constructor(scene, pathPts, idx) {
-    const fig = buildFigure(HOUSE_COLORS[idx % 4], HAIR_COLORS[idx % 4]);
+    const fig = buildFigure(HOUSE_COLORS[idx % 4], HAIR_COLORS[idx % 4], ROBE_DARK, null, false, idx % 3);
     for (const m of fig.mats) m.opacity = 1;
     this.fig = fig;
     this.group = fig.group;
@@ -217,7 +307,7 @@ class Student {
 const WIZARD_HAT_COLORS = [0x3a2f52, 0x4a2318];
 class Wizard {
   constructor(scene, pathPts, idx) {
-    const fig = buildFigure(HOUSE_COLORS[(idx + 2) % 4], HAIR_COLORS[(idx + 1) % 4], ROBE_DARK, WIZARD_HAT_COLORS[idx % 2]);
+    const fig = buildFigure(HOUSE_COLORS[(idx + 2) % 4], HAIR_COLORS[(idx + 1) % 4], ROBE_DARK, WIZARD_HAT_COLORS[idx % 2], false, (idx + 2) % 3);
     for (const m of fig.mats) m.opacity = 1;
     this.fig = fig;
     this.group = fig.group;
