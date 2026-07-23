@@ -24,6 +24,15 @@ const WILDERER_SPOTS = [
   { x: 320, z: -60 },
   { x: 260, z: 200 },
   { x: -260, z: -120 },
+  // E8 (PLAN-EPISCHE-WELT.md, "Verdichtung der Alt-Welt"): 3 zusätzliche Lager
+  // im Außenring (dieselben 3 Sektoren wie die neuen Wichtel/Geister/Fauna-
+  // Cluster in creatures.js/fauna.js — Nordmark bewusst ausgelassen, Wilderer
+  // passen thematisch besser zu den wärmeren Sektoren als zum eisigen Norden).
+  // Rotation/Save/Interact-Code ist bereits vollständig generisch über
+  // WILDERER_SPOTS.length, keine weiteren Codeänderungen nötig.
+  { x: 370, z: -215 },  // Ostmark
+  { x: 250, z: 350 },   // Südmark
+  { x: -365, z: 255 },  // Westmark
 ];
 // Kreidekreis am Dorfplatz — 12m Abstand zum nächsten Kollisions-Blocker
 // live gegen village.js' colliders.blockers verifiziert (Lehre 3).

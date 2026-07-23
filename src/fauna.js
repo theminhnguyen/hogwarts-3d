@@ -58,7 +58,11 @@ function ringSpot(rng, cx, cz, rMin, rMax) {
 const DEER_TUNING = { speed: 1.5, fleeSpeed: 5, fleeRange: 8, wanderR: 14 };
 
 class Deer {
-  constructor(scene, spot, seed) {
+  // E8 (PLAN-EPISCHE-WELT.md): leashCenter optional — Default SILBERAUEN
+  // bewahrt das bisherige Verhalten 1:1, neue Herden abseits der Silberauen
+  // (Außenring-Sektoren) geben ihr eigenes Zentrum mit, sonst würde die
+  // Leine sie jeden Frame zurück zu den Silberauen ziehen.
+  constructor(scene, spot, seed, leashCenter) {
     const model = buildPatronusModel(null, { solid: true, color: 0x5a3f28 });
     model.group.scale.setScalar(0.42);
     model.group.visible = true;
@@ -67,6 +71,7 @@ class Deer {
     this.pos = this.group.position;
     this.pos.set(spot.x, terrainHeight(spot.x, spot.z), spot.z);
     this.home = { x: spot.x, z: spot.z };
+    this.leashCenter = leashCenter || SILBERAUEN;
     this.target = { x: spot.x, z: spot.z };
     this.state = 'graze';
     this.stateT = rand(0, 4);
@@ -110,7 +115,7 @@ class Deer {
       this.pos.z += (dz / d) * speed * dt;
       this.group.rotation.y = angleLerp(this.group.rotation.y, Math.atan2(dx, dz), Math.min(1, dt * 4));
     }
-    leashClamp(this.pos, SILBERAUEN.x, SILBERAUEN.z, LEASH);
+    leashClamp(this.pos, this.leashCenter.x, this.leashCenter.z, LEASH);
     this.pos.y = terrainHeight(this.pos.x, this.pos.z);
 
     this.gaitT += dt * (moving ? (this.state === 'flee' ? 6 : 2) : 0.6);
@@ -155,13 +160,15 @@ export function buildRabbitModel(furTex) {
 }
 
 class Rabbit {
-  constructor(scene, spot, seed, denPos, furTex) {
+  // E8: leashCenter optional, siehe Deer-Kommentar oben — gleiches Muster.
+  constructor(scene, spot, seed, denPos, furTex, leashCenter) {
     const m = buildRabbitModel(furTex);
     this.group = m.group;
     this.body = m.body;
     this.ears = m.ears;
     this.pos = this.group.position;
     this.den = denPos || { x: spot.x, z: spot.z };
+    this.leashCenter = leashCenter || SILBERAUEN;
     this.pos.set(spot.x, terrainHeight(spot.x, spot.z), spot.z);
     this.target = { x: spot.x, z: spot.z };
     this.state = 'idle'; // idle|hop|hidden
@@ -225,7 +232,7 @@ class Rabbit {
     } else {
       this.body.position.y = 0.13;
     }
-    leashClamp(this.pos, SILBERAUEN.x, SILBERAUEN.z, LEASH);
+    leashClamp(this.pos, this.leashCenter.x, this.leashCenter.z, LEASH);
     this.pos.y = terrainHeight(this.pos.x, this.pos.z);
 
     // E1: Ohren-Zuck — kurzer, unregelmäßiger Wackler, unabhängig vom
@@ -721,6 +728,28 @@ export function buildFauna(scene, fx, audio, treeSpots, onGlitter) {
 
   const hippos = [];
   for (let i = 0; i < 3; i++) hippos.push(new WildHippogriff(scene, ringSpot(rng, SILBERAUEN.x, SILBERAUEN.z, 5, 30), 600 + i, furTex));
+
+  // E8 (PLAN-EPISCHE-WELT.md, "Verdichtung der Alt-Welt"): je ein kleiner
+  // Reh+Hasen-Cluster in den 4 Außenring-Sektoren (dieselben Koordinaten wie
+  // die neuen Wichtel/Geister in creatures.js) — eigenes leashCenter statt
+  // der Default-Silberauen, sonst würden die Tiere jeden Frame Richtung
+  // Silberauen zurückgezogen (siehe Deer/Rabbit-Kommentar oben).
+  const OUTER_HERD_SPOTS = [
+    { x: 370, z: -215 },  // Ostmark
+    { x: 250, z: 350 },   // Südmark
+    { x: -365, z: 255 },  // Westmark
+    { x: -305, z: -305 }, // Nordmark
+  ];
+  let herdSeed = 700;
+  for (const center of OUTER_HERD_SPOTS) {
+    for (let i = 0; i < 2; i++) {
+      deer.push(new Deer(scene, ringSpot(rng, center.x, center.z, 0, 20), herdSeed++, center));
+    }
+    for (let i = 0; i < 3; i++) {
+      const den = ringSpot(rng, center.x, center.z, 0, 25);
+      rabbits.push(new Rabbit(scene, den, herdSeed++, den, furTex, center));
+    }
+  }
 
   const preyForFoxes = rabbits;
 

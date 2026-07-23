@@ -164,10 +164,11 @@ eine lokale Sicherung an, bevor sie den aktuellen Stand ersetzen.
   Zug-Haltephase und handelt mit Zutaten/Frischfisch; dein Ruf (−100
   bis +100) färbt Preise und die Reaktion der Schüler, sperrt aber
   nie Inhalte
-- 🏹 Wilderer-Lager in der Wildmark: 3 Lager rotieren im Tageszyklus,
-  ein Käfig lässt sich befreien (heller Pfad, Gold+Ruf) oder ernten
-  (dunkler Pfad, dunkle Essenz) — dazu ein Duellring in Eulenbrück mit
-  Fechtmeisterin Ondra
+- 🏹 Wilderer-Lager: 6 Lager (3 in der Wildmark, 3 weitere im äußeren
+  Ring der vergrößerten Welt) rotieren im Tageszyklus, ein Käfig lässt
+  sich befreien (heller Pfad, Gold+Ruf) oder ernten (dunkler Pfad,
+  dunkle Essenz) — dazu ein Duellring in Eulenbrück mit Fechtmeisterin
+  Ondra
 - 🦅 Reittiere: der Hippogreif lässt sich zähmen (langsame Annäherung,
   Verbeugung, Frischfisch von Fero) und trägt dich am Boden UND
   fliegend (2× Leertaste zum Abheben); der Thestral bleibt unsichtbar

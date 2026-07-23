@@ -38,12 +38,30 @@ const PIXIE_SWARMS = [
   { x: 95, z: 105 },
   { x: -30, z: 80 },
   { x: 150, z: 170 },
+  // E8 (PLAN-EPISCHE-WELT.md, "Verdichtung der Alt-Welt"): 4 weitere Schwärme
+  // in den vier freien Außenring-Sektoren zwischen den E4-E7-Regionen (jeweils
+  // gegen ALLE echten terrain.js-Zonenkonstanten nachgerechnet, >70m Puffer
+  // zur nächsten Zone und zum Bergring). Bewusst über die bestehende, bereits
+  // per-Instanz distanzgekullte CreatureSystem-Liste eingebunden statt über
+  // eine neue RegionManager-Region — Wichtel sind geometrisch/Update-technisch
+  // so billig, dass die vorhandene 140/160m-Kullung den Mehrbau bereits
+  // ausreichend begrenzt (RegionManager lohnt sich für schwere neue Inhalte
+  // wie ganze Regionen, nicht für ein paar weitere Low-Poly-Instanzen).
+  { x: 370, z: -215 },  // Ostmark
+  { x: 250, z: 350 },   // Südmark
+  { x: -365, z: 255 },  // Westmark
+  { x: -305, z: -305 }, // Nordmark
 ];
 const PIXIE_PER_SWARM = 5;
 const GHOST_SPAWNS = [
   { x: 150, z: -95 },
   { x: 0, z: -75 },
   { x: -20, z: 94 },
+  // E8: dieselben 4 Außenring-Sektoren wie PIXIE_SWARMS oben.
+  { x: 370, z: -215 },  // Ostmark
+  { x: 250, z: 350 },   // Südmark
+  { x: -365, z: 255 },  // Westmark
+  { x: -305, z: -305 }, // Nordmark
 ];
 const GHOST_PER_SPAWN = 2;
 const CULL_FULL = 140;
