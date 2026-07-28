@@ -80,6 +80,51 @@ http://localhost:8123 öffnen, sofern nicht anders angegeben.
       Browser-Konsole (Warnungen aus Drittanbieter-Code ausgenommen — hier
       gibt es keine).
 
+## 8. Die vier neuen Regionen jenseits des Bergrings (PLAN-EPISCHE-WELT.md E4-E11)
+
+- [ ] Alle vier Regionen (Aschenklamm, Frostzinnen, Silberhain, Schwarzwasser)
+      sind zu Fuß UND im Flug erreichbar; jede blendet beim Betreten ihre
+      eigene Atmosphäre (Himmelsfarbe/Nebel/Sound) über ~4s sanft ein.
+- [ ] Aschenklamm: Ei aus dem Nest stehlen weckt Aschenschwinge; Stupor
+      unterbricht seinen Feuerspeier während des Telegraphs, Incendio bleibt
+      wirkungslos; Sieg gibt Herz-Upgrade, 3× Drachenschuppe, Titel
+      „Drachenbezwinger"; danach ist der Feuerschutztrank am Kessel braubar.
+- [ ] Frostzinnen: Eisaltar-Rätsel schaltet Eisblitz (Taste `I`, auch per
+      Mausrad/Spellbar) frei; Rimefell besiegbar; Sieg gibt Herz-Upgrade,
+      3× Frostkristall, Titel „Frostbezwinger"; Eisatem-Trank danach braubar.
+- [ ] Silberhain: Feenlicht-Pilzring-Rätsel (Lumos + Näherung) lösbar; Einhorn
+      lässt sich zähmen und wie Hippogreif/Thestral rufen/reiten (`R`); auf
+      dem dunklen Pfad flieht es, außer der Feenlichttrank wirkt; Truhe gibt
+      3× Mondsilber, Zähmung den Titel „Einhornfreund".
+- [ ] Schwarzwasser: Hebel-Tauchrätsel in der versunkenen Ruine lösbar;
+      Grindylows greifen unter Wasser an; Sieg/Abschluss gibt Herz-Upgrade,
+      3× Tiefenperle, Titel „Tiefenbezwinger"; Tiefenatem-Trank danach braubar.
+- [ ] Jede Region ist allein mit den bis zu ihrem Meilenstein verfügbaren
+      Sprüchen lösbar — kein Fortschritt in einer anderen Region ist
+      Voraussetzung (Region-Verzahnungen sind nur erleichternde Boni).
+- [ ] „Die vier Siegel": Nebenaufgabe erscheint auf der Karte erst ab dem
+      ersten Siegel, zeigt den korrekten Zähler (n/4), verschwindet wieder
+      nach dem Sternentor.
+- [ ] Sternentor beim Schloss bleibt unsichtbar/kein Interact-Prompt, bis
+      alle 4 Siegel vorliegen; danach Interakt löst Feuerwerk + Gold/Ruf +
+      Titel „Hüter der vier Reiche" genau einmal aus (kein Doppel-Reward bei
+      erneutem Betreten); Zustand übersteht Neuladen.
+- [ ] Weltensammler: Fero bietet den Tausch erst an, wenn alle 4 seltenen
+      Zutaten (Schuppe/Frostkristall/Mondsilber/Tiefenperle) gleichzeitig
+      vorhanden sind; Tausch verbraucht je 1, gibt Gold/Ruf/Titel „Weltensammler"
+      genau einmal; danach fester Wiederholungs-Dialog.
+- [ ] Karte des Rumtreibers: die 4 neuen Regionen erscheinen als Landmarken
+      erst nach dem ersten Betreten (keine Spoilerkarte vorher).
+- [ ] Alle 4 fernen Horizont-Silhouetten (Drache, Eisgipfel, Silberbaum,
+      Leuchtturm-Leuchtfeuer) sind aus großer Entfernung sichtbar und
+      verschwinden nie hinter dem Bergring.
+- [ ] „Fortschritt zurücksetzen" setzt auch `siegel.*`, alle 4 Region-Flags
+      und die Fero-Sammlerquest zurück — Karte/Statuszeile zeigen danach
+      wieder den Ausgangszustand.
+- [ ] Ein Save von vor Schema v7 (ohne Region-/Siegel-Felder) lädt fehlerfrei
+      und bekommt alle neuen Felder mit sicheren Defaults (siehe
+      `tests/save.test.mjs`).
+
 ## Automatisierte Tests
 
 - [ ] `npm test` läuft vollständig grün (Save-Normalisierung, Export/Import,

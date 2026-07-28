@@ -4,14 +4,20 @@ Ein **begehbares 3D-Schloss im Browser** — komplett prozedural erzeugt, ohne e
 einziges externes Asset. Erkunde das Schloss mit Großem Saal, Astronomieturm,
 Viadukt, See mit Bootshaus, Verbotenem Wald, Quidditch-Feld, Steinkreis, dem
 nebelverhangenen Moor und einer ganzen zweiten Landschaft dahinter — der
-Wildmark mit Dorf, Wilderer-Lagern, einer eigenen Kate und wilder Fauna.
+Wildmark mit Dorf, Wilderer-Lagern, einer eigenen Kate und wilder Fauna. Jenseits
+des Bergrings liegt eine noch einmal deutlich größere Welt: vier eigenständige
+Regionen mit je einem Boss — die vulkanische **Aschenklamm** (Drache
+Aschenschwinge), die vereisten **Frostzinnen** (Frostriese Rimefell), der
+friedliche **Silberhain** (zähmbares Einhorn, Zentauren) und das unheimliche
+**Schwarzwasser** (Seeungeheuer, Tauch-Rätsel).
 
-Halte durchgehend einen Zauberstab in der Hand und wirke bis zu neun Sprüche
+Halte durchgehend einen Zauberstab in der Hand und wirke bis zu zehn Sprüche
 (inklusive dreier verbotener, sobald du dem dunklen Pfad folgst), löse vier
 Rätsel und gewinne den Hauspokal, vertreibe Dementoren mit Expecto Patronum,
-zähme Hippogreif und Thestral, handle mit dem Wanderhändler Fero, sammle die
-drei Heiligtümer des Todes im Duell gegen den Bleichen König, per Diebstahl
-und durch Tauchen im See — und werde am Ende sogar selbst zum Animagus:
+zähme Hippogreif, Thestral und Einhorn, handle mit dem Wanderhändler Fero,
+sammle die drei Heiligtümer des Todes im Duell gegen den Bleichen König, per
+Diebstahl und durch Tauchen im See, besiege die vier neuen Bosse und vereine
+ihre Siegel am Sternentor — und werde am Ende sogar selbst zum Animagus:
 verwandle dich per Ritual in Rabe, Katze oder Wolf.
 
 > Inoffizielles, nicht-kommerzielles Fan-Projekt. Steht in keiner Verbindung zu
@@ -35,13 +41,14 @@ Oder lokal: Ordner klonen und `node dev-server.mjs` starten → http://localhost
 | Maustaste | Zaubern (bei Leviosa: gedrückt halten zum Tragen, loslassen zum Fallenlassen) |
 | `E` | Interagieren (mit NPCs sprechen, Gegenstände nehmen, Kessel bedienen) |
 | `B` | Besen auf-/absteigen (erst nach dem Besen-Fund) |
-| `R` | Hippogreif/Thestral rufen, aufsitzen, absitzen |
+| `R` | Hippogreif/Thestral/Einhorn rufen, aufsitzen, absitzen |
 | `G` | Begleiter rufen/wegschicken (Musch, Eule Piniva oder Niffler Grabbel) |
 | `U` | Umhang der Unsichtbarkeit an/aus (nach dem Diebstahl beim Wilderer-Anführer) |
 | `J` | Karte des Rumtreibers & Aufgaben öffnen/schließen |
 | 2× `Leertaste` | Beritten abheben (Hippogreif/Thestral im Flug) |
 | Mausrad / `1`–`9` | Zauber wählen — alle freigeschalteten Sprüche und Heiligtümer, danach Linksklick zum Wirken |
 | `5` | Expecto Patronum wählen (erst nach dem Hauspokal) |
+| `I` | Eisblitz wählen (erst nach dem Eisaltar-Rätsel in den Frostzinnen) |
 | `6` / `7` / `8` / `9` | Avada Kedavra / Crucio / Imperio / Dunkles Mal wählen (nur nach dem Aschenen Grimoire, nur auf dem dunklen Pfad) |
 | `V` | Animagus-Verwandlung Mensch ↔ Tier (nach dem Sturm-Ritual); als Wolf: Doppeldruck = Biss |
 | `T` | Tageszeit vorspulen |
@@ -176,9 +183,10 @@ eine lokale Sicherung an, bevor sie den aktuellen Stand ersetzen.
   zähmbar und der wendigste Flieger im Spiel
 - 🏚️ Die Wispernde Kate: eigener Unterschlupf (kaufbar für Gold oder
   geschenkt ab Ruf 30) mit Bett (Zeitsprung + Vollheilung), Braukessel
-  mit 5 Rezepten (Flinktrank, Herztrank, Frostbann, Dunkler Sud, Trank
-  der zweiten Gestalt) und Trophäenregal — dazu seltene Meteor-Nächte,
-  die Sternsplitter in der Wildmark liegen lassen
+  mit inzwischen 9 Rezepten (Flinktrank, Herztrank, Frostbann, Dunkler Sud,
+  Trank der zweiten Gestalt und vier weitere, siehe unten) und
+  Trophäenregal — dazu seltene Meteor-Nächte, die Sternsplitter in der
+  Wildmark liegen lassen
 - 🖤 Der dunkle Pfad: das Aschene Grimoire im Spinnennest schaltet drei
   verbotene Sprüche frei — **Avada Kedavra** (One-Shot), **Crucio**
   (Kanal-Schaden) und **Imperio** (macht Gegner zu Verbündeten) — sowie
@@ -216,6 +224,75 @@ eine lokale Sicherung an, bevor sie den aktuellen Stand ersetzen.
 - ⚡ Performance: gemergte Meshes, Instancing mit Regionen-Culling,
   Objekt-Pools für Zauber/Partikel/Kreaturen, automatische
   Auflösungs-Anpassung — läuft flüssig ohne Build-Tools
+
+### Die vier neuen Regionen jenseits des Bergrings
+
+Die begehbare Welt wuchs auf mehr als das Doppelte ihrer ursprünglichen
+Fläche. Jenseits des alten Bergrings liegen vier neue, eigenständig
+atmosphärische Regionen (eigene Himmelsfarbe, Nebel, Ambient-Sound — blendet
+beim Betreten sanft über ~4 Sekunden ein) mit je einem Boss, lösbar allein mit
+den bis dahin verfügbaren Mitteln:
+
+- 🐉 **Die Aschenklamm** (Osten): vulkanische Schlucht mit Lavasee und
+  Basaltsäulen. Der Miniboss-Drache **Aschenschwinge** schläft auf einem
+  Basaltthron, erwacht beim Diebstahl seines Eis aus dem Nest, fliegt in
+  Bögen und speit telegraphierte Feuerbolzen (gegen Incendio immun — Stupor
+  unterbricht ihn während des Telegraphs, dann sind seine Flanken kurz
+  verwundbar). Belohnung: Herz-Upgrade, 3× Drachenschuppe für den
+  Feuerschutztrank, Titel „Drachenbezwinger" — als rauchende Silhouette auch
+  von Weitem am Horizont sichtbar
+- ❄️ **Die Frostzinnen** (Norden): ein fest begehbarer gefrorener See,
+  Nordlicht am Nachthimmel, eine Eishöhle mit dem Frostriesen **Rimefell**
+  (wirft telegraphierte Eisbolzen). Ein Eisaltar-Rätsel schaltet den 6.
+  Spruch **Eisblitz** (Taste `I`) frei — schmilzt Frost-Runen und schadet
+  dem Riesen zusätzlich. Belohnung: Herz-Upgrade, 3× Frostkristall für den
+  Eisatem-Trank, Titel „Frostbezwinger"
+- 🦄 **Der Silberhain** (Südwesten): der friedliche Gegenpol zu den beiden
+  Kampfregionen — warm-golden, ohne Kampfrisiko. Ein riesiger, leuchtender
+  Silberbaum als Landmarke, drei würdevolle Zentauren (Händlerin Filyra,
+  Bogen-Duellant Kyrian, die stumme Sela) und ein Feenlicht-Pilzring-Rätsel
+  (Lumos + Näherung). Ein zähmbares **Einhorn** lässt sich hier wie
+  Hippogreif/Thestral rufen und reiten (Taste `R`) — es flieht vor dir auf
+  dem dunklen Pfad, außer der Feenlichttrank wirkt gerade. Belohnung:
+  3× Mondsilber für den Feenlichttrank, Titel „Einhornfreund"
+- 🐙 **Schwarzwasser** (Westen): ein Leuchtturm mit Wärter Alaric, eine
+  versunkene Ruine mit einem Hebel-Tauchrätsel (nutzt das vorhandene
+  Tauch-System), kleine Grindeloh-Wassergeister — und ein **Seeungeheuer**,
+  das nur als riesiger Kopf/Tentakel telegraphiert angreift statt in einem
+  klassischen Bosskampf. Belohnung: Herz-Upgrade, 3× Tiefenperle für den
+  Tiefenatem-Trank, Titel „Tiefenbezwinger"
+
+Dazu 3 weitere Immunitäts-Tränke am Braukessel der Wispernden Kate
+(Feuerschutz, Eisatem, Tiefenatem — je gegen die Gefahr der jeweils
+gleichnamigen Region) sowie der Feenlichttrank, macht insgesamt 9 Rezepte.
+
+### Eine lebendigere, größere Welt
+
+- 🌍 Verdichtung der Alt-Welt: 4 weitere Wichtel-Schwärme und
+  Geisternester sowie 2 weitere Reh-/Hasen-Herden verteilen sich auf die
+  vier Außenring-Sektoren zwischen den neuen Regionen — dazu die bereits
+  erwähnten 6 (statt ursprünglich 3) Wilderer-Lager
+- 🦌 Ambient-Leben: eine wandernde, 14-köpfige Reh-Herde, drei weitere
+  Vogelschwärme, Fischschwärme im großen See UND in Schwarzwasser, und eine
+  gelegentliche Wildmark-Karawane (Wagen + Händlerfigur) auf der
+  Silberauen-Fahlholz-Kate-Route
+- 🌄 Vier ferne Horizont-Silhouetten: ein rauchender Drachenberg, ein
+  leuchtender Eisgipfel, ein glühender Silberbaum und ein pulsierendes
+  Leuchtturm-Leuchtfeuer — jeweils in Richtung ihrer Region, nie hinter dem
+  Bergring verborgen, machen die große Welt aus der Ferne navigierbar
+- 🗺️ Erweiterte Karte des Rumtreibers: alle vier neuen Regionen erscheinen
+  als eigene, erst beim Entdecken freigeschaltete Landmarken
+
+### „Die vier Siegel" — das Weltfinale
+
+- 🌟 **Das Sternentor**: sobald du alle vier Siegel der neuen Regionen
+  (Drache/Frost/Hain/Tiefe) errungen hast, erwacht beim Schloss ein
+  pulsierendes Sternentor. Hindurchgehen schenkt ein großes Feuerwerk,
+  einen deutlichen Gold-/Ruf-Sprung und den Titel „Hüter der vier Reiche"
+- 💰 **Weltensammler**: sobald du je 1 Drachenschuppe, Frostkristall,
+  Mondsilber und Tiefenperle gleichzeitig bei dir trägst, tauscht
+  Wanderhändler Fero sie dir einmalig gegen eine große Gold-/Ruf-Belohnung
+  und den Titel „Weltensammler" ab
 
 ## Entwicklung
 
