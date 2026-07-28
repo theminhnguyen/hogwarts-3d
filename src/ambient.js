@@ -7,19 +7,24 @@
 //   2) 3 zusätzliche Vogelschwärme (Muster aus props.js' LifeSystem übernommen)
 //   3) Fischschwärme im großen See UND in Schwarzwasser (je 1 InstancedMesh)
 //   4) Eine gelegentliche Wildmark-Karawane (Silberauen-Fahlholz-Kate-Route)
-// Die ferne Drachen-Silhouette (Plan 6.6) hängt thematisch hier mit dran,
-// lebt aber als eigene Funktion, da sie mit den restlichen Bausteinen nichts
-// teilt.
+// Die fernen Horizont-Silhouetten (Plan 6.6) hängen thematisch hier mit dran,
+// leben aber als eigene Funktionen, da sie mit den restlichen Bausteinen
+// nichts teilen: die Drachen-Silhouette (E9) über der Aschenklamm, dazu seit
+// E11 der Eisgipfel (Frostzinnen), der Silberbaum (Silberhain) und das
+// Leuchtturm-Leuchtfeuer (Schwarzwasser) — je eine der 4 neuen Regionen.
 
 import * as THREE from 'three';
 import {
   terrainHeight, LAKE, SCHWARZWASSER, SILBERAUEN, FAHLHOLZ, KATE, ASCHENKLAMM,
-  WATER_LEVEL, PATHS,
+  FROSTZINNEN, SILBERHAIN, WATER_LEVEL, PATHS,
 } from './terrain.js';
 import { GeoBatch } from './geo.js';
 import { getMaterials } from './materials.js';
 import { buildFigure, animateFigure } from './npc.js';
-import { makeDragonSilhouetteTexture } from './textures.js';
+import {
+  makeDragonSilhouetteTexture, makeIcePeakSilhouetteTexture,
+  makeSilverTreeSilhouetteTexture, makeLighthouseSilhouetteTexture,
+} from './textures.js';
 import { mulberry32 } from './noise.js';
 
 function rand(a, b) { return a + Math.random() * (b - a); }
@@ -362,6 +367,46 @@ function buildDragonSilhouette(scene) {
   };
 }
 
+// ============================================================ 6-8) Weitere Fern-Silhouetten (E11) ============
+// Plan 6.6: jede der 3 übrigen Boss-Regionen bekommt dieselbe "weithin
+// sichtbares Ansteuer-Ziel"-Behandlung wie die E9-Drachensilhouette —
+// additiver Sprite, depthTest:false (siehe Kommentar oben: normaler
+// Tiefentest verliert sonst gegen den näheren, aber niedrigeren Bergring).
+// Anders als der fliegende Drache sind das ortsfeste Landmarken (Berg/Baum/
+// Turm) — kein Orbit-Drift, nur ein sanftes Glühen/Pulsieren für "Leben".
+function bearingCenter(region, dist, y) {
+  const bearing = Math.atan2(region.z, region.x);
+  return { x: Math.cos(bearing) * dist, z: Math.sin(bearing) * dist, y };
+}
+const SIL_DIST = 800;
+const ICE_PEAK_CENTER = bearingCenter(FROSTZINNEN, SIL_DIST, 170);
+const SILVER_TREE_CENTER = bearingCenter(SILBERHAIN, SIL_DIST, 85);
+const LIGHTHOUSE_CENTER = bearingCenter(SCHWARZWASSER, SIL_DIST, 55);
+
+function buildPulsingSilhouette(scene, texture, center, scale, baseOpacity, pulseAmp, pulseSpeed) {
+  const mat = new THREE.SpriteMaterial({
+    map: texture, transparent: true, opacity: baseOpacity,
+    blending: THREE.AdditiveBlending, depthWrite: false, depthTest: false, fog: false,
+  });
+  const sprite = new THREE.Sprite(mat);
+  sprite.scale.set(scale, scale, 1);
+  sprite.position.set(center.x, center.y, center.z);
+  scene.add(sprite);
+  return {
+    update(t) { mat.opacity = baseOpacity + Math.sin(t * pulseSpeed) * pulseAmp; },
+  };
+}
+
+function buildIcePeakSilhouette(scene) {
+  return buildPulsingSilhouette(scene, makeIcePeakSilhouetteTexture(), ICE_PEAK_CENTER, 260, 0.55, 0.12, 0.35);
+}
+function buildSilverTreeSilhouette(scene) {
+  return buildPulsingSilhouette(scene, makeSilverTreeSilhouetteTexture(), SILVER_TREE_CENTER, 150, 0.5, 0.15, 0.6);
+}
+function buildLighthouseSilhouette(scene) {
+  return buildPulsingSilhouette(scene, makeLighthouseSilhouetteTexture(), LIGHTHOUSE_CENTER, 90, 0.6, 0.3, 1.1);
+}
+
 // ============================================================ Aufbau ============
 export function buildAmbient(scene) {
   const herd = buildHerd(scene);
@@ -369,6 +414,9 @@ export function buildAmbient(scene) {
   const fish = buildFishSwarms(scene);
   const caravan = buildCaravan(scene);
   const dragonSil = buildDragonSilhouette(scene);
+  const icePeakSil = buildIcePeakSilhouette(scene);
+  const silverTreeSil = buildSilverTreeSilhouette(scene);
+  const lighthouseSil = buildLighthouseSilhouette(scene);
   let time = 0;
 
   return {
@@ -379,6 +427,9 @@ export function buildAmbient(scene) {
       fish.update(dt, time);
       caravan.update(dt, time);
       dragonSil.update(time);
+      icePeakSil.update(time);
+      silverTreeSil.update(time);
+      lighthouseSil.update(time);
     },
   };
 }

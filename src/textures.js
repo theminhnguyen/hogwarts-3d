@@ -347,3 +347,77 @@ export function makeDragonSilhouetteTexture() {
   ctx.fill();
   return finish(c, { repeat: false });
 }
+
+// ---------- Ferner Eisgipfel (E11, PLAN-EPISCHE-WELT.md 6.6) ----------
+// Fern-Landmarke für die Frostzinnen: jagiger, heller Berggipfel statt eines
+// dunklen Umrisses (Drache) — additiv geblendet, wirkt dadurch "leuchtend"
+// wie im Plan gefordert, nicht nur als Schattenriss.
+export function makeIcePeakSilhouetteTexture() {
+  const S = 256;
+  const [c, ctx] = canvas(S);
+  ctx.clearRect(0, 0, S, S);
+  ctx.fillStyle = 'rgba(190,225,245,0.55)';
+  ctx.beginPath();
+  ctx.moveTo(S * 0.08, S * 0.78);
+  ctx.lineTo(S * 0.3, S * 0.42);
+  ctx.lineTo(S * 0.44, S * 0.58);
+  ctx.lineTo(S * 0.58, S * 0.22);
+  ctx.lineTo(S * 0.74, S * 0.5);
+  ctx.lineTo(S * 0.92, S * 0.78);
+  ctx.closePath();
+  ctx.fill();
+  // Hellerer Firn nahe der Hauptspitze.
+  ctx.fillStyle = 'rgba(232,248,255,0.8)';
+  ctx.beginPath();
+  ctx.moveTo(S * 0.5, S * 0.3);
+  ctx.lineTo(S * 0.58, S * 0.22);
+  ctx.lineTo(S * 0.66, S * 0.36);
+  ctx.lineTo(S * 0.58, S * 0.4);
+  ctx.closePath();
+  ctx.fill();
+  return finish(c, { repeat: false });
+}
+
+// ---------- Ferner Silberbaum (E11, PLAN-EPISCHE-WELT.md 6.6) ----------
+// Fern-Landmarke für den Silberhain — Krone+Stamm additiv geblendet, wie das
+// echte Silberbaum-Glühen in silberhain.js (Palette f0e0ff/c9c0d8 gespiegelt).
+export function makeSilverTreeSilhouetteTexture() {
+  const S = 256;
+  const [c, ctx] = canvas(S);
+  ctx.clearRect(0, 0, S, S);
+  ctx.fillStyle = 'rgba(210,195,225,0.6)';
+  ctx.fillRect(S * 0.47, S * 0.55, S * 0.06, S * 0.28);
+  ctx.fillStyle = 'rgba(240,224,255,0.7)';
+  for (const [cx, cy, r] of [[0.5, 0.42, 0.22], [0.36, 0.48, 0.15], [0.64, 0.47, 0.16]]) {
+    ctx.beginPath();
+    ctx.arc(S * cx, S * cy, S * r, 0, Math.PI * 2);
+    ctx.fill();
+  }
+  return finish(c, { repeat: false });
+}
+
+// ---------- Ferner Leuchtturm (E11, PLAN-EPISCHE-WELT.md 6.6) ----------
+// Fern-Landmarke für Schwarzwasser — Turm-Silhouette + Leuchtfeuer-Punkt
+// (Farbe fff2c0 gespiegelt aus dem echten Leuchtturm in schwarzwasser.js).
+// Bewusst kein rotierender Strahl: Sprites sind immer kamerazugewandt, ein
+// echter Dreh-Lichtkegel bräuchte volumetrische Geometrie statt eines
+// billigen Billboards — das Leuchtfeuer selbst (siehe ambient.js) pulsiert
+// stattdessen, das trägt die "weithin sichtbar"-Funktion genauso.
+export function makeLighthouseSilhouetteTexture() {
+  const S = 256;
+  const [c, ctx] = canvas(S);
+  ctx.clearRect(0, 0, S, S);
+  ctx.fillStyle = 'rgba(60,55,60,0.6)';
+  ctx.beginPath();
+  ctx.moveTo(S * 0.44, S * 0.82);
+  ctx.lineTo(S * 0.47, S * 0.32);
+  ctx.lineTo(S * 0.53, S * 0.32);
+  ctx.lineTo(S * 0.56, S * 0.82);
+  ctx.closePath();
+  ctx.fill();
+  ctx.fillStyle = 'rgba(255,242,192,0.85)';
+  ctx.beginPath();
+  ctx.arc(S * 0.5, S * 0.28, S * 0.07, 0, Math.PI * 2);
+  ctx.fill();
+  return finish(c, { repeat: false });
+}

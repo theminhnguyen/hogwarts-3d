@@ -24,6 +24,14 @@ export const LANDMARKS = [
   { id: 'astronomieturm', name: 'Astronomieturm', x: 0, z: -80, radius: 40, alwaysVisible: false },
   { id: 'nebelmoor', name: 'Nebelmoor', x: 240, z: -175, radius: 65, alwaysVisible: false },
   { id: 'kate', name: 'Wispernde Kate', x: 230, z: 140, radius: 35, alwaysVisible: false },
+  // E11 (Plan-Abschnitt 5): die 4 neuen Boss-Regionen aus E4-E7 — Koordinaten
+  // 1:1 aus terrain.js gespiegelt (ASCHENKLAMM/FROSTZINNEN/SILBERHAIN/
+  // SCHWARZWASSER), radius = Kernradius + 15 (Muster: atmosphere.registerZone
+  // in main.js nutzt exakt denselben Puffer für diese 4 Zonen).
+  { id: 'aschenklamm', name: 'Die Aschenklamm', x: 395, z: 110, radius: 60, alwaysVisible: false },
+  { id: 'frostzinnen', name: 'Die Frostzinnen', x: 0, z: -410, radius: 60, alwaysVisible: false },
+  { id: 'silberhain', name: 'Der Silberhain', x: -90, z: 410, radius: 60, alwaysVisible: false },
+  { id: 'schwarzwasser', name: 'Schwarzwasser', x: -405, z: -40, radius: 55, alwaysVisible: false },
 ];
 
 // Skalierung fürs CSS-Panel: Weltkoordinaten auf 0..100%. WORLD_BOUND aus
