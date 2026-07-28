@@ -685,7 +685,7 @@ export function buildAschenklamm(root, deps) {
     aschenklamm.dragonDefeated = 1;
     aschenklamm.chestCollected = 1;
     siegel.drache = 1;
-    hud.showToast('❤️ Herz-Upgrade! Maximale Herzen: 7 · 🐲 3× Drachenschuppe · Titel „Drachenbezwinger" errungen!', 5);
+    hud.showToast('❤️ Herz-Upgrade! · 🐲 3× Drachenschuppe · Titel „Drachenbezwinger" errungen!', 5);
     onChange?.();
   };
 
