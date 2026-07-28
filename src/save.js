@@ -9,7 +9,7 @@
 // eigentliche Versionierung läuft über SAVE_VERSION im `v`-Feld des
 // gespeicherten Objekts, nicht über den Schlüsselnamen.
 export const SAVE_KEY = 'hogwarts3d-save-v1';
-export const SAVE_VERSION = 10; // v5 (S1-S12) + v6 (Sonnet-5-Polish) + v7 (E4: Aschenklamm/Siegel) + v8 (E5: Frostzinnen/Eisblitz) + v9 (E6: Silberhain/Einhorn) + v10 (E7: Schwarzwasser/Tiefenperle)
+export const SAVE_VERSION = 11; // v5 (S1-S12) + v6 (Sonnet-5-Polish) + v7 (E4: Aschenklamm/Siegel) + v8 (E5: Frostzinnen/Eisblitz) + v9 (E6: Silberhain/Einhorn) + v10 (E7: Schwarzwasser/Tiefenperle) + v11 (E10: Vier-Siegel-Finale)
 export const EXPORT_FORMAT = 'hogwarts3d-save';
 export const MAX_IMPORT_BYTES = 250_000;
 
@@ -73,7 +73,11 @@ export const DEFAULT_SAVE = {
   // (Muster wie Selas Quest in E6 — kein eigener Fortschritts-Zwischenstand
   // nötig, ein Gespräch NACH dem gelösten Rätsel reicht).
   schwarzwasser: { puzzleSolved: 0, chestCollected: 0, keeperQuestDone: 0 },
-  siegel: { drache: 0, frost: 0, hain: 0, tiefe: 0 },
+  // finaleWon (v11, E10): "Die vier Siegel"-Meta-Strang — gesetzt, sobald das
+  // Sternentor betreten wurde (erst möglich, wenn drache/frost/hain/tiefe
+  // alle 1 sind). Bewusst im selben Objekt wie die 4 Einzel-Siegel, nicht in
+  // einem eigenen finale.js-Save-Feld — es ist inhaltlich nur ihre Summe.
+  siegel: { drache: 0, frost: 0, hain: 0, tiefe: 0, finaleWon: 0 },
 };
 
 // ---------- kleine defensive Primitiv-Helfer ----------
@@ -191,6 +195,7 @@ export function normalizeSave(value) {
       frost: num(obj(raw.siegel).frost, 0),
       hain: num(obj(raw.siegel).hain, 0),
       tiefe: num(obj(raw.siegel).tiefe, 0),
+      finaleWon: num(obj(raw.siegel).finaleWon, 0),
     },
   };
 }

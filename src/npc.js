@@ -454,8 +454,16 @@ function buildFeroCart() {
   return group;
 }
 
-function buildFero(scene, hud, audio, interact, deps) {
+function buildFero(scene, hud, audio, interact, deps, quests) {
   const { train, economy, heim, mounts } = deps;
+  // E10: "Weltensammler" — verbindende Sammlerquest über alle 4 neuen
+  // Regionen (E4-E7): tauscht je 1 der 4 seltenen Boss-/Rätsel-Zutaten
+  // (schuppe/frostkristall/mondsilber/tiefenperle, siehe save.js) gegen eine
+  // Gold/Ruf-Belohnung + Titel. Bewusst als Tausch statt Geschenk — die
+  // Zutaten bleiben dadurch auch nach der Quest ein knappes Gut (z. B. für
+  // spätere Tränke), nur der Überschuss ab dem ersten Vollsatz wird verwertet.
+  const RARE_ZUTATEN = ['schuppe', 'frostkristall', 'mondsilber', 'tiefenperle'];
+  const hasAllRare = () => RARE_ZUTATEN.every((k) => (heim.zutaten[k] || 0) >= 1);
   const st = train.station;
   const perpX = Math.cos(st.ang), perpZ = -Math.sin(st.ang);
   const alongX = Math.sin(st.ang), alongZ = Math.cos(st.ang);
@@ -487,7 +495,26 @@ function buildFero(scene, hud, audio, interact, deps) {
   const feroEntry = interact.register({
     x: st.feroX, z: st.feroZ, r: 2.2, prompt: 'E — Mit Fero sprechen', enabled: false,
     onInteract: () => {
-      const lines = feroGreeted
+      if (!quests.feroSammler && hasAllRare()) {
+        feroGreeted = true;
+        hud.showDialog('Fero', [
+          'Warte... eine Drachenschuppe, ein Frostkristall, Mondsilber UND eine Tiefenperle?',
+          'So einen Vollsatz sieht man nur einmal im Leben — tauschst du?',
+          'Abgemacht! Hier, das ist mehr als fair für so seltene Stücke.',
+        ], () => {
+          for (const k of RARE_ZUTATEN) heim.zutaten[k]--;
+          quests.feroSammler = 1;
+          economy.addGold(60);
+          economy.addRuf(10);
+          audio.chime('fanfare');
+          hud.showToast('🌍 Quest abgeschlossen: Weltensammler — Titel „Weltensammler" errungen! +60 Gold · +10 Ruf', 4.5);
+          onChange?.();
+        });
+        return;
+      }
+      const lines = quests.feroSammler
+        ? ['So einen Vollsatz wie neulich bekomme ich nicht zweimal — aber schau gern am Karren vorbei.']
+        : feroGreeted
         ? ['Immer noch auf Reisen, wie du siehst.', 'Schau am Karren vorbei, wenn du etwas brauchst.']
         : ['Fero, fahrender Händler, zu deinen Diensten!',
            'Zutaten, Frischfisch, sogar ein Sattel — alles gegen Gold.',
@@ -640,9 +667,11 @@ export function buildNpcs(scene, glowTex, hud, audio, fx, health, interact, deps
   let catFollowing = false;
   let currentPlayer = null;
 
-  const fero = buildFero(scene, hud, audio, interact, deps);
+  // E10: feroSammler muss VOR buildFero() existieren (Fero braucht die
+  // Referenz direkt für seinen neuen Sammler-Auftrag, siehe dort).
+  const quests = { katze: 0, kraeuter: 0, kraeuterDone: 0, kraeuterStarted: 0, feroSammler: 0 };
+  const fero = buildFero(scene, hud, audio, interact, deps, quests);
 
-  const quests = { katze: 0, kraeuter: 0, kraeuterDone: 0, kraeuterStarted: 0 };
   let onQuestChange = null; // von main.js gesetzt, ruft persist()
   fero.onChange = () => onQuestChange?.();
 
@@ -897,7 +926,7 @@ export function buildNpcs(scene, glowTex, hud, audio, fx, health, interact, deps
     // auch die Katzen-Position, nicht nur den Zahlenstand.
     restore(saved) {
       Object.assign(quests, {
-        katze: 0, kraeuter: 0, kraeuterDone: 0, kraeuterStarted: 0,
+        katze: 0, kraeuter: 0, kraeuterDone: 0, kraeuterStarted: 0, feroSammler: 0,
       }, saved || {});
       catFollowing = false; // Save-Reload holt die Katze IMMER zurück nach Hause
       placeCatHome();

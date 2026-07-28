@@ -60,6 +60,21 @@ export function resolveProgress(save) {
       description: 'Zutaten brauen und im Sturm am Steinkreis das Ritual wagen.', landmarkId: 'steinkreis',
     });
   }
+  // "Die vier Siegel" (E10, Plan 6.7): Meta-Strang über alle 4 neuen Regionen
+  // (E4-E7) — erscheint erst, sobald mindestens 1 Siegel errungen ist (vorher
+  // wäre der Hinweis nur Spoiler ohne Handlungsmöglichkeit), verschwindet
+  // wieder, sobald das Sternentor betreten wurde (finaleWon).
+  const siegel = save.siegel || {};
+  const siegelCount = [siegel.drache, siegel.frost, siegel.hain, siegel.tiefe].filter((v) => v === 1).length;
+  if (siegelCount > 0 && siegel.finaleWon !== 1 && secondary.length < 2) {
+    secondary.push({
+      id: 'viersiegel', title: 'Die vier Siegel',
+      description: siegelCount === 4
+        ? 'Alle vier Siegel vereint — das Sternentor beim Schloss wartet.'
+        : `Siegel gesammelt (${siegelCount}/4) — vervollständige sie fürs Sternentor.`,
+      landmarkId: null,
+    });
+  }
 
   if (!hauspokalWon) {
     const missing = [];

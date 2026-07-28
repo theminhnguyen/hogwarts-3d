@@ -49,6 +49,7 @@ import { buildFrostzinnen } from './frostzinnen.js';
 import { buildSilberhain } from './silberhain.js';
 import { buildUnicorn } from './unicorn.js';
 import { buildSchwarzwasser } from './schwarzwasser.js';
+import { buildFinale } from './finale.js';
 import { loadSave as loadSaveFromStorage, writeSave as writeSaveToStorage, createExport, parseImport, SAVE_KEY, MAX_IMPORT_BYTES } from './save.js';
 
 function loadSave() { return loadSaveFromStorage(localStorage); }
@@ -128,7 +129,7 @@ post.setQuality(save.grafik);
 post.onDegrade = () => hud.showToast('Grafik automatisch reduziert (Bloom aus)', 3.5);
 
 let sky, water, castle, structures, moor, life, collectibles, player;
-let fx, wand, spells, health, creatures, puzzles, dementors, weather, village, train, willow, interact, npc, grove, broom, fahlholz, fauna, economy, wilderer, mount, kate, home, dark, companion, hallows, huegelgrab, animagus, tutorial, marauders, ambient;
+let fx, wand, spells, health, creatures, puzzles, dementors, weather, village, train, willow, interact, npc, grove, broom, fahlholz, fauna, economy, wilderer, mount, kate, home, dark, companion, hallows, huegelgrab, animagus, tutorial, marauders, ambient, finale;
 let aschenklammRegion; // E4: RegionManager-Handle (regions.js) — Register-Aufruf selbst läuft eigenständig als Build-Step weiter unten
 let frostzinnenRegion; // E5: dito für die Frostzinnen
 let silberhainRegion; // E6: dito für den Silberhain
@@ -301,7 +302,10 @@ const buildSteps = [
       deps: {
         glowTex, hud, audio, fx, health, interact, spells,
         aschenklamm: save.aschenklamm, siegel: save.siegel, heim: save.heim,
-        onChange: () => persist(),
+        // E10: siegel.drache ändert die neue Siegel-Statuszeile im
+        // Pausenmenü — deshalb refreshStatusLines() zusätzlich zu persist()
+        // (Muster: Einhorn-Region seit E6).
+        onChange: () => { persist(); refreshStatusLines(); },
       },
     });
     atmosphere.registerZone({
@@ -323,7 +327,8 @@ const buildSteps = [
       deps: {
         glowTex, hud, audio, fx, health, interact, spells,
         frostzinnen: save.frostzinnen, siegel: save.siegel, heim: save.heim,
-        onChange: () => persist(),
+        // E10: siegel.frost ändert die Siegel-Statuszeile (siehe Aschenklamm).
+        onChange: () => { persist(); refreshStatusLines(); },
       },
     });
     atmosphere.registerZone({
@@ -365,10 +370,10 @@ const buildSteps = [
       deps: {
         camera, hud, audio, fx, interact,
         mounts: save.mounts, siegel: save.siegel, dunkel: save.dunkel,
-        // Einhorn-Zähmung ändert die Mounts-Statuszeile im Pausenmenü —
-        // deshalb (anders als Aschenklamm/Frostzinnen) refreshStatusLines()
-        // zusätzlich zu persist() im selben Callback (mount.js-Muster:
-        // onMountChange rief bisher beides einzeln auf).
+        // Einhorn-Zähmung ändert sowohl die Mounts- als auch (siegel.hain,
+        // seit E10) die Siegel-Statuszeile im Pausenmenü — deshalb
+        // refreshStatusLines() zusätzlich zu persist() im selben Callback
+        // (mount.js-Muster: onMountChange rief bisher beides einzeln auf).
         onChange: () => { persist(); refreshStatusLines(); },
       },
     });
@@ -391,7 +396,8 @@ const buildSteps = [
         // aktuellen Zahm/Wild-Stand, auch wenn zwischen Weltaufbau und
         // erstem Betreten der Region umgeschaltet wurde.
         get peaceful() { return creatures.peaceful; },
-        onChange: () => persist(),
+        // E10: siegel.tiefe ändert die Siegel-Statuszeile (siehe Aschenklamm).
+        onChange: () => { persist(); refreshStatusLines(); },
       },
     });
     atmosphere.registerZone({
@@ -480,6 +486,17 @@ const buildSteps = [
     // erst jetzt, deshalb Spätbindung statt Konstruktor-Parameter.
     spells.setDarkHallows(dark, hallows);
   }],
+  // "Die vier Siegel"-Finale (E10): braucht nur glowTex/hud/audio/fx/economy/
+  // interact — alle bereits gebaut. Reine Deko+Interakt-Datei ohne
+  // RegionManager (siehe finale.js-Kopf-Kommentar), deshalb wie Willow/
+  // Wilderer/Hallows ein normaler Build-Step statt einer Region-Registrierung.
+  ['Sternentor', () => {
+    finale = buildFinale(scene, glowTex, hud, audio, fx, economy, interact, {
+      siegel: save.siegel,
+      onChange: () => { persist(); refreshStatusLines(); },
+    });
+    finale.restore();
+  }],
   // Animagus (S11): braucht home (Kessel/Trank), weather (Sturm-Gate für
   // das Ritual), interact — alle bereits gebaut. Letzter Schritt.
   ['Animagus', () => {
@@ -526,6 +543,10 @@ function refreshStatusLines() {
   if (mountNames.length) lines.push(`🐴 Mounts: ${mountNames.join(', ')}`);
   const hallowCount = (save.hallows.stab ? 1 : 0) + (save.hallows.umhang ? 1 : 0) + (save.hallows.stein ? 1 : 0);
   if (hallowCount > 0) lines.push(`☠️ Heiligtümer: ${hallowCount}/3${hallowCount === 3 ? ' — Meister des Todes' : ''}`);
+  // E10: Vier-Siegel-Meta-Strang — Zeile erscheint ab dem ersten Siegel,
+  // wechselt nach finaleWon auf den Abschluss-Titel (Muster: Heiligtümer-Zeile).
+  const siegelCount = (save.siegel.drache ? 1 : 0) + (save.siegel.frost ? 1 : 0) + (save.siegel.hain ? 1 : 0) + (save.siegel.tiefe ? 1 : 0);
+  if (siegelCount > 0) lines.push(`🏅 Siegel: ${siegelCount}/4${save.siegel.finaleWon ? ' — Hüter der vier Reiche' : ''}`);
   progressStatus.innerHTML = lines.join('<br>');
   progressStatus.classList.toggle('hidden', lines.length === 0);
 }
@@ -805,7 +826,7 @@ function performReset() {
   Object.assign(save.frostzinnen, { eisblitzLearned: 0, giantDefeated: 0, chestCollected: 0 });
   Object.assign(save.silberhain, { puzzleSolved: 0, chestCollected: 0, zentaurinQuestDone: 0 });
   Object.assign(save.schwarzwasser, { puzzleSolved: 0, chestCollected: 0, keeperQuestDone: 0 });
-  Object.assign(save.siegel, { drache: 0, frost: 0, hain: 0, tiefe: 0 });
+  Object.assign(save.siegel, { drache: 0, frost: 0, hain: 0, tiefe: 0, finaleWon: 0 });
   aschenklammRegion.handle?.restore?.();
   frostzinnenRegion.handle?.restore?.();
   silberhainRegion.handle?.restore?.();
@@ -814,6 +835,10 @@ function performReset() {
   // die wilde Instanz fälschlich weiter als "gezähmt" (unsichtbar) behandeln.
   unicornRegion.handle?.restore?.();
   schwarzwasserRegion.handle?.restore?.();
+  // E10: NACH dem obigen save.siegel-Reset (finaleWon:0) aufrufen — dieselbe
+  // Reihenfolge-Regel wie beim Einhorn oben, finale.restore() liest
+  // siegel.finaleWon live.
+  if (finale) finale.restore();
   refreshStatusLines();
   persist();
   hud.showToast('Fortschritt zurückgesetzt');
@@ -1150,6 +1175,7 @@ function frame(dt) {
     fahlholz.update(dt);
     fauna.update(dt, player, spells.lumosOn, move.sprinting);
     ambient.update(dt, sky.state);
+    finale.update(dt);
     interact.update(player);
     regionManager.update(dt, player);
     puzzles.update(dt, player, sky.state);
@@ -1265,7 +1291,7 @@ buildWorld().then(() => {
   // Debug-/Test-Zugriff (bewusst öffentlich, hilft bei Fehlersuche)
   window.__game = {
     player, sky, camera, renderer, scene,
-    wand, spells, fx, health, creatures, puzzles, moor, dementors, weather, post, village, train, willow, interact, npc, hud, grove, broom, fahlholz, fauna, ambient, economy, wilderer, mount, home, dark, companion, hallows, animagus, marauders, tutorial,
+    wand, spells, fx, health, creatures, puzzles, moor, dementors, weather, post, village, train, willow, interact, npc, hud, grove, broom, fahlholz, fauna, ambient, economy, wilderer, mount, home, dark, companion, hallows, animagus, marauders, tutorial, finale,
     regions: regionManager,
     atmosphere,
     get aschenklamm() { return aschenklammRegion.handle; },

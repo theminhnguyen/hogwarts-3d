@@ -208,7 +208,11 @@ export function buildUnicorn(root, deps) {
     mounts.einhorn = 1;
     siegel.hain = 1;
     cancelTame(null);
-    hud.showToast('🦄 Das Einhorn vertraut dir … Taste R ruft es fortan zu dir.', 4.5);
+    // E10: Titel-Parität mit den 3 Kampf-Regionen (Drachen-/Frost-/
+    // Tiefenbezwinger) — Silberhain hatte bisher als einzige Region keinen
+    // eigenen kosmetischen Titel, obwohl die Zähmung ihre gleichwertige
+    // Abschluss-Belohnung ist.
+    hud.showToast('🦄 Das Einhorn vertraut dir … Titel „Einhornfreund" errungen! Taste R ruft es fortan zu dir.', 4.5);
     audio.unicornWhinny?.();
     audio.chime?.('fanfare');
     fx.burst({ x: wild.pos.x, y: wild.pos.y + 1.2, z: wild.pos.z }, 0xf0d8ff, 26, 4, { gravity: -2, life: 0.9 });

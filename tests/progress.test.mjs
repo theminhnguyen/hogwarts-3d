@@ -91,6 +91,19 @@ test('Animagus erscheint als Nebenaufgabe, sobald Kate gekauft ist und noch nich
   assert.ok(result.secondary.some((s) => s.id === 'animagus'));
 });
 
+test('Vier Siegel: erscheint erst ab 1 gesammeltem Siegel, verschwindet nach finaleWon', () => {
+  const none = resolveProgress(save());
+  assert.ok(!none.secondary.some((s) => s.id === 'viersiegel'));
+
+  const partial = resolveProgress(save({ siegel: { drache: 1, frost: 1, hain: 0, tiefe: 0, finaleWon: 0 } }));
+  const entry = partial.secondary.find((s) => s.id === 'viersiegel');
+  assert.ok(entry);
+  assert.match(entry.description, /2\/4/);
+
+  const done = resolveProgress(save({ siegel: { drache: 1, frost: 1, hain: 1, tiefe: 1, finaleWon: 1 } }));
+  assert.ok(!done.secondary.some((s) => s.id === 'viersiegel'));
+});
+
 test('resolveProgress ändert den übergebenen Save nicht (rein lesend)', () => {
   const s = save();
   const before = JSON.stringify(s);
