@@ -1120,9 +1120,17 @@ class Troll {
       if (chest.openT >= 1.0 && !chest.collected) {
         chest.collected = true;
         chest.openT = -1;
-        this.system.health.upgradeMaxHearts(6);
+        // RELATIV (+1), nicht absolut auf 6: seit E4-E7 gibt es 3 weitere
+        // Herz-Upgrades (Drache/Frostriese/Seeungeheuer), und die Regionen
+        // sind bewusst in freier Reihenfolge spielbar. Ein absolutes
+        // upgradeMaxHearts(6) würde bei einem Spieler, der zuerst in den
+        // neuen Regionen war (dort schon 7-8 Herzen), am `n <= maxHearts`-
+        // Guard in health.js wirkungslos verpuffen — die Truhe hätte sich
+        // geöffnet, der Toast ein Upgrade gemeldet, und es wäre keins
+        // angekommen.
+        this.system.health.upgradeMaxHearts(this.system.health.maxHearts + 1);
         this.system.hud?.setHearts(this.system.health.hearts, this.system.health.maxHearts);
-        this.system.hud?.showToast('❤️ Herz-Upgrade! Maximale Herzen: 6', 4);
+        this.system.hud?.showToast(`❤️ Herz-Upgrade! Maximale Herzen: ${this.system.health.maxHearts}`, 4);
         this.system.onTrollChest?.();
       }
     }

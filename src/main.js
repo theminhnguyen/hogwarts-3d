@@ -802,7 +802,14 @@ function performReset() {
   if (player) player.potionSpeedMul = 1;
   if (health) health.tempHeartsBonus = 0;
   if (dementors) { dementors.frostImmune = false; dementors.playerIsDark = false; }
-  if (spells) { spells.dmgMul = 1; spells.cooldownMul = 1; }
+  if (spells) {
+    spells.dmgMul = 1; spells.cooldownMul = 1;
+    // Freigeschaltete Sprüche zurücknehmen (Patronum/Eisblitz/verbotene/
+    // Heiligtümer): SPELL_ORDER ist ein Modul-Level-Array und überlebt den
+    // Save-Reset sonst bis zum nächsten Reload — der Spieler behielte im
+    // frisch zurückgesetzten Spielstand ein volles Spruchrad.
+    spells.lockAllUnlockedSpells();
+  }
   if (home) home.restore();
   if (dark) dark.restore();
   Object.assign(save.begleiter, { aktiv: '', frei: [] });
@@ -1234,12 +1241,17 @@ function frame(dt) {
     const trollBoss = ['aggro', 'telegraph', 'slam'].includes(troll.state) ? troll.hp / troll.maxHp : null;
     // E4: gleiche Bossbar wie beim Troll, mitgenutzt (zeitlich nie
     // überlappend — beide Regionen liegen weit auseinander).
-    const dragon = aschenklammRegion.handle?.dragon;
+    // `.awake` ist Pflicht: eine schlafende Region friert den letzten
+    // FSM-Zustand ein (regions.js ruft handle.update() dann nicht mehr auf).
+    // Der Drache bleibt nach dem Ei-Diebstahl dauerhaft in 'flying' — ohne
+    // diesen Guard bliebe seine Bossbar quer über die halbe Karte sichtbar,
+    // auch 400 m entfernt.
+    const dragon = aschenklammRegion.awake ? aschenklammRegion.handle?.dragon : null;
     const dragonBoss = dragon && ['flying', 'telegraph', 'firebreath', 'staggered'].includes(dragon.state)
       ? dragon.hp / dragon.maxHp : null;
     // E5: gleiche Bossbar, dritter möglicher Nutzer — alle drei Regionen
     // liegen weit auseinander, nie gleichzeitig aktiv.
-    const giant = frostzinnenRegion.handle?.giant;
+    const giant = frostzinnenRegion.awake ? frostzinnenRegion.handle?.giant : null;
     const giantBoss = giant && ['aggro', 'telegraph', 'stagger'].includes(giant.state)
       ? giant.hp / giant.maxHp : null;
     hud.setBoss(trollBoss ?? dragonBoss ?? giantBoss);

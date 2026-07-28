@@ -41,6 +41,12 @@ export const SPELLS = {
 // (dark.js Z. unlockDarkSpells() — bleibt sichtbar, auch nach Läuterung, nur
 // nicht mehr wirksam: „Grimoire-Wissen bleibt").
 export const SPELL_ORDER = ['stupor', 'incendio', 'leviosa', 'lumos'];
+// Unveränderliche Kopie des Startzustands — „Fortschritt zurücksetzen"
+// (main.js performReset -> spells.lockAllUnlockedSpells()) baut SPELL_ORDER
+// hierauf zurück. Ohne diese Referenz bliebe ein zurückgesetzter Spielstand
+// mit allen bereits gelernten Sprüchen (Patronum/Eisblitz/dunkle Sprüche/
+// Heiligtümer) im Spruchrad stehen, bis die Seite neu geladen wird.
+export const SPELL_ORDER_BASE = Object.freeze([...SPELL_ORDER]);
 
 const BASE_POS = new THREE.Vector3(0.28, -0.24, -0.45);
 const BASE_ROT = new THREE.Euler(-0.1, 0.15, 0.05);

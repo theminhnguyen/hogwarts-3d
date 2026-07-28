@@ -7,7 +7,7 @@
 import * as THREE from 'three';
 import { pointBlocked, addCircleBlocker, platformGround } from './geo.js';
 import { terrainHeight, WATER_LEVEL, LAKE } from './terrain.js';
-import { SPELLS, SPELL_ORDER } from './wand.js';
+import { SPELLS, SPELL_ORDER, SPELL_ORDER_BASE } from './wand.js';
 import { buildPatronusModel } from './patronus.js';
 
 const POOL_SIZE = 24;
@@ -184,6 +184,27 @@ export class SpellSystem {
     if (showToast) {
       this.hud?.showToast('🖤 Das Aschene Grimoire flüstert dir verbotenes Wissen zu … (Tasten 6-9, danach Linksklick zum Wirken)', 6);
     }
+  }
+
+  // Gegenstück zu allen unlock*()-Methoden: baut SPELL_ORDER auf die vier
+  // Startsprüche zurück und löscht die Freischalt-Flags. NUR für "Fortschritt
+  // zurücksetzen" (main.js performReset) gedacht — nicht für die Läuterung,
+  // bei der das Grimoire-Wissen bewusst erhalten bleibt (S8).
+  //
+  // Ohne diesen Rückbau blieb ein zurückgesetzter Spielstand inkonsistent:
+  // save.frostzinnen.eisblitzLearned stand auf 0, der Eisblitz-Chip aber
+  // weiter im Spruchrad und wirkbar — sichtbar bis zum nächsten Reload, weil
+  // SPELL_ORDER ein Modul-Level-Array ist und den Reset nicht mitbekam.
+  lockAllUnlockedSpells() {
+    this.epUnlocked = false;
+    this.eisblitzUnlocked = false;
+    this._darkSpellsUnlocked = false;
+    SPELL_ORDER.length = 0;
+    SPELL_ORDER.push(...SPELL_ORDER_BASE);
+    // Aktiven Spruch mitziehen, falls gerade ein jetzt gesperrter gewählt war
+    // (sonst zeigte die Spellbar auf einen Eintrag, den es nicht mehr gibt).
+    this.wand?.selectSpell?.(SPELL_ORDER[0]);
+    this.hud?.buildSpellbar(SPELL_ORDER.map(id => ({ id, ...SPELLS[id] })));
   }
 
   registerTarget(target) { this.targets.push(target); return target; }
@@ -393,8 +414,7 @@ export class SpellSystem {
 
   // Generische Freischaltung für Elderstab/Umhang/Stein (Muster:
   // unlockPatronum()/unlockDarkSpells() — idempotent, erweitert SPELL_ORDER
-  // live und baut die Spellbar neu). Bleibt nach einem Reset freigeschaltet
-  // (Grimoire-Wissen-Präzedenz, S8) — kein SPELL_ORDER-Rückbau im Reset-Handler.
+  // live und baut die Spellbar neu).
   unlockHallowsSpell(id, showToast = true) {
     if (SPELL_ORDER.includes(id)) return;
     SPELL_ORDER.push(id);

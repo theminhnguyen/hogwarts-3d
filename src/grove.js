@@ -151,9 +151,13 @@ export function buildGrove(scene, glowTex, hud, audio, fx, health) {
         if (this.chestOpenT >= 1.0 && !this.chestCollected) {
           this.chestCollected = true;
           this.chestOpenT = -1;
-          health.upgradeMaxHearts(7);
+          // RELATIV (+1) statt absolut auf 7 — siehe dieselbe Begründung an
+          // der Troll-Truhe in creatures.js: die E4-E7-Regionen sind in
+          // freier Reihenfolge spielbar, ein absoluter Zielwert verpufft
+          // still, sobald der Spieler dort schon mehr Herzen gesammelt hat.
+          health.upgradeMaxHearts(health.maxHearts + 1);
           hud.setHearts(health.hearts, health.maxHearts);
-          hud.showToast('❤️ Herz-Upgrade! Maximale Herzen: 7', 4);
+          hud.showToast(`❤️ Herz-Upgrade! Maximale Herzen: ${health.maxHearts}`, 4);
           this.onChestOpen?.();
         }
       }
