@@ -595,7 +595,7 @@ function buildFero(scene, hud, audio, interact, deps, quests) {
 export function buildNpcs(scene, glowTex, hud, audio, fx, health, interact, deps) {
   // deps = { collectibles, puzzles, spells, moor, dementors, train, economy,
   //          heim, mounts, dunkel, begleiter, hallows, animagus, wild,
-  //          leuchtkraeuter }
+  //          leuchtkraeuter, siegel }
 
   // ---------- Gerüchte-System (S12): Schüler UND Lena/Barnaby (Repeat-Talk)
   // teilen sich denselben Pool — reiner Text-Switch auf bereits vorhandene
@@ -619,6 +619,22 @@ export function buildNpcs(scene, glowTex, hud, audio, fx, health, interact, deps
     { cond: () => deps.animagus?.gelernt === 1 && deps.animagus?.form === 'katze', line: 'Eine schwarze Katze soll sich lautlos an jeden heranschleichen können.' },
     { cond: () => deps.animagus?.gelernt === 1 && deps.animagus?.form === 'rabe', line: 'Ein Rabe soll sich manchmal in einen Menschen zurückverwandeln…' },
     { cond: () => (deps.begleiter?.frei?.length || 0) > 0, line: 'Manche Schüler sollen jetzt tierische Begleiter haben.' },
+    // Opus-5-Audit-Fix: Entdeckungs-Gerüchte für die 4 neuen Regionen (E4-E7).
+    // VOR dieser Ergänzung gab es im gesamten Hinweissystem (hier + Schloss-
+    // geist + Objective Resolver) NULL Erwähnungen der Regionen, bevor der
+    // Spieler sie unabhängig selbst gefunden hatte — nur eine rein reaktive
+    // "Vier Siegel"-Quest, die erst NACH dem ersten Bosssieg auftaucht. Diese
+    // vier Zeilen sind bewusst als GERÜCHTE (nicht als Fakten) geschrieben und
+    // ab Spielbeginn aktiv (Regionen sind in freier Reihenfolge spielbar,
+    // siehe aschenklamm.js/frostzinnen.js/silberhain.js/schwarzwasser.js),
+    // damit sie tatsächlich zur Erkundung anstoßen statt nur zu bestätigen,
+    // was der Spieler schon weiß. Jede Zeile verschwindet automatisch wieder,
+    // sobald das jeweilige Siegel errungen ist (siegel.* wird beim Bosssieg/
+    // Erfolg gesetzt, siehe die entsprechenden Region-Dateien).
+    { cond: () => deps.siegel?.drache !== 1, line: 'Reisende erzählen von Rauch, der tief im Osten aus einer Schlucht aufsteigt — manche munkeln, dort hause ein Drache.' },
+    { cond: () => deps.siegel?.frost !== 1, line: 'Hoch im eisigen Norden sollen zerklüftete Zinnen liegen, die ein Riese bewacht.' },
+    { cond: () => deps.siegel?.hain !== 1, line: 'Im Silberhain tief im Südwesten soll ein scheues Einhorn zwischen silbernen Bäumen wandeln.' },
+    { cond: () => deps.siegel?.tiefe !== 1, line: 'Im Schwarzwasser weit im Westen soll unter der Oberfläche etwas Riesiges lauern, das noch niemand ganz gesehen hat.' },
   ];
   const GERUECHTE_FALLBACK = [
     'Die Hauselfen sollen heute Nacht Kürbiskuchen gebacken haben.',
@@ -868,6 +884,19 @@ export function buildNpcs(scene, glowTex, hud, audio, fx, health, interact, deps
       } else {
         lines.push('Du hast schon fast alles gesehen, was dieses Schloss zu bieten hat.');
         lines.push('Ich bin stolz auf dich, kleiner Zauberer.');
+      }
+      // Opus-5-Audit-Fix: Zusatzhinweis auf die 4 neuen Regionen (E4-E7) — ALS
+      // ANHANG statt eigener if-Zweig, weil die Regionen bewusst orthogonal
+      // zur obigen Hauptkette sind (in freier Reihenfolge spielbar, siehe
+      // GERUECHTE oben). Ein eigener, höher priorisierter Zweig hätte die
+      // wichtigeren Rätsel-/Schnatz-Hinweise für Neueinsteiger verdrängt; ein
+      // niedriger priorisierter Zweig wäre nie zum Zug gekommen, solange noch
+      // Hauptquest-Fortschritt offen ist — also genau die Lücke, die der Audit
+      // fand. Verschwindet, sobald mindestens 1 Siegel errungen ist.
+      const siegel = deps.siegel || {};
+      const siegelCount = [siegel.drache, siegel.frost, siegel.hain, siegel.tiefe].filter((v) => v === 1).length;
+      if (siegelCount === 0) {
+        lines.push('Übrigens: Jenseits der Berge, in alle vier Himmelsrichtungen, warten neue Wunder und Gefahren auf dich, die du noch nicht gesehen hast.');
       }
       hud.showDialog('Schlossgeist', lines);
     },

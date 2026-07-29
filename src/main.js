@@ -253,7 +253,7 @@ const buildSteps = [
       leuchtkraeuter: structures.leuchtkraeuter,
       train, economy, heim: save.heim, mounts: save.mounts, dunkel: save.dunkel,
       begleiter: save.begleiter, hallows: save.hallows, animagus: save.animagus,
-      wild: save.wild,
+      wild: save.wild, siegel: save.siegel,
     });
     npc.restore(save.quests);
     npc.onQuestChange = () => persist();
