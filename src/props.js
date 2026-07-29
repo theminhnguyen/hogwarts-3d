@@ -7,7 +7,7 @@ import {
   terrainHeight, distToPaths, distToPolyline, WATER_LEVEL,
   PLATEAU, LAKE, QUIDDITCH, HAGRID, STONES, BOATHOUSE, MOOR, DORF, TRASSE,
   SILBERAUEN, FAHLHOLZ, HUEGELGRAB, KATE, ASCHENKLAMM, FROSTZINNEN, SILBERHAIN,
-  SCHWARZWASSER,
+  SCHWARZWASSER, SCHATTENFESTE,
 } from './terrain.js';
 import { fbm, mulberry32 } from './noise.js';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
@@ -171,6 +171,9 @@ function spotFree(x, z, h) {
   // Silberhain (E6): wie Silberauen nur der Kern frei — soll ein dichter,
   // lebendiger Hain bleiben (Silberbaum + Pilzring), kein kahles Bossgelände.
   if (Math.hypot(x - SILBERHAIN.x, z - SILBERHAIN.z) < SILBERHAIN.r * 0.5) return false;
+  // Die Schattenfeste (Voldemort-Plan): kahles Bossgelände wie Aschenklamm/
+  // Frostzinnen, kein dichter Bewuchs.
+  if (Math.hypot(x - SCHATTENFESTE.x, z - SCHATTENFESTE.z) < SCHATTENFESTE.r + 10) return false;
   return true;
 }
 
@@ -279,6 +282,7 @@ export function buildNature(scene) {
     if (Math.hypot(x - ASCHENKLAMM.x, z - ASCHENKLAMM.z) < ASCHENKLAMM.r + 10) continue;
     if (Math.hypot(x - FROSTZINNEN.x, z - FROSTZINNEN.z) < FROSTZINNEN.r + 10) continue;
     if (Math.hypot(x - SILBERHAIN.x, z - SILBERHAIN.z) < SILBERHAIN.r * 0.5) continue;
+    if (Math.hypot(x - SCHATTENFESTE.x, z - SCHATTENFESTE.z) < SCHATTENFESTE.r + 10) continue;
     const s = 0.5 + rng() * rng() * 2.2;
     rocks.push({ x, y: h + s * 0.2, z, ry: rng() * Math.PI * 2, s, tint: rng() });
     if (s > 1.0) addCircleBlocker(x, z, s * 0.85, h - 1, h + s);
@@ -302,6 +306,7 @@ export function buildNature(scene) {
     if (Math.hypot(x - KATE.x, z - KATE.z) < KATE.r + 6) continue;
     if (Math.hypot(x - ASCHENKLAMM.x, z - ASCHENKLAMM.z) < ASCHENKLAMM.r + 10) continue;
     if (Math.hypot(x - FROSTZINNEN.x, z - FROSTZINNEN.z) < FROSTZINNEN.r + 10) continue;
+    if (Math.hypot(x - SCHATTENFESTE.x, z - SCHATTENFESTE.z) < SCHATTENFESTE.r + 10) continue;
     grass.push({ x, y: h, z, ry: rng() * Math.PI, s: 0.7 + rng() * 0.7, tint: rng() });
   }
 

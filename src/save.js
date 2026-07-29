@@ -9,7 +9,7 @@
 // eigentliche Versionierung läuft über SAVE_VERSION im `v`-Feld des
 // gespeicherten Objekts, nicht über den Schlüsselnamen.
 export const SAVE_KEY = 'hogwarts3d-save-v1';
-export const SAVE_VERSION = 11; // v5 (S1-S12) + v6 (Sonnet-5-Polish) + v7 (E4: Aschenklamm/Siegel) + v8 (E5: Frostzinnen/Eisblitz) + v9 (E6: Silberhain/Einhorn) + v10 (E7: Schwarzwasser/Tiefenperle) + v11 (E10: Vier-Siegel-Finale)
+export const SAVE_VERSION = 12; // v5 (S1-S12) + v6 (Sonnet-5-Polish) + v7 (E4: Aschenklamm/Siegel) + v8 (E5: Frostzinnen/Eisblitz) + v9 (E6: Silberhain/Einhorn) + v10 (E7: Schwarzwasser/Tiefenperle) + v11 (E10: Vier-Siegel-Finale) + v12 (PLAN-DER-DUNKLE-LORD: Schattenfeste/Endboss)
 export const EXPORT_FORMAT = 'hogwarts3d-save';
 export const MAX_IMPORT_BYTES = 250_000;
 
@@ -78,6 +78,14 @@ export const DEFAULT_SAVE = {
   // alle 1 sind). Bewusst im selben Objekt wie die 4 Einzel-Siegel, nicht in
   // einem eigenen finale.js-Save-Feld — es ist inhaltlich nur ihre Summe.
   siegel: { drache: 0, frost: 0, hain: 0, tiefe: 0, finaleWon: 0 },
+  // PLAN-DER-DUNKLE-LORD.md (v12): der letzte Endboss in der Schattenfeste.
+  // torOffen wird EINMAL gesetzt, sobald das Progressions-Gate erfüllt war —
+  // bewusst persistent statt jedes Mal neu berechnet, damit ein späterer
+  // Balancing-Eingriff am Gate niemandem sein bereits geöffnetes Tor wegnimmt.
+  // phaseMax merkt die höchste je erreichte Phase (nur Anzeige am Prüfstein,
+  // keine Spielmechanik — jeder Versuch startet bei Phase 1). versuche ist
+  // reine Statistik für den Abschluss-Dialog.
+  lord: { torOffen: 0, phaseMax: 0, besiegt: 0, versuche: 0 },
 };
 
 // ---------- kleine defensive Primitiv-Helfer ----------
@@ -196,6 +204,12 @@ export function normalizeSave(value) {
       hain: num(obj(raw.siegel).hain, 0),
       tiefe: num(obj(raw.siegel).tiefe, 0),
       finaleWon: num(obj(raw.siegel).finaleWon, 0),
+    },
+    lord: {
+      torOffen: num(obj(raw.lord).torOffen, 0),
+      phaseMax: num(obj(raw.lord).phaseMax, 0),
+      besiegt: num(obj(raw.lord).besiegt, 0),
+      versuche: num(obj(raw.lord).versuche, 0),
     },
   };
 }

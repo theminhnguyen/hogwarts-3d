@@ -57,6 +57,7 @@ function fullSave() {
     silberhain: { puzzleSolved: 1, chestCollected: 1, zentaurinQuestDone: 1 },
     schwarzwasser: { puzzleSolved: 1, chestCollected: 1, keeperQuestDone: 1 },
     siegel: { drache: 1, frost: 1, hain: 1, tiefe: 1, finaleWon: 1 },
+    lord: { torOffen: 1, phaseMax: 3, besiegt: 1, versuche: 4 },
   };
 }
 
@@ -189,6 +190,26 @@ test('normalizeSave ergänzt siegel.finaleWon bei einem alten Save ohne dieses F
   assert.equal(result.heim.zutaten.tiefenperle, 3);
   assert.deepEqual(result.collected, ['a']);
   assert.equal(result.gold, 5);
+});
+
+test('normalizeSave ergänzt lord bei einem alten Save ohne dieses Feld (v12)', () => {
+  const oldSave = {
+    collected: ['a', 'b'], gold: 42,
+    siegel: { drache: 1, frost: 1, hain: 1, tiefe: 1, finaleWon: 1 },
+    hallows: { stab: 1, umhang: 1, stein: 1, steinCd: 0 },
+  };
+  const result = normalizeSave(oldSave);
+  assert.deepEqual(result.lord, { torOffen: 0, phaseMax: 0, besiegt: 0, versuche: 0 });
+  // v11-Felder bleiben erhalten, nicht durch den neuen Default verdrängt.
+  assert.deepEqual(result.siegel, { drache: 1, frost: 1, hain: 1, tiefe: 1, finaleWon: 1 });
+  assert.deepEqual(result.hallows, { stab: 1, umhang: 1, stein: 1, steinCd: 0 });
+  assert.deepEqual(result.collected, ['a', 'b']);
+  assert.equal(result.gold, 42);
+});
+
+test('normalizeSave bewahrt einen bereits vorhandenen lord-Fortschritt (Roundtrip)', () => {
+  const result = normalizeSave({ lord: { torOffen: 1, phaseMax: 3, besiegt: 1, versuche: 7 } });
+  assert.deepEqual(result.lord, { torOffen: 1, phaseMax: 3, besiegt: 1, versuche: 7 });
 });
 
 test('normalizeSave lehnt falsche Typen pro Feld ab, statt sie zu übernehmen', () => {

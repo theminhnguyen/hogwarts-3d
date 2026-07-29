@@ -137,6 +137,18 @@ export const SILBERHAIN = { x: -90, z: 410, r: 45, blend: 22, h: 6 };
 // funktionieren (anders als der absichtlich feste Eissee in Frostzinnen).
 export const SCHWARZWASSER = { x: -405, z: -40, r: 40, blend: 20, h: -5.5 };
 
+// ---------- Die Schattenfeste (PLAN-DER-DUNKLE-LORD.md) ----------
+// Fünfte und letzte neue Region, Nordosten — der einzige verbliebene freie
+// Sektor zwischen Aschenklamm (Ost) und Frostzinnen (Nord). Kandidat
+// (250,-350): d0=430,1 (Zielband 390-430 der übrigen 4 Regionen, wie
+// erwartet am oberen Rand — Bergring-Start 520, Puffer 520-(430,1+67)=22,9m).
+// Alle 18 bekannten Zonen-Konstanten (Alt-Welt + alle 4 E4-E7-Regionen)
+// gegengerechnet, kritischster Nachbar erwartungsgemäß das Nebelmoor (240,
+// -175): d=175,3 bei einem Bedarf von nur 147,0 (Rand 28,3m frei) — alle
+// anderen 17 mit deutlich mehr Puffer. r/blend wie die beiden Boss-Regionen
+// Aschenklamm/Frostzinnen (45/22, nicht wie das ruhigere Silberhain).
+export const SCHATTENFESTE = { x: 250, z: -350, r: 45, blend: 22, h: 5 };
+
 // Wege als Polylinien (für Färbung + Freihalten von Bäumen)
 export const PATHS = [
   [[0, 46], [0, 168]],                       // Tor → Kreuzung (über Viadukt)
@@ -157,6 +169,7 @@ export const PATHS = [
   [[-70, -230], [-30, -320], [0, -410]],     // Dorf → Frostzinnen (E5)
   [[-140, 190], [-110, 300], [-90, 410]],    // Seeufer → Silberhain (E6)
   [[-165, 40], [-280, 0], [-405, -40]],      // Quidditch-Rundweg → Schwarzwasser (E7)
+  [[240, -175], [245, -260], [250, -350]],   // Nebelmoor → Die Schattenfeste (Voldemort-Plan)
 ];
 
 // Kürzester Abstand zu EINER Polylinie (nicht dem gesamten PATHS-Bestand) —
@@ -331,6 +344,14 @@ export function terrainHeight(x, z) {
     const dw = Math.sqrt((x - SCHWARZWASSER.x) ** 2 + (z - SCHWARZWASSER.z) ** 2);
     const m = 1 - smoothstep(SCHWARZWASSER.r * 0.5, SCHWARZWASSER.r, dw);
     h = lerp(h, SCHWARZWASSER.h, m);
+  }
+
+  // Die Schattenfeste (PLAN-DER-DUNKLE-LORD.md) — verkohlte Erhebung, gröbstes
+  // fbm der 4 Kampfregionen (soll am zerklüftetsten/bedrohlichsten wirken).
+  {
+    const d = Math.sqrt((x - SCHATTENFESTE.x) ** 2 + (z - SCHATTENFESTE.z) ** 2);
+    const m = 1 - smoothstep(SCHATTENFESTE.r, SCHATTENFESTE.r + SCHATTENFESTE.blend, d);
+    h = lerp(h, SCHATTENFESTE.h + fbm(x * 0.055, z * 0.055, 3) * 2.8, m);
   }
 
   // Sicherheitsnetz gegen unsichtbares "Phantom-Wasser": das Grund-Rauschen
