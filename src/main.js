@@ -424,7 +424,7 @@ const buildSteps = [
       save.heim.zutaten.glitzer += 1 + grabbelBonus;
       hud.showToast(`✨ Glitzerstaub gefunden! +${gold} Gold, +${1 + grabbelBonus} Glitzerstaub${grabbelBonus ? ' (Grabbel schnüffelt mit!)' : ''}`, 2.5);
       persist();
-    });
+    }, health); // health: Fuchs/wilder Hippogreif verteidigen sich mit Konter-Schaden (Nutzer-Feedback)
     // Akromantula-Kopplung (creatures.js, S2): Füchse+Hasen werden für
     // Riesenspinnen jagdbare Beute (Ökosystem-Kette Akromantula>Fuchs>Hase).
     setFaunaPrey(fauna.huntableBySpiders);
@@ -1150,13 +1150,19 @@ function frame(dt) {
     // schattenfesteRegion.handle?.lord (V3): der Dunkle Lord selbst UND seine
     // Phase-2-Dementoren-Beschwörung (lord.dementors, leer außerhalb der
     // Woge) — Muster identisch zu hallows.king/phantomGhosts oben.
+    // fauna.*/npc.students/npc.wizards (Nutzer-Feedback 2026-07-29): Wildtiere
+    // und einfache Schüler/Hexer sind jetzt echte, respawnende Kampf-Ziele —
+    // Lena/Barnaby/Fero/Ondra bleiben bewusst über die K2-Schutzliste in
+    // npc.js immun (Quest-/Handelslogik).
     spells.update(dt, camera, creatures.list.concat(dementors.list).concat(wilderer.list)
       .concat([hallows.king]).concat(hallows.phantomGhosts)
       .concat(aschenklammRegion.handle?.dragon ? [aschenklammRegion.handle.dragon] : [])
       .concat(frostzinnenRegion.handle?.giant ? [frostzinnenRegion.handle.giant] : [])
       .concat(schwarzwasserRegion.handle?.grindylows || [])
       .concat(schattenfesteRegion.handle?.lord ? [schattenfesteRegion.handle.lord] : [])
-      .concat(schattenfesteRegion.handle?.lord?.dementors || []), fauna.foxes);
+      .concat(schattenfesteRegion.handle?.lord?.dementors || [])
+      .concat(fauna.deer, fauna.rabbits, fauna.foxes, fauna.nifflers, fauna.bowtruckles, fauna.hippos)
+      .concat(npc.students, npc.wizards), fauna.foxes);
     // sky.update() läuft weiter unten, aber creatures braucht den Tag/Nacht-
     // Stand vom LETZTEN Frame — nightGlow ändert sich nur sehr langsam
     // (300s/Zyklus), eine Frame Verzögerung ist unmerklich.

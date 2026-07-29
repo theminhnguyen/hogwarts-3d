@@ -1,11 +1,26 @@
 // S2 (PLAN-SCHATTEN-UND-SCHWINGEN.md): Wild-Ökosystem der Silberauen — Rehe,
 // Hasen, Füchse (jagen Hasen), Niffler (Glitzerstaub), Bowtruckles (an
-// echten Baum-Positionen), wilde Hippogreife. Bewusst KEINE creatures.js-
-// Bürger: kein hp/hitY, Zauber-Bolzen ignorieren sie komplett (kein
-// registerTarget, kein applyHit) — reines Ambiente-Ökosystem, keine
-// Kampf-Ziele. Distanz-Culling 140/160 wie creatures.js (eigene Kopie,
-// dort nicht exportiert), harte Silberauen-Leine als Positions-Clamp
-// (Lehre 14 — läuft VOR jedem Culling-Return).
+// echten Baum-Positionen), wilde Hippogreife. Distanz-Culling 140/160 wie
+// creatures.js (eigene Kopie, dort nicht exportiert), harte Silberauen-Leine
+// als Positions-Clamp (Lehre 14 — läuft VOR jedem Culling-Return).
+//
+// Nutzer-Feedback 2026-07-29: "warum passiert nichts wenn ich Tiere angreife"
+// — jetzt echte Kampf-Ziele (hp/applyHit/species), aber bewusst NICHT wie
+// creatures.js-Bürger: kein Aggro/Verfolgen des Spielers als Standard-
+// verhalten, sondern artspezifisch Flucht ODER Verteidigung (siehe je Klasse).
+// Rehe/Hasen/Niffler/Bowtruckles fliehen, Füchse/wilde Hippogreife verteidigen
+// sich kurz (kleiner Konter-Schaden). Stirbt eine Kreatur, respawnt sie nach
+// FAUNA_RESPAWN_DUR an ihrem Zuhause (Muster: Rabbit/Fox' bereits bestehendes
+// huntedDespawn(), jetzt für alle 6 Arten einheitlich).
+const FAUNA_RESPAWN_DUR = 60;
+// Gemeinsame Schadenstabelle (Muster: Ghost.applyHit() in creatures.js) —
+// diese Tiere sind bewusst zerbrechlich, keine eigene Boss-Tabelle nötig.
+function faunaDamage(spellId) {
+  return spellId === 'avada' ? Infinity
+    : spellId === 'crucio' ? 0.25
+    : spellId === 'claw' ? 0.5
+    : (spellId === 'stupor' || spellId === 'incendio' || spellId === 'kick' || spellId === 'bite') ? 1 : 0;
+}
 
 import * as THREE from 'three';
 import { terrainHeight, SILBERAUEN, FAHLHOLZ, GROVE } from './terrain.js';
@@ -77,10 +92,48 @@ class Deer {
     this.stateT = rand(0, 4);
     this.gaitT = seed;
     this.rng = mulberry32(seed);
+    this.species = 'deer';
+    this.maxHp = 2;
+    this.hp = this.maxHp;
+    this.alive = true;
+    this.radius = 0.5;
+    this.hitY = 0.9;
+    this.deadT = 0;
     scene.add(this.group);
   }
 
+  // Nicht-tödlicher Treffer: nutzt exakt denselben 'flee'-Übergang wie die
+  // Näherungs-Flucht oben — kein Sonderfall nötig, der Spieler IST jetzt die
+  // Bedrohung, vor der geflohen wird.
+  applyHit(spellId, _boltVel, dmgMul = 1) {
+    if (!this.alive) return true;
+    const dmg = faunaDamage(spellId);
+    if (dmg <= 0) return false;
+    this.hp -= dmg * dmgMul;
+    if (this.hp <= 0) { this._die(); return false; }
+    this.state = 'flee'; this.stateT = 0;
+    return false;
+  }
+
+  _die() {
+    this.alive = false;
+    this.state = 'dead';
+    this.deadT = 0;
+    this.group.visible = false;
+  }
+
   update(dt, player) {
+    if (this.state === 'dead') {
+      this.deadT += dt;
+      if (this.deadT >= FAUNA_RESPAWN_DUR) {
+        this.alive = true;
+        this.hp = this.maxHp;
+        this.state = 'graze';
+        this.stateT = rand(0, 4);
+        this.pos.set(this.home.x, terrainHeight(this.home.x, this.home.z), this.home.z);
+      }
+      return;
+    }
     const distSq = this.pos.distanceToSquared(player.pos);
     if (distSq > CULL_HIDE * CULL_HIDE) { this.group.visible = false; return; }
     this.group.visible = true;
@@ -177,15 +230,33 @@ class Rabbit {
     this.twitchT = rand(1, 4); // E1: Ohren-Zuck-Timer, unabhängig von Bewegung
     this.rng = mulberry32(seed);
     this.huntedBy = null; // von Fuchs/Spinne gesetzt: aktives Jagd-Ziel
+    this.species = 'rabbit';
+    this.maxHp = 1;
+    this.hp = this.maxHp;
+    this.alive = true;
+    this.radius = 0.35;
+    this.hitY = 0.25;
+    this.scaredT = 0; // >0: flieht vor dem SPIELER (Treffer-Reaktion, unabhängig von huntedBy)
     scene.add(this.group);
   }
 
   huntedDespawn() {
     if (this.state === 'hidden') return;
+    this.alive = false;
     this.state = 'hidden';
     this.stateT = 0;
     this.huntedBy = null;
     this.group.visible = false;
+  }
+
+  applyHit(spellId, _boltVel, dmgMul = 1) {
+    if (!this.alive) return true;
+    const dmg = faunaDamage(spellId);
+    if (dmg <= 0) return false;
+    this.hp -= dmg * dmgMul;
+    if (this.hp <= 0) { this.huntedDespawn(); return false; }
+    this.scaredT = 3;
+    return false;
   }
 
   update(dt, player) {
@@ -193,6 +264,8 @@ class Rabbit {
       this.stateT += dt;
       if (this.stateT >= RABBIT_TUNING.respawnDur) {
         this.state = 'idle'; this.stateT = 0;
+        this.alive = true;
+        this.hp = this.maxHp;
         this.pos.set(this.den.x, terrainHeight(this.den.x, this.den.z), this.den.z);
       }
       return;
@@ -204,7 +277,14 @@ class Rabbit {
     if (distSq > CULL_FULL * CULL_FULL) return;
 
     let speed = 0, moving = false;
-    if (this.huntedBy) {
+    if (this.scaredT > 0) {
+      this.scaredT -= dt;
+      const dx = this.pos.x - player.pos.x, dz = this.pos.z - player.pos.z;
+      const d = Math.hypot(dx, dz) || 1;
+      this.target.x = this.pos.x + (dx / d) * 6;
+      this.target.z = this.pos.z + (dz / d) * 6;
+      speed = RABBIT_TUNING.hopSpeed * 1.6; moving = true;
+    } else if (this.huntedBy) {
       const dx = this.pos.x - this.huntedBy.pos.x, dz = this.pos.z - this.huntedBy.pos.z;
       const d = Math.hypot(dx, dz) || 1;
       this.target.x = this.pos.x + (dx / d) * 6;
@@ -320,6 +400,13 @@ class Fox {
     this.rng = mulberry32(seed);
     this.huntTarget = null; // Rabbit/Fox-ähnliches Beute-Objekt mit .pos/.state/.huntedDespawn()
     this.imperioT = 0; // S8: >0 während Besessenheit
+    this.species = 'fox';
+    this.maxHp = 2;
+    this.hp = this.maxHp;
+    this.alive = true;
+    this.radius = 0.4;
+    this.hitY = 0.3;
+    this.defendT = 0; // >0: verteidigt sich (chargt den Spieler an, beißt bei Berührung)
     scene.add(this.group);
   }
 
@@ -327,10 +414,24 @@ class Fox {
   // Akromantulas (Ökosystem-Kette Akromantula>Fuchs>Hase, creatures.js).
   huntedDespawn() {
     if (this.state === 'hidden') return;
+    this.alive = false;
     if (this.huntTarget) { this.huntTarget.huntedBy = null; this.huntTarget = null; }
     this.state = 'hidden';
     this.stateT = 0;
     this.group.visible = false;
+  }
+
+  // Fuchs verteidigt sich statt zu fliehen (Nutzer-Vorgabe: Mischung aus
+  // Flucht- und Verteidigungs-Arten). Nicht tödlich -> kurzer Gegenangriff.
+  applyHit(spellId, _boltVel, dmgMul = 1) {
+    if (!this.alive) return true;
+    const dmg = faunaDamage(spellId);
+    if (dmg <= 0) return false;
+    this.hp -= dmg * dmgMul;
+    if (this.hp <= 0) { this.huntedDespawn(); return false; }
+    this.defendT = 4;
+    if (this.huntTarget) { this.huntTarget.huntedBy = null; this.huntTarget = null; }
+    return false;
   }
 
   // S8 Imperio: kein Kampfsystem bei Fauna — der Fuchs folgt dem Spieler
@@ -344,11 +445,14 @@ class Fox {
 
   // fx/audio optional (S2 nutzt sie für den Fang-Effekt) — kein Riss auf dem
   // Bildschirm: nur ein dezenter Staub-Puff, das Beutetier verschwindet still.
-  update(dt, player, prey, fx) {
+  // health (neu): für die Verteidigungs-Reaktion (Konter-Biss bei Berührung).
+  update(dt, player, prey, fx, health) {
     if (this.state === 'hidden') {
       this.stateT += dt;
       if (this.stateT >= FOX_TUNING.respawnDur) {
         this.state = 'wander'; this.stateT = 0;
+        this.alive = true;
+        this.hp = this.maxHp;
         this.pos.set(this.home.x, terrainHeight(this.home.x, this.home.z), this.home.z);
       }
       return;
@@ -366,7 +470,18 @@ class Fox {
     }
 
     let speed = 0, moving = false;
-    if (this.imperioT > 0) {
+    if (this.defendT > 0) {
+      // Verteidigung hat Vorrang vor Jagd/Wandern — nicht vor Imperio (der
+      // Spieler kontrolliert ihn dann direkt, siehe unten).
+      this.defendT -= dt;
+      this.target.x = player.pos.x; this.target.z = player.pos.z;
+      const d = Math.hypot(this.target.x - this.pos.x, this.target.z - this.pos.z);
+      speed = FOX_TUNING.huntSpeed; moving = true;
+      if (d < FOX_TUNING.touchRange && health) {
+        const dirX = (this.pos.x - player.pos.x) / (d || 1), dirZ = (this.pos.z - player.pos.z) / (d || 1);
+        health.damage(0.5, { x: dirX, y: 0, z: dirZ });
+      }
+    } else if (this.imperioT > 0) {
       // S8 Imperio: folgt dem Spieler statt zu jagen/wandern.
       this.imperioT -= dt;
       this.target.x = player.pos.x; this.target.z = player.pos.z;
@@ -467,10 +582,42 @@ class Niffler {
     this.t = seed;
     this.cooldown = 0;
     this.onGlitter = onGlitter;
+    this.species = 'niffler';
+    this.maxHp = 1;
+    this.hp = this.maxHp;
+    this.alive = true;
+    this.radius = 0.3;
+    this.hitY = 0.15;
+    this.scaredT = 0;
+    this.deadT = 0;
     scene.add(this.group);
   }
 
+  applyHit(spellId, _boltVel, dmgMul = 1) {
+    if (!this.alive) return true;
+    const dmg = faunaDamage(spellId);
+    if (dmg <= 0) return false;
+    this.hp -= dmg * dmgMul;
+    if (this.hp <= 0) {
+      this.alive = false;
+      this.deadT = 0;
+      this.group.visible = false;
+      return false;
+    }
+    this.scaredT = 3;
+    return false;
+  }
+
   update(dt, player, fx, audio) {
+    if (!this.alive) {
+      this.deadT += dt;
+      if (this.deadT >= FAUNA_RESPAWN_DUR) {
+        this.alive = true;
+        this.hp = this.maxHp;
+        this.pos.set(this.home.x, terrainHeight(this.home.x, this.home.z), this.home.z);
+      }
+      return;
+    }
     const distSq = this.pos.distanceToSquared(player.pos);
     if (distSq > CULL_HIDE * CULL_HIDE) { this.group.visible = false; return; }
     this.group.visible = true;
@@ -478,6 +625,17 @@ class Niffler {
 
     this.t += dt;
     this.body.position.y = 0.16 + Math.sin(this.t * 1.6) * 0.03; // gräbt/wühlt vor sich hin
+
+    if (this.scaredT > 0) {
+      this.scaredT -= dt;
+      const dx = this.pos.x - player.pos.x, dz = this.pos.z - player.pos.z;
+      const d = Math.hypot(dx, dz) || 1;
+      this.pos.x += (dx / d) * 3.5 * dt;
+      this.pos.z += (dz / d) * 3.5 * dt;
+      this.pos.y = terrainHeight(this.pos.x, this.pos.z);
+      this.group.rotation.y = angleLerp(this.group.rotation.y, Math.atan2(dx, dz), Math.min(1, dt * 6));
+      return;
+    }
     this.group.rotation.y = Math.sin(this.t * 0.4) * 0.6;
 
     if (this.cooldown > 0) this.cooldown -= dt;
@@ -527,18 +685,52 @@ class Bowtruckle {
     this.group.rotation.y = this.perchAngle;
     this.hideF = 0; // 0=sichtbar, 1=ganz hinterm Stamm versteckt
     this.t = seed;
+    this.species = 'bowtruckle';
+    this.maxHp = 1;
+    this.hp = this.maxHp;
+    this.alive = true;
+    this.radius = 0.2;
+    this.hitY = 0.2;
+    this.forceHideT = 0; // >0 nach Treffer: zwingt scared=true, egal ob Lumos an ist
+    this.deadT = 0;
     scene.add(this.group);
   }
 
+  applyHit(spellId, _boltVel, dmgMul = 1) {
+    if (!this.alive) return true;
+    const dmg = faunaDamage(spellId);
+    if (dmg <= 0) return false;
+    this.hp -= dmg * dmgMul;
+    if (this.hp <= 0) {
+      this.alive = false;
+      this.deadT = 0;
+      this.group.visible = false;
+      return false;
+    }
+    this.forceHideT = 4; // sofort verstecken (Muster: kanonisch wehrt sich der Bowtruckle durch Rückzug)
+    return false;
+  }
+
   update(dt, player, lumosOn) {
+    if (!this.alive) {
+      this.deadT += dt;
+      if (this.deadT >= FAUNA_RESPAWN_DUR) {
+        this.alive = true;
+        this.hp = this.maxHp;
+        this.hideF = 0;
+        this.group.scale.setScalar(1);
+      }
+      return;
+    }
     const distSq = this.pos.distanceToSquared(player.pos);
     if (distSq > CULL_HIDE * CULL_HIDE) { this.group.visible = false; return; }
     this.group.visible = true;
     if (distSq > CULL_FULL * CULL_FULL) return;
 
     this.t += dt;
+    if (this.forceHideT > 0) this.forceHideT -= dt;
     const dist = Math.sqrt(distSq);
-    const scared = dist < 5 && !lumosOn;
+    const scared = this.forceHideT > 0 || (dist < 5 && !lumosOn);
     const targetHide = scared ? 1 : 0;
     this.hideF += ((targetHide - this.hideF) > 0 ? 1 : -1) * Math.min(Math.abs(targetHide - this.hideF), dt * 1.5);
     // Versteck-Trick: um den Stamm herum auf die abgewandte Seite drehen +
@@ -622,6 +814,14 @@ class WildHippogriff {
     this.gaitT = seed;
     this.rng = mulberry32(seed);
     this.tamed = false; // S5: gezähmte Tiere verlassen den wilden Bestand dauerhaft
+    this.species = 'hippogriff';
+    this.maxHp = 3;
+    this.hp = this.maxHp;
+    this.alive = true;
+    this.radius = 0.7;
+    this.hitY = 1.3;
+    this.defendT = 0; // >0: verteidigt sich (Tritt bei Berührung), Muster: Fox
+    this.deadT = 0;
     scene.add(this.group);
   }
 
@@ -630,11 +830,42 @@ class WildHippogriff {
   // der eigene, unabhängige "kein Weltstandort"-Zustand lebt in mount.js).
   tame() {
     this.tamed = true;
+    this.alive = false;
     this.group.visible = false;
   }
 
-  update(dt, player, sprinting) {
+  // Verteidigt sich statt zu fliehen (Nutzer-Vorgabe: Mischung Flucht/
+  // Verteidigung — passt zum stolzen/gefährlichen Ruf des Hippogreifs).
+  applyHit(spellId, _boltVel, dmgMul = 1) {
+    if (!this.alive) return true;
+    const dmg = faunaDamage(spellId);
+    if (dmg <= 0) return false;
+    this.hp -= dmg * dmgMul;
+    if (this.hp <= 0) {
+      this.alive = false;
+      this.state = 'dead';
+      this.deadT = 0;
+      this.group.visible = false;
+      return false;
+    }
+    this.defendT = 4;
+    this.state = 'graze'; // Flucht-Logik unten soll die Verteidigung nicht überschreiben
+    return false;
+  }
+
+  update(dt, player, sprinting, health) {
     if (this.tamed) { this.group.visible = false; return; }
+    if (this.state === 'dead') {
+      this.deadT += dt;
+      if (this.deadT >= FAUNA_RESPAWN_DUR) {
+        this.alive = true;
+        this.hp = this.maxHp;
+        this.state = 'graze';
+        this.stateT = rand(0, 4);
+        this.pos.set(this.home.x, terrainHeight(this.home.x, this.home.z), this.home.z);
+      }
+      return;
+    }
     const distSq = this.pos.distanceToSquared(player.pos);
     if (distSq > CULL_HIDE * CULL_HIDE) { this.group.visible = false; return; }
     this.group.visible = true;
@@ -644,11 +875,21 @@ class WildHippogriff {
     // Fliehen nur vor RENNENDEN Spielern (Zähm-Vorschau für S5) — ruhiges
     // Gehen ist ungefährlich, der Hippogreif bleibt gelassen stehen.
     const threatened = sprinting && dist < HIPPO_TUNING.fleeRange;
-    if (this.state === 'graze' && threatened) { this.state = 'flee'; this.stateT = 0; }
-    else if (this.state === 'flee' && (!threatened && dist > HIPPO_TUNING.fleeRange * 1.6)) { this.state = 'graze'; this.stateT = 0; }
+    if (this.defendT <= 0) {
+      if (this.state === 'graze' && threatened) { this.state = 'flee'; this.stateT = 0; }
+      else if (this.state === 'flee' && (!threatened && dist > HIPPO_TUNING.fleeRange * 1.6)) { this.state = 'graze'; this.stateT = 0; }
+    }
 
     let speed = 0, moving = false;
-    if (this.state === 'flee') {
+    if (this.defendT > 0) {
+      this.defendT -= dt;
+      this.target.x = player.pos.x; this.target.z = player.pos.z;
+      speed = HIPPO_TUNING.fleeSpeed * 0.8; moving = true;
+      if (dist < 1.6 && health) {
+        const dirX = (this.pos.x - player.pos.x) / (dist || 1), dirZ = (this.pos.z - player.pos.z) / (dist || 1);
+        health.damage(0.5, { x: dirX, y: 0.15, z: dirZ });
+      }
+    } else if (this.state === 'flee') {
       const dx = this.pos.x - player.pos.x, dz = this.pos.z - player.pos.z;
       const d = Math.hypot(dx, dz) || 1;
       this.target.x = this.pos.x + (dx / d) * 12;
@@ -675,14 +916,15 @@ class WildHippogriff {
     leashClamp(this.pos, SILBERAUEN.x, SILBERAUEN.z, LEASH);
     this.pos.y = terrainHeight(this.pos.x, this.pos.z);
 
-    this.gaitT += dt * (moving ? (this.state === 'flee' ? 7 : 2) : 0.5);
-    const legAmp = moving ? (this.state === 'flee' ? 0.5 : 0.15) : 0.02;
+    const agitated = this.state === 'flee' || this.defendT > 0;
+    this.gaitT += dt * (moving ? (agitated ? 7 : 2) : 0.5);
+    const legAmp = moving ? (agitated ? 0.5 : 0.15) : 0.02;
     for (let i = 0; i < this.legs.length; i++) this.legs[i].rotation.x = Math.sin(this.gaitT + i * 1.5) * legAmp;
     // Flügelschlag-Idle: immer leicht in Bewegung, im Fluchtmodus deutlich
     // schneller. Beide Spitzen heben/senken sich gemeinsam (sign-Vorzeichen
     // gleicht die gespiegelte Pivot-Geometrie der linken/rechten Seite aus).
-    const flapSpeed = this.state === 'flee' ? 10 : 1.4;
-    const flapAmp = this.state === 'flee' ? 0.5 : 0.1;
+    const flapSpeed = agitated ? 10 : 1.4;
+    const flapAmp = agitated ? 0.5 : 0.1;
     for (const w of this.wings) {
       w.rotation.z = w.userData.baseZ + Math.sin(this.gaitT * flapSpeed) * flapAmp * w.userData.sign;
     }
@@ -690,7 +932,7 @@ class WildHippogriff {
 }
 
 // ============================================================ Aufbau ============
-export function buildFauna(scene, fx, audio, treeSpots, onGlitter) {
+export function buildFauna(scene, fx, audio, treeSpots, onGlitter, health) {
   const rng = mulberry32(6001);
   // E1 (PLAN-EPISCHE-WELT.md): EINE geteilte Fell-Textur für die ganze Fauna
   // dieses Builds (statt pro Art neu zu generieren) — modulierend um Weiß
@@ -763,10 +1005,10 @@ export function buildFauna(scene, fx, audio, treeSpots, onGlitter) {
     update(dt, player, lumosOn, sprinting) {
       for (const d of deer) d.update(dt, player);
       for (const r of rabbits) r.update(dt, player);
-      for (const f of foxes) f.update(dt, player, preyForFoxes, fx);
+      for (const f of foxes) f.update(dt, player, preyForFoxes, fx, health);
       for (const n of nifflers) n.update(dt, player, fx, audio);
       for (const b of bowtruckles) b.update(dt, player, lumosOn);
-      for (const h of hippos) h.update(dt, player, sprinting);
+      for (const h of hippos) h.update(dt, player, sprinting, health);
     },
   };
 }

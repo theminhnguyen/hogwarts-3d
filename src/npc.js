@@ -215,7 +215,21 @@ export function setFigureOpacity(fig, f) {
 // grüßen sie kurz (Blick zum Spieler), statt einfach vorbeizulaufen.
 const RUF_FLEE_RANGE = 6, RUF_GREET_RANGE = 4, RUF_FLEE_SPEED = 2.6;
 
-// ---------- Wandernde Schüler: reine Deko, kein Interakt ----------
+// Respawn-Dauer für Schüler/Hexer (Muster: fauna.js FAUNA_RESPAWN_DUR,
+// bewusst als eigene Konstante statt Cross-Import — nur der Wert ist geteilt).
+const NPC_RESPAWN_DUR = 60;
+// Gemeinsame Schadenstabelle (Muster: Ghost.applyHit()/fauna.js faunaDamage()).
+function npcDamage(spellId) {
+  return spellId === 'avada' ? Infinity
+    : spellId === 'crucio' ? 0.25
+    : spellId === 'claw' ? 0.5
+    : (spellId === 'stupor' || spellId === 'incendio' || spellId === 'kick' || spellId === 'bite') ? 1 : 0;
+}
+
+// ---------- Wandernde Schüler: dekorativ, aber seit dem Nutzer-Feedback
+// 2026-07-29 ("warum passiert nichts, wenn ich NPCs angreife") echte,
+// respawnende Kampf-Ziele — anders als Lena/Barnaby/Fero/Ondra (K2-Schutz-
+// liste weiter unten bleibt für die), da sie an keine Quest gebunden sind.
 class Student {
   constructor(scene, pathPts, idx) {
     const fig = buildFigure(HOUSE_COLORS[idx % 4], HAIR_COLORS[idx % 4], ROBE_DARK, null, false, idx % 3);
@@ -232,11 +246,47 @@ class Student {
     this.fade = 1;
     this._greeted = false;
     const [sx, sz] = pathPts[0];
+    this.spawnPos = { x: sx, z: sz };
     this.group.position.set(sx, terrainHeight(sx, sz), sz);
+    this.species = 'student';
+    this.maxHp = 1;
+    this.hp = this.maxHp;
+    this.alive = true;
+    this.radius = 0.3;
+    this.hitY = 1.3; // Kopf/Brust-Höhe stehender buildFigure()-Figuren
+    this.deadT = 0;
     scene.add(this.group);
   }
 
+  applyHit(spellId, _boltVel, dmgMul = 1) {
+    if (!this.alive) return true;
+    const dmg = npcDamage(spellId);
+    if (dmg <= 0) return false;
+    this.hp -= dmg * dmgMul;
+    if (this.hp <= 0) {
+      this.alive = false;
+      this.state = 'dead';
+      this.deadT = 0;
+      this.fade = 0;
+      setFigureOpacity(this.fig, 0);
+      return false;
+    }
+    this.state = 'flee'; this.stateT = 0;
+    return false;
+  }
+
   update(dt, nightGlow, player, ruf, isDark = false) {
+    if (this.state === 'dead') {
+      this.deadT += dt;
+      if (this.deadT >= NPC_RESPAWN_DUR) {
+        this.alive = true;
+        this.hp = this.maxHp;
+        this.state = 'walk';
+        this.fade = 1;
+        this.group.position.set(this.spawnPos.x, terrainHeight(this.spawnPos.x, this.spawnPos.z), this.spawnPos.z);
+      }
+      return;
+    }
     if (nightGlow > 0.55) this.fade = Math.max(0, this.fade - dt / 2.5);
     else if (nightGlow < 0.35) this.fade = Math.min(1, this.fade + dt / 2.5);
     setFigureOpacity(this.fig, this.fade);
@@ -320,16 +370,64 @@ class Wizard {
     this.pauseDur = 0;
     this.fade = 1;
     const [sx, sz] = pathPts[0];
+    this.spawnPos = { x: sx, z: sz };
     this.group.position.set(sx, terrainHeight(sx, sz), sz);
+    this.species = 'wizard';
+    this.maxHp = 1;
+    this.hp = this.maxHp;
+    this.alive = true;
+    this.radius = 0.3;
+    this.hitY = 1.3;
+    this.deadT = 0;
     scene.add(this.group);
   }
 
-  update(dt, nightGlow) {
+  applyHit(spellId, _boltVel, dmgMul = 1) {
+    if (!this.alive) return true;
+    const dmg = npcDamage(spellId);
+    if (dmg <= 0) return false;
+    this.hp -= dmg * dmgMul;
+    if (this.hp <= 0) {
+      this.alive = false;
+      this.state = 'dead';
+      this.deadT = 0;
+      this.fade = 0;
+      setFigureOpacity(this.fig, 0);
+      return false;
+    }
+    this.state = 'flee'; this.stateT = 0;
+    return false;
+  }
+
+  update(dt, nightGlow, player) {
+    if (this.state === 'dead') {
+      this.deadT += dt;
+      if (this.deadT >= NPC_RESPAWN_DUR) {
+        this.alive = true;
+        this.hp = this.maxHp;
+        this.state = 'walk';
+        this.fade = 1;
+        this.group.position.set(this.spawnPos.x, terrainHeight(this.spawnPos.x, this.spawnPos.z), this.spawnPos.z);
+      }
+      return;
+    }
     if (nightGlow > 0.55) this.fade = Math.max(0, this.fade - dt / 2.5);
     else if (nightGlow < 0.35) this.fade = Math.min(1, this.fade + dt / 2.5);
     setFigureOpacity(this.fig, this.fade);
     if (this.fade <= 0.01) return;
 
+    if (this.state === 'flee' && player) {
+      const dx = this.group.position.x - player.pos.x, dz = this.group.position.z - player.pos.z;
+      const d = Math.hypot(dx, dz) || 1;
+      const nx = dx / d, nz = dz / d;
+      this.group.position.x += nx * RUF_FLEE_SPEED * dt;
+      this.group.position.z += nz * RUF_FLEE_SPEED * dt;
+      this.group.position.y = terrainHeight(this.group.position.x, this.group.position.z);
+      this.group.rotation.y = Math.atan2(-nx, -nz);
+      animateFigure(this.fig, dt, true);
+      if (d >= RUF_FLEE_RANGE * 1.3) { this.state = 'walk'; this.stateT = 0; }
+      return;
+    }
     if (this.state === 'pause') {
       this.stateT += dt;
       animateFigure(this.fig, dt, false);
@@ -654,7 +752,7 @@ export function buildNpcs(scene, glowTex, hud, audio, fx, health, interact, deps
       get x() { return s.group.position.x; },
       get z() { return s.group.position.z; },
       r: 2.2,
-      get enabled() { return s.fade > 0.5 && s.state !== 'flee'; },
+      get enabled() { return s.alive && s.fade > 0.5 && s.state !== 'flee'; },
       prompt: `E — Mit ${STUDENT_NAMES[i]} sprechen`,
       onInteract: () => hud.showDialog(STUDENT_NAMES[i], [pickGeruecht()]),
     });
@@ -902,10 +1000,15 @@ export function buildNpcs(scene, glowTex, hud, audio, fx, health, interact, deps
     },
   });
 
-  // ---------- K2 (S8): Spruch-Schutzliste — Quest-NPCs, Schüler, Fero, Ondra
-  // sind gegen ALLE Sprüche immun (Auto-Fizzle + einmalige missbilligende
-  // Schlossgeist-Zeile). Ondra selbst hat schon keinen applyHit (wilderer.js
-  // — nie ein gültiges Bolzen-Ziel), braucht also keinen Eintrag hier.
+  // ---------- K2 (S8): Spruch-Schutzliste — NUR Quest-/Handels-NPCs (Lena,
+  // Barnaby, Fero, Schlossgeist, Musch) sind gegen ALLE Sprüche immun (Auto-
+  // Fizzle + einmalige missbilligende Schlossgeist-Zeile). Ondra selbst hat
+  // schon keinen applyHit (wilderer.js — nie ein gültiges Bolzen-Ziel),
+  // braucht also keinen Eintrag hier.
+  // Nutzer-Feedback 2026-07-29: Schüler/Hexer sind bewusst NICHT mehr in
+  // dieser Liste — sie haben jetzt eigene hp/applyHit()/Flucht/Respawn
+  // (siehe Student/Wizard-Klassen oben), da sie an keine Quest gebunden sind
+  // und ein Töten+Respawn hier keine Spielmechanik bricht.
   // Kein `accepts`-Feld = akzeptiert JEDEN spellId (spells.js Default).
   let shieldToastShown = false;
   let muschSniffShown = false; // S11: Easter-Egg, einmal pro Tierform-Annäherung
@@ -935,12 +1038,14 @@ export function buildNpcs(scene, glowTex, hud, audio, fx, health, interact, deps
     const st = deps.train.station;
     registerShield(() => ({ x: st.feroX, y: terrainHeight(st.feroX, st.feroZ) + FIGURE_HIT_Y, z: st.feroZ }));
   }
-  for (const s of students) registerShield(() => ({ x: s.group.position.x, y: s.group.position.y + FIGURE_HIT_Y, z: s.group.position.z }));
-  for (const w of wizards) registerShield(() => ({ x: w.group.position.x, y: w.group.position.y + FIGURE_HIT_Y, z: w.group.position.z }));
 
   return {
     quests,
     fero,
+    // Nutzer-Feedback 2026-07-29: main.js hängt beide Listen in die Spruch-
+    // Zielliste ein (Muster: creatures.list/dementors.list).
+    students,
+    wizards,
     muschGroup: cat.group, // S9: Positions-Referenz für companion.js
     // S9: companion.js schaltet das BESTEHENDE Katzen-Follow-FSM (s.u.) an/
     // aus, statt es zu duplizieren — "Katzen-Follow-FSM aus npc.js
@@ -970,7 +1075,7 @@ export function buildNpcs(scene, glowTex, hud, audio, fx, health, interact, deps
     update(dt, player, skyState, ruf = 0, isDark = false) {
       currentPlayer = player;
       for (const s of students) s.update(dt, skyState.nightGlow, player, ruf, isDark);
-      for (const w of wizards) w.update(dt, skyState.nightGlow);
+      for (const w of wizards) w.update(dt, skyState.nightGlow, player);
       fero.update(dt);
 
       animateFigure(lenaFig, dt, false);
