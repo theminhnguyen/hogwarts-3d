@@ -49,7 +49,14 @@ export function buildDark(scene, glowTex, hud, audio, fx, interact, economy, dep
     rock.castShadow = true;
     alkoven.add(rock);
   }
-  addCircleBlocker(GRIMOIRE_POS.x, GRIMOIRE_POS.z, 2.2, ay - 0.5, ay + 2.5);
+  // Bugfix: war r=2.2 — exakt derselbe Radius wie der Interakt-Trigger
+  // darunter (auch 2.2, siehe interact.js-Default). resolveBlockers() hält
+  // den Spieler dadurch bei mindestens 2.2+RADIUS(0.45)=2.65m vom Zentrum
+  // fern, der Interakt braucht aber d<2.2 — unerreichbar, kein E-Prompt
+  // je möglich. 1.3 deckt die 3 Felsblöcke (Radius bis ~1.4m vom Zentrum)
+  // ausreichend ab und lässt ein ~0.45m breites begehbares Band bis zur
+  // Interakt-Grenze frei.
+  addCircleBlocker(GRIMOIRE_POS.x, GRIMOIRE_POS.z, 1.3, ay - 0.5, ay + 2.5);
 
   // Buch auf kleinem Steinsockel — zwei leicht aufgeklappte Boxen = Seiten
   const pedestal = new THREE.Mesh(new THREE.CylinderGeometry(0.32, 0.38, 0.6, 8), rockMat);
@@ -140,8 +147,14 @@ export function buildDark(scene, glowTex, hud, audio, fx, interact, economy, dep
   // enabled prüft nur Pfad+Tageszeit (breite Schranke) — die Herzen-Prüfung
   // läuft in onInteract mit eigenem Toast (Muster Kate-Kauf/Fero-Preis),
   // sonst bekäme der Spieler bei fehlenden Herzen gar keinen Prompt zu sehen.
+  // Bugfix: war r=3.2 — der Brunnen hat einen physischen Blocker Radius 3.6
+  // (castle.js), macht mit Spielerradius 0.45 mindestens 4.05m Mindestabstand.
+  // War r kleiner als das, konnte "ins Licht zurückkehren" NIE erscheinen —
+  // exakt dieselbe Bugklasse wie am Aschenen Grimoire. health.js kennt dieses
+  // selbe Problem bereits (dortiger Kommentar zu TUNING.fountainRange=5) und
+  // löst es mit demselben Wert — hier übernommen für Konsistenz.
   interact.register({
-    x: FOUNTAIN_POS.x, z: FOUNTAIN_POS.z, r: 3.2,
+    x: FOUNTAIN_POS.x, z: FOUNTAIN_POS.z, r: 5,
     get enabled() {
       return dunkel.pfad === 'dunkel' && sky.state.nightGlow > DAWN_MIN && sky.state.nightGlow < DAWN_MAX;
     },
