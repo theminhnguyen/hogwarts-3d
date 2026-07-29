@@ -43,6 +43,20 @@ export const LANDMARKS = [
 const MAP_EXTENT = 660;
 function toPercent(v) { return ((v + MAP_EXTENT) / (MAP_EXTENT * 2)) * 100; }
 
+// Titel-Übersicht (Opus-5-Audit-Fix): alle 6 im Spiel vergebenen Titel waren
+// bisher nur als einmaliger hud.showToast() sichtbar (siehe aschenklamm.js/
+// frostzinnen.js/schwarzwasser.js/unicorn.js/npc.js Fero-Quest/finale.js) —
+// nirgends nachträglich einsehbar. `earned` liest ausschließlich bereits
+// bestehende save.*-Felder, kein neues Speicherformat nötig.
+const TITLES = [
+  { id: 'drache', icon: '🐲', name: 'Drachenbezwinger', desc: 'Den Drachen der Aschenklamm bezwingen.', earned: (s) => s.siegel.drache === 1 },
+  { id: 'frost', icon: '🧊', name: 'Frostbezwinger', desc: 'Den Frostriesen der Frostzinnen bezwingen.', earned: (s) => s.siegel.frost === 1 },
+  { id: 'hain', icon: '🦄', name: 'Einhornfreund', desc: 'Das Vertrauen des Einhorns im Silberhain gewinnen.', earned: (s) => s.siegel.hain === 1 },
+  { id: 'tiefe', icon: '🔱', name: 'Tiefenbezwinger', desc: 'Den versunkenen Tresor in Schwarzwasser öffnen.', earned: (s) => s.siegel.tiefe === 1 },
+  { id: 'weltensammler', icon: '🌍', name: 'Weltensammler', desc: 'Alle vier seltenen Zutaten bei Fero eintauschen.', earned: (s) => s.quests.feroSammler === 1 },
+  { id: 'vierReiche', icon: '🌟', name: 'Hüter der vier Reiche', desc: 'Das Sternentor durchschreiten.', earned: (s) => s.siegel.finaleWon === 1 },
+];
+
 export function buildMarauderMap(hud, save) {
   const overlay = document.getElementById('marauders-map');
   const chapterEl = document.getElementById('mm-chapter');
@@ -51,6 +65,7 @@ export function buildMarauderMap(hud, save) {
   const secondaryList = document.getElementById('mm-secondary-list');
   const nextHintEl = document.getElementById('mm-next-hint');
   const worldEl = document.getElementById('mm-world');
+  const titlesList = document.getElementById('mm-titles-list');
 
   let isOpen = false;
   let lastPos = null;
@@ -79,6 +94,27 @@ export function buildMarauderMap(hud, save) {
       secondaryList.appendChild(li);
     }
     nextHintEl.textContent = progress.nextHint;
+
+    titlesList.replaceChildren();
+    for (const t of TITLES) {
+      const earned = t.earned(save);
+      const badge = document.createElement('div');
+      badge.className = earned ? 'mm-title-badge' : 'mm-title-badge mm-title-locked';
+      const icon = document.createElement('span');
+      icon.className = 'mm-title-icon';
+      icon.textContent = earned ? t.icon : '🔒';
+      const text = document.createElement('div');
+      text.className = 'mm-title-text';
+      const name = document.createElement('div');
+      name.className = 'mm-title-name';
+      name.textContent = t.name;
+      const desc = document.createElement('div');
+      desc.className = 'mm-title-desc';
+      desc.textContent = t.desc;
+      text.append(name, desc);
+      badge.append(icon, text);
+      titlesList.appendChild(badge);
+    }
 
     for (const lm of LANDMARKS) {
       if (!isDiscovered(lm)) continue;
