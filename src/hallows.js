@@ -450,6 +450,11 @@ export function buildHallows(scene, glowTex, hud, audio, fx, health, interact, h
     },
     // main.js liest dies für spells.dmgMul/cooldownMul (Elderstab: Schaden ×2, CD ×0.6)
     get elderstabActive() { return !!(hallows.stab && active.stab); },
+    // PLAN-DER-DUNKLE-LORD.md: der Prüfstein vor der Schattenfeste braucht
+    // denselben "besitzt UND angelegt"-Zustand auch für die anderen beiden
+    // Heiligtümer, nicht nur für den Elderstab — analoge Getter dafür.
+    get umhangActive() { return !!(hallows.umhang && active.umhang); },
+    get steinActive() { return !!(hallows.stein && active.stein); },
 
     toggleInvisibility(player) {
       if (!hallows.umhang || !active.umhang) {

@@ -3,7 +3,7 @@
 // automatischer Qualitätsanpassung (Render-Auflösung nach FPS).
 
 import * as THREE from 'three';
-import { buildTerrain, buildWater, ASCHENKLAMM, FROSTZINNEN, SILBERHAIN, SCHWARZWASSER } from './terrain.js';
+import { buildTerrain, buildWater, ASCHENKLAMM, FROSTZINNEN, SILBERHAIN, SCHWARZWASSER, SCHATTENFESTE } from './terrain.js';
 import { SkySystem } from './sky.js';
 import { buildCastle } from './castle.js';
 import { buildStructures } from './structures.js';
@@ -46,6 +46,7 @@ import { createRegionManager } from './regions.js';
 import { createAtmosphereSystem } from './atmosphere.js';
 import { buildAschenklamm } from './aschenklamm.js';
 import { buildFrostzinnen } from './frostzinnen.js';
+import { buildSchattenfeste } from './schattenfeste.js';
 import { buildSilberhain } from './silberhain.js';
 import { buildUnicorn } from './unicorn.js';
 import { buildSchwarzwasser } from './schwarzwasser.js';
@@ -135,6 +136,7 @@ let frostzinnenRegion; // E5: dito für die Frostzinnen
 let silberhainRegion; // E6: dito für den Silberhain
 let unicornRegion; // E6: eigene Region (gleiches Zentrum wie Silberhain), siehe unicorn.js-Kopf-Kommentar
 let schwarzwasserRegion; // E7: dito für Schwarzwasser
+let schattenfesteRegion; // PLAN-DER-DUNKLE-LORD.md: dito für die Schattenfeste
 let lanternWasCollected = false; // erkennt den Moment, in dem die Laterne live geborgen wird
 let natureSwayMaterials = [];
 let natureTreeSpots = []; // S2: echte Baum-Positionen für Bowtruckles (fauna.js)
@@ -497,6 +499,31 @@ const buildSteps = [
     });
     finale.restore();
   }],
+  // Die Schattenfeste (PLAN-DER-DUNKLE-LORD.md, V2): braucht hallows (live-
+  // Instanz für die weiche Buff-Checkliste am Prüfstein — elderstabActive/
+  // umhangActive/steinActive) und finale/siegel (hartes Fortschritts-Gate),
+  // beide bereits gebaut. Reine Registrierung, buildSchattenfeste() baut erst
+  // lazy beim ersten Wecken (Muster: alle 4 Regionen aus E4-E7).
+  ['Schattenfeste (Region)', () => {
+    schattenfesteRegion = regionManager.register({
+      key: 'schattenfeste',
+      center: { x: SCHATTENFESTE.x, z: SCHATTENFESTE.z },
+      wakeRadius: 90,
+      sleepRadius: 130,
+      build: (root, deps) => buildSchattenfeste(root, deps),
+      deps: {
+        glowTex, hud, audio, fx, interact, spells, health,
+        hallowsSys: hallows,
+        pz: save.pz, moor: save.moor, hallowsSave: save.hallows, siegel: save.siegel,
+        lord: save.lord,
+        onChange: () => { persist(); refreshStatusLines(); },
+      },
+    });
+    atmosphere.registerZone({
+      center: { x: SCHATTENFESTE.x, z: SCHATTENFESTE.z }, radius: SCHATTENFESTE.r + 15, feather: 70,
+      color: 0x2a0d3a, fogFarMul: 0.62, ambientMul: 0.75, soundId: 'schattenfeste',
+    });
+  }],
   // Animagus (S11): braucht home (Kessel/Trank), weather (Sturm-Gate für
   // das Ritual), interact — alle bereits gebaut. Letzter Schritt.
   ['Animagus', () => {
@@ -640,6 +667,7 @@ function persist() {
     silberhain: save.silberhain,
     schwarzwasser: save.schwarzwasser,
     siegel: save.siegel,
+    lord: save.lord,
   });
 }
 
@@ -834,6 +862,11 @@ function performReset() {
   Object.assign(save.silberhain, { puzzleSolved: 0, chestCollected: 0, zentaurinQuestDone: 0 });
   Object.assign(save.schwarzwasser, { puzzleSolved: 0, chestCollected: 0, keeperQuestDone: 0 });
   Object.assign(save.siegel, { drache: 0, frost: 0, hain: 0, tiefe: 0, finaleWon: 0 });
+  // PLAN-DER-DUNKLE-LORD.md: Schattenfeste-Fortschritt gehört zum selben
+  // "Fortschritt zurücksetzen" wie die 4 Siegel-Regionen — sonst bliebe das
+  // Tor nach einem Reset offen, obwohl das harte Gate (Hauspokal/Laterne/
+  // Heiligtümer/Sternentor) gerade erst zurückgesetzt wurde.
+  Object.assign(save.lord, { torOffen: 0, phaseMax: 0, besiegt: 0, versuche: 0 });
   aschenklammRegion.handle?.restore?.();
   frostzinnenRegion.handle?.restore?.();
   silberhainRegion.handle?.restore?.();
@@ -846,6 +879,9 @@ function performReset() {
   // Reihenfolge-Regel wie beim Einhorn oben, finale.restore() liest
   // siegel.finaleWon live.
   if (finale) finale.restore();
+  // NACH dem obigen save.lord-Reset aufrufen — dieselbe Reihenfolge-Regel:
+  // schattenfesteRegion.handle?.restore?.() liest lord.torOffen live.
+  schattenfesteRegion.handle?.restore?.();
   refreshStatusLines();
   persist();
   hud.showToast('Fortschritt zurückgesetzt');
@@ -1311,6 +1347,7 @@ buildWorld().then(() => {
     get silberhain() { return silberhainRegion.handle; },
     get einhorn() { return unicornRegion.handle; },
     get schwarzwasser() { return schwarzwasserRegion.handle; },
+    get schattenfeste() { return schattenfesteRegion.handle; },
     get save() { return save; },
     get fps() { return fpsEMA; },
     get pixelRatio() { return pixelRatio; },
