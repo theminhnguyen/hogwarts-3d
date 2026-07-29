@@ -66,10 +66,12 @@ Taste `J` öffnet die **Karte des Rumtreibers**: dein aktuelles Hauptziel,
 bis zu zwei laufende Nebenaufgaben, ein stilisierter Kartenausschnitt mit
 den Orten, die du bereits besucht hast (unentdeckte Orte fehlen bewusst —
 keine Spoilerkarte), ein kurzer Hinweis, was als Nächstes sinnvoll ist, und
-eine **Titel-Übersicht**: alle 6 im Spiel erreichbaren Titel (Drachenbezwinger,
-Frostbezwinger, Einhornfreund, Tiefenbezwinger, Weltensammler, Hüter der vier
-Reiche) — erreichte hervorgehoben, offene ausgegraut mit Kurzbeschreibung, was
-dafür nötig ist. `J` oder `Esc` schließt die Karte wieder; während sie offen
+eine **Titel-Übersicht**: alle 12 im Spiel erreichbaren Titel (Hauspokal-Sieger,
+Seelenwächter, Meister des Todes, Drachenbezwinger, Frostbezwinger,
+Einhornfreund, Tiefenbezwinger, Weltensammler, Hüter der vier Reiche,
+Animagus, Grimoire-Kenner, Quidditch-Ass) — erreichte hervorgehoben, offene
+ausgegraut mit Kurzbeschreibung, was dafür nötig ist. `J` oder `Esc` schließt
+die Karte wieder; während sie offen
 ist, pausiert nur deine Steuerung — die Welt läuft im Hintergrund weiter.
 
 Zusätzlich gibt es im Spiel gelegentliche, einmalige Kontext-Hinweise (z. B.

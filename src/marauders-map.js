@@ -43,18 +43,33 @@ export const LANDMARKS = [
 const MAP_EXTENT = 660;
 function toPercent(v) { return ((v + MAP_EXTENT) / (MAP_EXTENT * 2)) * 100; }
 
-// Titel-Übersicht (Opus-5-Audit-Fix): alle 6 im Spiel vergebenen Titel waren
-// bisher nur als einmaliger hud.showToast() sichtbar (siehe aschenklamm.js/
-// frostzinnen.js/schwarzwasser.js/unicorn.js/npc.js Fero-Quest/finale.js) —
-// nirgends nachträglich einsehbar. `earned` liest ausschließlich bereits
-// bestehende save.*-Felder, kein neues Speicherformat nötig.
+// Titel-Übersicht (Opus-5-Audit-Fix): ursprünglich nur die 6 Titel, die im
+// Code als eigener hud.showToast('… Titel „X" errungen!') formuliert sind
+// (aschenklamm.js/frostzinnen.js/schwarzwasser.js/unicorn.js/npc.js Fero-
+// Quest/finale.js). Auf Nachfrage ("sind da wirklich ALLE Achievements
+// dabei, auch Heiligtümer/dunkler Pfad?") um alle weiteren echten
+// Meilensteine ergänzt, die bisher NIE als Titel formuliert waren, sondern
+// nur als Status-Zeile im Startmenü (main.js refreshStatusLines) oder gar
+// nicht sichtbar — der dunkle PFAD selbst bleibt bewusst ausgeschlossen
+// (dunkel.pfad ist über die Läuterung umkehrbar, also kein einmaliger
+// Erfolg), aber das GRIMOIRE-LESEN (dunkel.buch) ist ein permanenter Fakt,
+// der auch nach einer Läuterung bestehen bleibt (dark.js setzt buch nie
+// zurück) und damit doch ein echtes Achievement ist.
+// `earned` liest ausschließlich bereits bestehende save.*-Felder, kein
+// neues Speicherformat nötig.
 const TITLES = [
+  { id: 'hauspokal', icon: '🏆', name: 'Hauspokal-Sieger', desc: 'Den Hauspokal gewinnen (alle Schnätze, Artefakte und Rätsel).', earned: (s) => s.pz?.hauspokal === 1 },
+  { id: 'seelenwaechter', icon: '🏮', name: 'Seelenwächter', desc: 'Die Silberne Seelenlaterne aus dem Nebelmoor bergen.', earned: (s) => s.moor.laterne === 1 },
+  { id: 'meisterDesTodes', icon: '☠️', name: 'Meister des Todes', desc: 'Alle drei Heiligtümer des Todes vereinen.', earned: (s) => s.hallows.stab === 1 && s.hallows.umhang === 1 && s.hallows.stein === 1 },
   { id: 'drache', icon: '🐲', name: 'Drachenbezwinger', desc: 'Den Drachen der Aschenklamm bezwingen.', earned: (s) => s.siegel.drache === 1 },
   { id: 'frost', icon: '🧊', name: 'Frostbezwinger', desc: 'Den Frostriesen der Frostzinnen bezwingen.', earned: (s) => s.siegel.frost === 1 },
   { id: 'hain', icon: '🦄', name: 'Einhornfreund', desc: 'Das Vertrauen des Einhorns im Silberhain gewinnen.', earned: (s) => s.siegel.hain === 1 },
   { id: 'tiefe', icon: '🔱', name: 'Tiefenbezwinger', desc: 'Den versunkenen Tresor in Schwarzwasser öffnen.', earned: (s) => s.siegel.tiefe === 1 },
   { id: 'weltensammler', icon: '🌍', name: 'Weltensammler', desc: 'Alle vier seltenen Zutaten bei Fero eintauschen.', earned: (s) => s.quests.feroSammler === 1 },
   { id: 'vierReiche', icon: '🌟', name: 'Hüter der vier Reiche', desc: 'Das Sternentor durchschreiten.', earned: (s) => s.siegel.finaleWon === 1 },
+  { id: 'animagus', icon: '🐾', name: 'Animagus', desc: 'Die zweite Gestalt erlernen.', earned: (s) => s.animagus.gelernt === 1 },
+  { id: 'grimoire', icon: '📖', name: 'Grimoire-Kenner', desc: 'Das Aschene Grimoire lesen.', earned: (s) => s.dunkel.buch === 1 },
+  { id: 'quidditchAss', icon: '🧹', name: 'Quidditch-Ass', desc: 'Das Ringe-Rennen perfekt meistern.', earned: (s) => s.ace === 1 },
 ];
 
 export function buildMarauderMap(hud, save) {
