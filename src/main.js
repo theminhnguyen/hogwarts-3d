@@ -516,6 +516,9 @@ const buildSteps = [
         hallowsSys: hallows,
         pz: save.pz, moor: save.moor, hallowsSave: save.hallows, siegel: save.siegel,
         lord: save.lord,
+        // Getter statt Schnappschuss (V3, Muster: Schwarzwasser oben):
+        // buildSchattenfeste() läuft lazy beim ersten Wecken.
+        get peaceful() { return creatures.peaceful; },
         onChange: () => { persist(); refreshStatusLines(); },
       },
     });
@@ -733,6 +736,7 @@ btnPeaceful.addEventListener('click', () => {
   // E7: Grindelohs/Schlund respektieren den friedlichen Modus ebenfalls
   // (nur gesetzt, falls die Region schon gebaut wurde — sonst No-Op).
   if (schwarzwasserRegion.handle) schwarzwasserRegion.handle.peaceful = creatures.peaceful;
+  if (schattenfesteRegion.handle) schattenfesteRegion.handle.peaceful = creatures.peaceful;
   btnPeaceful.textContent = `Kreaturen: ${creatures.peaceful ? 'zahm' : 'wild'}`;
   persist();
 });
@@ -1143,11 +1147,16 @@ function frame(dt) {
     // einmal geweckt wurde (RegionManager baut lazy) — davor liefert die
     // Ternary ein leeres Array, kein Platzhalter-Objekt (sonst würde
     // spells.js' `c.alive`-Check auf einem undefined-Feld crashen).
+    // schattenfesteRegion.handle?.lord (V3): der Dunkle Lord selbst UND seine
+    // Phase-2-Dementoren-Beschwörung (lord.dementors, leer außerhalb der
+    // Woge) — Muster identisch zu hallows.king/phantomGhosts oben.
     spells.update(dt, camera, creatures.list.concat(dementors.list).concat(wilderer.list)
       .concat([hallows.king]).concat(hallows.phantomGhosts)
       .concat(aschenklammRegion.handle?.dragon ? [aschenklammRegion.handle.dragon] : [])
       .concat(frostzinnenRegion.handle?.giant ? [frostzinnenRegion.handle.giant] : [])
-      .concat(schwarzwasserRegion.handle?.grindylows || []), fauna.foxes);
+      .concat(schwarzwasserRegion.handle?.grindylows || [])
+      .concat(schattenfesteRegion.handle?.lord ? [schattenfesteRegion.handle.lord] : [])
+      .concat(schattenfesteRegion.handle?.lord?.dementors || []), fauna.foxes);
     // sky.update() läuft weiter unten, aber creatures braucht den Tag/Nacht-
     // Stand vom LETZTEN Frame — nightGlow ändert sich nur sehr langsam
     // (300s/Zyklus), eine Frame Verzögerung ist unmerklich.
@@ -1194,8 +1203,13 @@ function frame(dt) {
       spells.cooldownMul = hallows.elderstabActive ? 0.6 : 1;
     }
     dementors.update(dt, player);
-    player.slowFactor = dementors.frostFactor > 0.5 ? 0.75 : 1;
-    hud.setFrost(dementors.frostFactor);
+    // V3: Phase 2 der Schattenfeste ("Die Woge") speist dieselbe Frost-
+    // Vignette — die Lord-Dementoren haben keine eigene Anzeige, sondern
+    // teilen sich das bestehende --frost-System mit dem Nebelmoor.
+    const lordFrost = schattenfesteRegion.handle?.lord?.frostFactor || 0;
+    const combinedFrost = Math.max(dementors.frostFactor, lordFrost);
+    player.slowFactor = combinedFrost > 0.5 ? 0.75 : 1;
+    hud.setFrost(combinedFrost);
     moor.update(dt, player);
     village.update(dt, player);
     train.update(dt, player);
@@ -1290,7 +1304,12 @@ function frame(dt) {
     const giant = frostzinnenRegion.awake ? frostzinnenRegion.handle?.giant : null;
     const giantBoss = giant && ['aggro', 'telegraph', 'stagger'].includes(giant.state)
       ? giant.hp / giant.maxHp : null;
-    hud.setBoss(trollBoss ?? dragonBoss ?? giantBoss);
+    // V3: Dunkler Lord — bossFrac() liefert je nach Phase Schild-Treffer- oder
+    // Dementoren-Fortschritt (kein hp/maxHp wie die anderen drei, siehe
+    // voldemort.js), `null` außerhalb der aktiven Phasen 1/2.
+    const lord = schattenfesteRegion.awake ? schattenfesteRegion.handle?.lord : null;
+    const lordBoss = lord ? lord.bossFrac : null;
+    hud.setBoss(trollBoss ?? dragonBoss ?? giantBoss ?? lordBoss);
     hud.setMoor(moor.insideFactor(player.pos));
     if (moor.laterneCollected) {
       if (!lanternWasCollected) { lanternWasCollected = true; showLanternWon(); persist(); }

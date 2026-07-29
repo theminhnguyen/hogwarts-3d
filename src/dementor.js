@@ -45,7 +45,13 @@ function angleLerp(from, to, t) {
 }
 
 // ---------- Gemeinsame Dementor-Geometrie (einmal gebaut, von allen geteilt) ----------
-function buildDementorParts(glowTex) {
+// Exportiert (PLAN-DER-DUNKLE-LORD.md V3): voldemort.js braucht dieselbe
+// Geometrie für die 5 arena-gebundenen Dementoren aus Phase 2 — aber NICHT
+// die Dementor-Klasse selbst (deren Leine ist hart an MOOR.x/z gebunden,
+// siehe update() weiter unten, ungeeignet für einen Kampf an der
+// Schattenfeste). Reine Geometrie-Wiederverwendung, eigenständige Verhaltens-
+// Klasse in voldemort.js.
+export function buildDementorParts(glowTex) {
   const cloakGeo = jitter(new THREE.ConeGeometry(0.65, 2.6, 9, 4, true), 0.2, 4200);
   cloakGeo.translate(0, 1.3, 0); // Saum bei y=0, Spitze bei y=2.6
   const hoodGeo = new THREE.SphereGeometry(0.3, 8, 6);

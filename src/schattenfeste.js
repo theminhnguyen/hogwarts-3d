@@ -1,9 +1,9 @@
-// Die Schattenfeste (PLAN-DER-DUNKLE-LORD.md, Meilenstein V2): fünfte und
-// letzte neue Region, Nordosten (Koordinaten + Terrain-Erhebung bereits in
-// V1, siehe terrain.js SCHATTENFESTE-Konstante). Dieser Meilenstein liefert
-// NUR Turm, Ruinen-Arena, Ward-Barriere (hartes Fortschritts-Gate) und den
-// Prüfstein (weiche Buff-Checkliste) — der eigentliche Endboss folgt erst
-// in V3/V4.
+// Die Schattenfeste (PLAN-DER-DUNKLE-LORD.md): fünfte und letzte neue
+// Region, Nordosten (Koordinaten + Terrain-Erhebung bereits in V1, siehe
+// terrain.js SCHATTENFESTE-Konstante). V2 lieferte Turm, Ruinen-Arena,
+// Ward-Barriere (hartes Fortschritts-Gate) und den Prüfstein (weiche
+// Buff-Checkliste). V3 (dieser Stand) ergänzt den eigentlichen Endboss
+// (voldemort.js) mit Phase 1+2 — Phasen 3-5 folgen in V4.
 //
 // Bewusst KEINE unsichtbare Barriere (Lehre aus dem Grimoire-/Läuterungs-
 // Bugfix in dieser Session: ein Blocker ohne sichtbares Gegenstück wirkt wie
@@ -14,6 +14,7 @@ import * as THREE from 'three';
 import { terrainHeight, SCHATTENFESTE } from './terrain.js';
 import { GeoBatch, addBoxBlocker } from './geo.js';
 import { getMaterials } from './materials.js';
+import { DunklerLord } from './voldemort.js';
 
 const C = { x: SCHATTENFESTE.x, z: SCHATTENFESTE.z };
 const ARENA_R = 16;
@@ -128,6 +129,17 @@ function hardGateMet(pz, moor, hallowsSave, siegel) {
 export function buildSchattenfeste(root, deps) {
   const { glowTex, hud, audio, fx, interact, spells, hallowsSys, health, pz, moor, hallowsSave, siegel, lord, onChange } = deps;
 
+  // V3: eigenes System-Shim für den Endboss (Muster: hallows.js' `system` für
+  // PaleKing) — `peaceful` wird EINMALIG aus dem Getter in deps übernommen
+  // (buildSchattenfeste läuft lazy beim ersten Wecken, siehe schwarzwasser.js-
+  // Präzedenzfall), spätere Umschaltungen laufen über die peaceful-Property
+  // am zurückgegebenen Handle unten.
+  const lordSystem = { scene: root, fx, audio, hud, health, peaceful: !!deps.peaceful, time: 0 };
+  const dunklerLord = new DunklerLord(lordSystem, glowTex, C, ARENA_R);
+  dunklerLord.onPhaseReached = (n) => {
+    if (n > (lord.phaseMax || 0)) { lord.phaseMax = n; onChange?.(); }
+  };
+
   const batch = new GeoBatch();
   const tower = buildTower(batch);
   buildArenaRing(batch);
@@ -209,7 +221,26 @@ export function buildSchattenfeste(root, deps) {
           onChange?.();
         }
       }
+      // V3: der Kampf beginnt, sobald das Tor offen ist UND der Spieler die
+      // Arena betritt — kein Auto-Trigger von außerhalb (Muster: PaleKing
+      // triggert per Mitternacht, hier per Betreten, da die Ward das
+      // "verfrühte Betreten" bereits verhindert hat).
+      if (gateOpen && dunklerLord.state === 'sealed') {
+        const dx = player.pos.x - C.x, dz = player.pos.z - C.z;
+        if (dx * dx + dz * dz < ARENA_R * ARENA_R) {
+          lord.versuche = (lord.versuche || 0) + 1;
+          onChange?.();
+          dunklerLord.rise();
+        }
+      }
+      dunklerLord.update(dt, player);
     },
-    restore() { applySavedState(); },
+    restore() {
+      applySavedState();
+      dunklerLord.reset();
+    },
+    lord: dunklerLord,
+    get peaceful() { return lordSystem.peaceful; },
+    set peaceful(v) { lordSystem.peaceful = v; },
   };
 }
