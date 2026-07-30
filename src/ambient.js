@@ -12,11 +12,14 @@
 // nichts teilen: die Drachen-Silhouette (E9) über der Aschenklamm, dazu seit
 // E11 der Eisgipfel (Frostzinnen), der Silberbaum (Silberhain) und das
 // Leuchtturm-Leuchtfeuer (Schwarzwasser) — je eine der 4 neuen Regionen.
+// V7 (PLAN-DER-DUNKLE-LORD.md): dazu der Dunkle Turm über der Schattenfeste,
+// reines Foreshadowing — sichtbar von Spielbeginn an, lange bevor die Region
+// überhaupt betretbar ist.
 
 import * as THREE from 'three';
 import {
   terrainHeight, LAKE, SCHWARZWASSER, SILBERAUEN, FAHLHOLZ, KATE, ASCHENKLAMM,
-  FROSTZINNEN, SILBERHAIN, WATER_LEVEL, PATHS,
+  FROSTZINNEN, SILBERHAIN, SCHATTENFESTE, WATER_LEVEL, PATHS,
 } from './terrain.js';
 import { GeoBatch } from './geo.js';
 import { getMaterials } from './materials.js';
@@ -24,6 +27,7 @@ import { buildFigure, animateFigure } from './npc.js';
 import {
   makeDragonSilhouetteTexture, makeIcePeakSilhouetteTexture,
   makeSilverTreeSilhouetteTexture, makeLighthouseSilhouetteTexture,
+  makeDarkTowerSilhouetteTexture,
 } from './textures.js';
 import { mulberry32 } from './noise.js';
 
@@ -382,11 +386,19 @@ const SIL_DIST = 800;
 const ICE_PEAK_CENTER = bearingCenter(FROSTZINNEN, SIL_DIST, 170);
 const SILVER_TREE_CENTER = bearingCenter(SILBERHAIN, SIL_DIST, 85);
 const LIGHTHOUSE_CENTER = bearingCenter(SCHWARZWASSER, SIL_DIST, 55);
+// V7: der Turm ragt hoch auf (y=210) — höher als die übrigen 3 Landmarken,
+// passend zu seiner Rolle als bedrohlichster Punkt am Horizont.
+const DARK_TOWER_CENTER = bearingCenter(SCHATTENFESTE, SIL_DIST, 210);
 
-function buildPulsingSilhouette(scene, texture, center, scale, baseOpacity, pulseAmp, pulseSpeed) {
+// `additive` steuert die Blend-Art: die 3 ursprünglichen E11-Landmarken sind
+// helle, "glühende" Ziele (Additive passt, schwarz+additiv wäre unsichtbar),
+// der Dunkle Turm (V7) ist ein reiner dunkler Schattenriss und braucht daher
+// normales Alpha-Blending (Muster: buildDragonSilhouette oben).
+function buildPulsingSilhouette(scene, texture, center, scale, baseOpacity, pulseAmp, pulseSpeed, additive = true) {
   const mat = new THREE.SpriteMaterial({
     map: texture, transparent: true, opacity: baseOpacity,
-    blending: THREE.AdditiveBlending, depthWrite: false, depthTest: false, fog: false,
+    blending: additive ? THREE.AdditiveBlending : THREE.NormalBlending,
+    depthWrite: false, depthTest: false, fog: false,
   });
   const sprite = new THREE.Sprite(mat);
   sprite.scale.set(scale, scale, 1);
@@ -406,6 +418,9 @@ function buildSilverTreeSilhouette(scene) {
 function buildLighthouseSilhouette(scene) {
   return buildPulsingSilhouette(scene, makeLighthouseSilhouetteTexture(), LIGHTHOUSE_CENTER, 90, 0.6, 0.3, 1.1);
 }
+function buildDarkTowerSilhouette(scene) {
+  return buildPulsingSilhouette(scene, makeDarkTowerSilhouetteTexture(), DARK_TOWER_CENTER, 200, 0.82, 0.06, 0.22, false);
+}
 
 // ============================================================ Aufbau ============
 export function buildAmbient(scene) {
@@ -417,6 +432,7 @@ export function buildAmbient(scene) {
   const icePeakSil = buildIcePeakSilhouette(scene);
   const silverTreeSil = buildSilverTreeSilhouette(scene);
   const lighthouseSil = buildLighthouseSilhouette(scene);
+  const darkTowerSil = buildDarkTowerSilhouette(scene);
   let time = 0;
 
   return {
@@ -430,6 +446,7 @@ export function buildAmbient(scene) {
       icePeakSil.update(time);
       silverTreeSil.update(time);
       lighthouseSil.update(time);
+      darkTowerSil.update(time);
     },
   };
 }

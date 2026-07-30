@@ -733,6 +733,15 @@ export function buildNpcs(scene, glowTex, hud, audio, fx, health, interact, deps
     { cond: () => deps.siegel?.frost !== 1, line: 'Hoch im eisigen Norden sollen zerklüftete Zinnen liegen, die ein Riese bewacht.' },
     { cond: () => deps.siegel?.hain !== 1, line: 'Im Silberhain tief im Südwesten soll ein scheues Einhorn zwischen silbernen Bäumen wandeln.' },
     { cond: () => deps.siegel?.tiefe !== 1, line: 'Im Schwarzwasser weit im Westen soll unter der Oberfläche etwas Riesiges lauern, das noch niemand ganz gesehen hat.' },
+    // V7 (PLAN-DER-DUNKLE-LORD.md): Foreshadowing für die Schattenfeste,
+    // gestaffelt in zwei Zeilen. Die erste ist IMMER aktiv (kein cond-Gate,
+    // reines Deko-Gerücht ab Spielbeginn — Muster: die 4 Regions-Gerüchte
+    // oben nutzen ein Gate, weil sie zur Erkundung anstoßen sollen; dieses
+    // hier ist reine Atmosphäre und bräuchte keins). Die zweite ersetzt die
+    // erste erst, sobald das Sternentor durchschritten ist (siegel.finaleWon)
+    // — an diesem Punkt weiß der Spieler ohnehin schon von der Bedrohung.
+    { cond: () => deps.siegel?.finaleWon !== 1, line: 'Im Nordosten steht ein Turm, den keiner gebaut hat.' },
+    { cond: () => deps.siegel?.finaleWon === 1, line: 'Seit das Sternentor offen ist, brennt im Nordosten ein grünes Licht.' },
   ];
   const GERUECHTE_FALLBACK = [
     'Die Hauselfen sollen heute Nacht Kürbiskuchen gebacken haben.',
@@ -942,10 +951,34 @@ export function buildNpcs(scene, glowTex, hud, audio, fx, health, interact, deps
     x: GEIST_POS.x, z: GEIST_POS.z, r: 3, prompt: 'E — Mit dem Schlossgeist sprechen',
     onInteract: () => {
       const lines = [];
+      // V7 (PLAN-DER-DUNKLE-LORD.md): HÖCHSTE Priorität von allen Zweigen —
+      // greift erst, wenn das harte Gate der Schattenfeste erfüllt ist
+      // (gespiegelt aus schattenfeste.js' hardGateMet()/progress.js' gleich-
+      // namigem Zweig, hier ein drittes Mal dupliziert statt importiert, weil
+      // die hiesigen deps-Objekte andere Formen haben: deps.puzzles.finaleWon/
+      // deps.moor.laterneCollected sind Laufzeit-Getter, kein rohes pz/moor).
+      // Warnt NAMENTLICH ("Der Dunkle Lord") und listet die fehlenden Buffs
+      // aus genau derselben Checkliste wie der Prüfstein selbst.
+      const lordGateMet = deps.puzzles.finaleWon && deps.moor.laterneCollected
+        && deps.hallows?.stab === 1 && deps.hallows?.umhang === 1 && deps.hallows?.stein === 1
+        && deps.siegel?.finaleWon === 1;
+      if (lordGateMet && deps.lord?.besiegt !== 1) {
+        lines.push('Der Dunkle Lord ist erwacht. In der Schattenfeste, ganz im Nordosten, wartet er auf dich.');
+        const missing = [];
+        if (!deps.spells.eisblitzUnlocked) missing.push('den Eisblitz');
+        if (!deps.spells.epUnlocked) missing.push('Expecto Patronum');
+        if (!deps.hallowsSys?.umhangActive) missing.push('den angelegten Umhang');
+        if (!deps.hallowsSys?.steinActive) missing.push('den angelegten Stein');
+        if (!deps.hallowsSys?.elderstabActive) missing.push('den angelegten Elderstab');
+        if (health.hearts < health.maxHearts) missing.push('volle Herzen');
+        lines.push(missing.length
+          ? `Noch fehlt dir: ${missing.join(', ')}.`
+          : 'Du bist bereit — nichts hält dich noch zurück.');
+      }
       // S10: höchste Priorität, sobald freigeschaltet (Hauspokal+Laterne) —
       // zu diesem Zeitpunkt sind die Bedingungen der übrigen Zweige ohnehin
       // schon erfüllt (Hauspokal braucht 12/12 Schnätze + alle Artefakte).
-      if (deps.puzzles.finaleWon && deps.moor.laterneCollected
+      else if (deps.puzzles.finaleWon && deps.moor.laterneCollected
         && !(deps.hallows.stab && deps.hallows.umhang && deps.hallows.stein)) {
         lines.push('Ich spüre es noch immer — drei Dinge, die der Tod einst verlor, liegen verstreut in dieser Welt…');
         if (!deps.hallows.stab) {

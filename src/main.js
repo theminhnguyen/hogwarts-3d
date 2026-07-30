@@ -255,7 +255,11 @@ const buildSteps = [
       leuchtkraeuter: structures.leuchtkraeuter,
       train, economy, heim: save.heim, mounts: save.mounts, dunkel: save.dunkel,
       begleiter: save.begleiter, hallows: save.hallows, animagus: save.animagus,
-      wild: save.wild, siegel: save.siegel,
+      wild: save.wild, siegel: save.siegel, lord: save.lord,
+      // V7: Live-Getter statt direkter Referenz — der 'NPCs & Quests'-Build-
+      // Step läuft VOR 'Heiligtümer', `hallows` (die hallowsSys-Instanz) ist
+      // an dieser Stelle noch undefined und wird erst später zugewiesen.
+      get hallowsSys() { return hallows; },
     });
     npc.restore(save.quests);
     npc.onQuestChange = () => persist();

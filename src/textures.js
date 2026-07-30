@@ -396,6 +396,32 @@ export function makeSilverTreeSilhouetteTexture() {
   return finish(c, { repeat: false });
 }
 
+// ---------- Ferner Dunkler Turm (V7, PLAN-DER-DUNKLE-LORD.md 6) ----------
+// Fern-Landmarke für die Schattenfeste — anders als die anderen 4 Fern-
+// Silhouetten bewusst reiner Schattenriss OHNE additives Glühen (Muster:
+// die Drachen-Silhouette): der Turm soll düster wirken, nicht leuchtend.
+// Gezackte, unregelmäßig abgebrochene Turmspitze (verkohlt/zerstört, wie
+// der echte Turm in schattenfeste.js beschrieben ist).
+export function makeDarkTowerSilhouetteTexture() {
+  const S = 256;
+  const [c, ctx] = canvas(S);
+  ctx.clearRect(0, 0, S, S);
+  ctx.fillStyle = 'rgba(8,6,12,0.92)';
+  ctx.beginPath();
+  ctx.moveTo(S * 0.4, S * 0.92);
+  ctx.lineTo(S * 0.39, S * 0.32);
+  ctx.lineTo(S * 0.43, S * 0.24);
+  ctx.lineTo(S * 0.46, S * 0.3);
+  ctx.lineTo(S * 0.5, S * 0.12);
+  ctx.lineTo(S * 0.54, S * 0.28);
+  ctx.lineTo(S * 0.58, S * 0.2);
+  ctx.lineTo(S * 0.61, S * 0.32);
+  ctx.lineTo(S * 0.6, S * 0.92);
+  ctx.closePath();
+  ctx.fill();
+  return finish(c, { repeat: false });
+}
+
 // ---------- Ferner Leuchtturm (E11, PLAN-EPISCHE-WELT.md 6.6) ----------
 // Fern-Landmarke für Schwarzwasser — Turm-Silhouette + Leuchtfeuer-Punkt
 // (Farbe fff2c0 gespiegelt aus dem echten Leuchtturm in schwarzwasser.js).
