@@ -2,8 +2,9 @@
 // Region, Nordosten (Koordinaten + Terrain-Erhebung bereits in V1, siehe
 // terrain.js SCHATTENFESTE-Konstante). V2 lieferte Turm, Ruinen-Arena,
 // Ward-Barriere (hartes Fortschritts-Gate) und den Prüfstein (weiche
-// Buff-Checkliste). V3 (dieser Stand) ergänzt den eigentlichen Endboss
-// (voldemort.js) mit Phase 1+2 — Phasen 3-5 folgen in V4.
+// Buff-Checkliste). V3 ergänzte den Endboss (voldemort.js) mit Phase 1+2.
+// V4 (dieser Stand) ergänzt Phasen 3-5 + Verbannungs-Logik — Belohnung/
+// Titel/Atmosphäre-Feuerwerk nach dem Sieg folgen bewusst erst in V5/V6.
 //
 // Bewusst KEINE unsichtbare Barriere (Lehre aus dem Grimoire-/Läuterungs-
 // Bugfix in dieser Session: ein Blocker ohne sichtbares Gegenstück wirkt wie
@@ -134,10 +135,28 @@ export function buildSchattenfeste(root, deps) {
   // (buildSchattenfeste läuft lazy beim ersten Wecken, siehe schwarzwasser.js-
   // Präzedenzfall), spätere Umschaltungen laufen über die peaceful-Property
   // am zurückgegebenen Handle unten.
-  const lordSystem = { scene: root, fx, audio, hud, health, peaceful: !!deps.peaceful, time: 0 };
+  // hallowsSys/hallowsSave (V4): Phase 4 braucht beide für die steinCd-
+  // Warnung ("Stein heute schon verbraucht") — dieselben Referenzen, die
+  // checklistLines() oben schon nutzt, hier nur zusätzlich ins System-Shim
+  // durchgereicht.
+  const lordSystem = {
+    scene: root, fx, audio, hud, health, peaceful: !!deps.peaceful, time: 0,
+    hallowsSys, hallowsSave,
+  };
   const dunklerLord = new DunklerLord(lordSystem, glowTex, C, ARENA_R);
   dunklerLord.onPhaseReached = (n) => {
     if (n > (lord.phaseMax || 0)) { lord.phaseMax = n; onChange?.(); }
+  };
+  // V4: Sieg-Persistenz — nur `besiegt` selbst (V4 macht den Sieg über-
+  // haupt feststellbar/testbar). Gold/Ruf-Belohnung, Titel (marauders-map)
+  // und das Atmosphäre-Feuerwerk sind eigene, spätere Meilensteine (V5/V6
+  // im Plan) und bewusst NICHT hier mit hineingezogen.
+  dunklerLord.onDefeated = () => {
+    if (lord.besiegt !== 1) {
+      lord.besiegt = 1;
+      onChange?.();
+      hud.showToast('🖤 Der Dunkle Lord ist besiegt.', 5);
+    }
   };
 
   const batch = new GeoBatch();

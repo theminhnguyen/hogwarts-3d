@@ -1,13 +1,35 @@
-// Der Dunkle Lord (PLAN-DER-DUNKLE-LORD.md, Meilenstein V3): letzter Endboss
-// in der Schattenfeste. FSM nach dem PaleKing-Muster (hallows.js) — sealed→
-// rising→(Phasen)→gone, applyHit(), Arena-Leine, kein neues Kernsystem.
+// Der Dunkle Lord (PLAN-DER-DUNKLE-LORD.md): letzter Endboss in der
+// Schattenfeste. FSM nach dem PaleKing-Muster (hallows.js) — sealed→rising→
+// (Phasen 1-5)→gone, applyHit(), Arena-Leine, kein neues Kernsystem.
 //
-// V3 liefert Phase 1 ("Der Schild aus schwarzem Feuer" — nur Eisblitz
-// durchdringt ihn, 3 Treffer zersplittern den Schild) und Phase 2 ("Die
-// Woge" — 5 arena-gebundene Dementoren, nur Expecto Patronum vertreibt sie).
-// Phasen 3-5 (Umhang/Blickrichtung, Avada/Stein, Elderstab-Duell) folgen in
-// V4 — bis dahin idlet der Lord nach Phase 2 unverwundbar im Zustand
-// 'p3_locked' (kein Softlock: der Rückzugs-Reset unten bleibt aktiv).
+// V3 lieferte Phase 1 ("Der Schild aus schwarzem Feuer" — nur Eisblitz
+// durchdringt ihn) und Phase 2 ("Die Woge" — 5 arena-gebundene Dementoren,
+// nur Expecto Patronum vertreibt sie).
+// V4 (dieser Stand) ergänzt:
+//  - Phase 3 "Der Blick, dem nichts entgeht" (Umhang der Unsichtbarkeit):
+//    der Lord verfolgt den Spieler mit dem Blick und reflektiert jeden
+//    Treffer von vorn (halber Schaden auf den Spieler zurück) — nur
+//    unsichtbar (player.invisible) verliert er die Spur, dann zählt ein
+//    Treffer von hinten (>100° zur Blickrichtung) echt.
+//  - Phase 4 "Avada Kedavra" (Stein der Wiederkehr): langer Telegraph (2.5s),
+//    dann ein unausweichlicher health.damage() auf 0 — health.onLethalHit
+//    ist bereits der bestehende Haken, an dem hallows.js die Wiederbelebung
+//    hängt (kein neuer Code für die Rettung nötig). Warnt vorher, falls der
+//    Stein heute schon verbraucht ist.
+//  - Phase 5 "Das Duell der Stäbe" (Elderstab): letzte HP-Leiste mit
+//    Regeneration — ohne Elderstab reicht der DPS rechnerisch nicht (siehe
+//    Plan Abschnitt 8), mit Elderstab schon. Kein neuer Angriff des Lords
+//    hier, die Leiste selbst ist die Rückmeldung.
+//  - Verbannungs-Sicherheitsnetz: 90s ohne Fortschritt in Phase 1/2/3
+//    (den Phasen, in denen ganz ohne den richtigen Buff nichts passiert)
+//    verbannt den Spieler statt ihn ewig festzuhalten — Weißblende, Teleport
+//    zum Schloss, Dialog mit dem fehlenden Buff. Phase 4 ist zeitlich
+//    begrenzt (immer auflösend), Phase 5 hat mit der kriechenden Leiste
+//    bereits ihre eigene Rückmeldung (siehe Plan) — beide brauchen die
+//    Verbannung nicht.
+// Belohnung (Gold/Ruf), Titel und Atmosphäre-Feuerwerk nach dem Sieg folgen
+// bewusst erst in V5/V6 (eigene Meilensteine im Plan) — V4 setzt nur
+// `lord.besiegt`, damit der Sieg überhaupt feststellbar/testbar ist.
 import * as THREE from 'three';
 import { terrainHeight } from './terrain.js';
 import { buildFigure } from './npc.js';
@@ -27,11 +49,37 @@ const FROST_DECAY = 0.5;
 const DRAIN_AMOUNT = 0.5;
 const DRAIN_INTERVAL = 2;
 const RETREAT_LEASH_EXTRA = 25; // Sicherheitsnetz: so weit über ARENA_R hinaus bricht der Versuch sauber ab
+const PHASE3_HITS_NEEDED = 3;
+const REFLECT_DAMAGE_FRAC = 0.5; // "halber Schaden auf den Spieler" (Plan Abschnitt 4, Phase 3)
+const BEHIND_ANGLE_DEG = 100; // Plan: "Winkel > 100° zur Blickrichtung"
+const PHASE4_TELEGRAPH_DUR = 2.5;
+const PHASE5_HP = 60;
+// "Kernwert" laut Plan Abschnitt 8 (dort mit der vollen DPS-Rechnung belegt:
+// ohne Elderstab ≈1.55 DPS -> Netto ≈+0.05, mit Elderstab ≈5.19 DPS -> Netto
+// ≈3.69). Der Fließtext in Abschnitt 4 nennt abweichend 0.9 — das ist ein
+// Plan-interner Widerspruch, hier bewusst der Wert aus der belegten
+// Rechnung übernommen. V8 verifiziert das empirisch am echten Spielverhalten.
+const PHASE5_REGEN = 1.5;
+const STALL_BANISH_AFTER = 90; // Plan: "Wenn Buffs fehlen: die Verbannung"
+const BANISH_TELEPORT = { x: 0, z: 30, yaw: Math.PI }; // Muster: health.js TUNING.respawnPos (Schlosshof)
+const BANISH_FADE_DUR = 1.0;
 
 function angleLerp(from, to, t) {
   let diff = ((to - from + Math.PI) % (Math.PI * 2)) - Math.PI;
   if (diff < -Math.PI) diff += Math.PI * 2;
   return from + diff * t;
+}
+
+// Gemeinsame Schadenstabelle für Phase 3 (Reflexion) und Phase 5 (Duell) —
+// Muster: Ghost/Troll/fauna.js/npc.js. avada ist bewusst KEIN Instakill
+// (Boss-Ausnahme wie beim Troll) — sonst würde ein einziger verbotener
+// Fluch die ganze Phase trivialisieren (und thematisch: Voldemort überlebt
+// Avada Kedavra ohnehin, das ist buchstäblich seine Vorgeschichte).
+function lordDamage(spellId) {
+  return spellId === 'avada' ? 4
+    : spellId === 'incendio' ? 2
+    : spellId === 'crucio' ? 0.25
+    : (spellId === 'stupor' || spellId === 'kick' || spellId === 'claw') ? 1 : 0;
 }
 
 // ---------- Phase 2: eigenständige, arena-gebundene Beschwörung ----------
@@ -148,10 +196,11 @@ export class DunklerLord {
   constructor(system, glowTex, arenaCenter, arenaR) {
     this.system = system;
     this.species = 'dunklerlord';
-    this.alive = false; // erst in Phase 1 ('p1') ein gültiges Spruchziel (Muster: PaleKing)
+    this.alive = false; // erst ab Phase 1 ein gültiges Spruchziel (Muster: PaleKing)
     this.radius = 0.6;
     this.hitY = 1.6; // buildFigure()-Kopf bei lokal y=1.28, ×1.25 Skalierung ≈ 1.6
-    this.state = 'sealed'; // sealed|rising|p1|p1_break|p2_summon|p2_wait|p3_locked|gone
+    // sealed|rising|p1|p1_break|p2_summon|p2_wait|p3|p4_telegraph|p4_resolve|p5|banished|gone
+    this.state = 'sealed';
     this.stateT = 0;
     this.arenaCenter = arenaCenter;
     this.arenaR = arenaR;
@@ -159,11 +208,20 @@ export class DunklerLord {
     this.phase1Hits = 0;
     this.phase1StallT = 0;
     this.phase1ToastShown = false;
+    this.phase2StallT = 0;
+    this._p2LastRemaining = PHASE2_COUNT;
+    this.phase3Hits = 0;
+    this.phase3StallT = 0;
+    this.hp = PHASE5_HP;
+    this.maxHp = PHASE5_HP;
+    this.banishFadeT = 0;
+    this.lastPlayer = null; // für applyHit() außerhalb von update() (Phase 3 Winkel-Check)
     this.dementors = [];
     this.dementorParts = buildDementorParts(glowTex);
     this.frostFactor = 0;
     this._drainTimer = 0;
     this.onPhaseReached = null; // schattenfeste.js hängt hier lord.phaseMax-Persistenz ein
+    this.onDefeated = null; // schattenfeste.js hängt hier lord.besiegt-Persistenz ein
 
     const fig = buildFigure(0x120a18, 0x000000, 0x0d0810, null, true, 0);
     for (const m of fig.mats) m.opacity = 1;
@@ -194,20 +252,31 @@ export class DunklerLord {
     this.shield.position.y = 1.0;
     this.group.add(this.shield);
 
+    // Phase 4: grüner Lichtkegel-Telegraph vor dem unausweichlichen Fluch.
+    this.telegraphMat = new THREE.SpriteMaterial({
+      map: glowTex, color: 0x2ecc40, transparent: true, opacity: 0,
+      blending: THREE.AdditiveBlending, depthWrite: false,
+    });
+    this.telegraph = new THREE.Sprite(this.telegraphMat);
+    this.telegraph.scale.setScalar(1);
+    this.telegraph.position.y = 1.3;
+    this.group.add(this.telegraph);
+
     system.scene.add(this.group);
   }
 
-  // hud.setBoss() erwartet 0..1 (oder null für "keine Bossbar") — anders als
-  // Troll/Drache/Frostriese hat der Lord in V3 kein kontinuierliches hp/maxHp,
-  // sondern zählt Schild-Treffer (Phase 1) bzw. verbliebene Dementoren
-  // (Phase 2). Phase 5 (V4) bekommt echtes hp/maxHp für die DPS-Rechnung aus
-  // dem Plan — dann wird dieser Getter entsprechend erweitert.
+  // hud.setBoss() erwartet 0..1 (oder null für "keine Bossbar"). Phase 1
+  // zählt Schild-Treffer, Phase 2 verbliebene Dementoren, Phase 3 Treffer
+  // von hinten, Phase 5 echtes hp/maxHp (die einzige Phase mit kontinuier-
+  // licher HP-Leiste, siehe Plan-Design "die Leiste ist die Rückmeldung").
   get bossFrac() {
     if (this.state === 'p1') return Math.max(0, 1 - this.phase1Hits / PHASE1_HITS_NEEDED);
     if (this.state === 'p2_summon' || this.state === 'p2_wait') {
       const remaining = this.dementors.filter(d => d.state === 'active').length;
       return Math.max(0, remaining / PHASE2_COUNT);
     }
+    if (this.state === 'p3') return Math.max(0, 1 - this.phase3Hits / PHASE3_HITS_NEEDED);
+    if (this.state === 'p5') return Math.max(0, this.hp / this.maxHp);
     return null;
   }
 
@@ -226,37 +295,82 @@ export class DunklerLord {
     this.onPhaseReached?.(1);
   }
 
-  // Nur Eisblitz durchdringt den Schild — alles andere verpufft sichtbar
-  // (Muster: Dementor.applyHit()). spells.js ruft dies nur auf, solange
-  // this.alive === true (State 'p1'), sonst filtert bereits der Bolzen-
-  // Kollisions-Check in spells.js jeden Treffer heraus.
-  applyHit(spellId) {
-    if (this.state !== 'p1') return true;
-    if (spellId !== 'eisblitz') {
+  applyHit(spellId, _boltVel, dmgMul = 1) {
+    // ---------- Phase 1: nur Eisblitz durchdringt den Schild ----------
+    if (this.state === 'p1') {
+      if (spellId !== 'eisblitz') {
+        this.system.fx.burst(
+          { x: this.pos.x, y: this.pos.y + this.hitY, z: this.pos.z },
+          0x2a1030, 8, 2, { gravity: -2, life: 0.4 },
+        );
+        this.system.audio?.spellFizzle?.();
+        return true;
+      }
+      this.phase1Hits++;
+      this.phase1StallT = 0;
       this.system.fx.burst(
         { x: this.pos.x, y: this.pos.y + this.hitY, z: this.pos.z },
-        0x2a1030, 8, 2, { gravity: -2, life: 0.4 },
+        0x9fe0ff, 16, 3, { gravity: -2, life: 0.5 },
       );
+      this.system.audio?.lordShieldCrack?.();
+      if (this.phase1Hits >= PHASE1_HITS_NEEDED) {
+        this.state = 'p1_break';
+        this.stateT = 0;
+        this.system.audio?.lordShieldBreak?.();
+        this.system.fx.burst(
+          { x: this.pos.x, y: this.pos.y + this.hitY, z: this.pos.z },
+          0xcfe8ff, 40, 5, { gravity: -1, life: 1.0 },
+        );
+      }
+      return false; // normaler Bolzen-Einschlag bleibt zusätzlich sichtbar
+    }
+
+    // ---------- Phase 3: Reflexion von vorn, echter Treffer von hinten ----------
+    if (this.state === 'p3') {
+      const dmg = lordDamage(spellId);
+      if (dmg <= 0) return true;
+      const player = this.lastPlayer;
+      const dx = player.pos.x - this.pos.x, dz = player.pos.z - this.pos.z;
+      const d = Math.hypot(dx, dz) || 1;
+      const angleToPlayer = Math.atan2(dx, dz);
+      const diffDeg = Math.abs(((angleToPlayer - this.group.rotation.y + Math.PI) % (Math.PI * 2)) - Math.PI) * 180 / Math.PI;
+      if (diffDeg > BEHIND_ANGLE_DEG) {
+        this.phase3Hits++;
+        this.phase3StallT = 0;
+        this.system.fx.burst(
+          { x: this.pos.x, y: this.pos.y + this.hitY, z: this.pos.z },
+          0x9fe0ff, 16, 3, { gravity: -2, life: 0.5 },
+        );
+        this.system.audio?.lordShieldCrack?.();
+        if (this.phase3Hits >= PHASE3_HITS_NEEDED) this._startPhase4();
+        return false;
+      }
+      // Von vorn getroffen: der Fluch wird reflektiert, halber Schaden trifft
+      // den Spieler statt den Lord (Plan Abschnitt 4, Phase 3).
+      if (!this.system.peaceful) {
+        const dirX = dx / d, dirZ = dz / d;
+        this.system.health.damage(dmg * dmgMul * REFLECT_DAMAGE_FRAC, { x: dirX, y: 0, z: dirZ });
+      }
+      this.system.fx.burst({ x: player.pos.x, y: player.pos.y + 1, z: player.pos.z }, 0x9a1030, 10, 2.5, { gravity: -1, life: 0.4 });
       this.system.audio?.spellFizzle?.();
-      return true;
+      return true; // unterdrückt den (falschen) Einschlag-Effekt am Lord selbst
     }
-    this.phase1Hits++;
-    this.phase1StallT = 0;
-    this.system.fx.burst(
-      { x: this.pos.x, y: this.pos.y + this.hitY, z: this.pos.z },
-      0x9fe0ff, 16, 3, { gravity: -2, life: 0.5 },
-    );
-    this.system.audio?.lordShieldCrack?.();
-    if (this.phase1Hits >= PHASE1_HITS_NEEDED) {
-      this.state = 'p1_break';
-      this.stateT = 0;
-      this.system.audio?.lordShieldBreak?.();
+
+    // ---------- Phase 5: reguläres Duell (HP + Regeneration) ----------
+    if (this.state === 'p5') {
+      const dmg = lordDamage(spellId);
+      if (dmg <= 0) return false;
+      this.hp -= dmg * dmgMul;
       this.system.fx.burst(
         { x: this.pos.x, y: this.pos.y + this.hitY, z: this.pos.z },
-        0xcfe8ff, 40, 5, { gravity: -1, life: 1.0 },
+        0x9fe0ff, 14, 3, { gravity: -2, life: 0.5 },
       );
+      this.system.audio?.lordShieldCrack?.();
+      if (this.hp <= 0) this._defeat();
+      return false;
     }
-    return false; // normaler Bolzen-Einschlag bleibt zusätzlich sichtbar
+
+    return true; // alle anderen Zustände: alive=false, spells.js ruft dies ohnehin nie auf
   }
 
   _startPhase2() {
@@ -270,15 +384,102 @@ export class DunklerLord {
     }
     this.frostFactor = 0;
     this._drainTimer = 0;
+    this.phase2StallT = 0;
+    this._p2LastRemaining = PHASE2_COUNT;
     this.system.audio?.lordSummon?.();
     this.system.hud?.showToast('👻 Der Dunkle Lord beschwört eine Woge aus Dementoren!', 3.5);
     this.onPhaseReached?.(2);
   }
 
+  _startPhase3() {
+    this.phase = 3;
+    this.state = 'p3';
+    this.stateT = 0;
+    this.alive = true; // wieder ein gültiges Spruchziel (Reflexion/Treffer von hinten)
+    this.phase3Hits = 0;
+    this.phase3StallT = 0;
+    this.frostFactor = 0;
+    this.system.hud?.showToast('🖤 „Beeindruckend … aber das war erst der Anfang." Der Dunkle Lord lässt kurz von dir ab.', 4);
+    this.onPhaseReached?.(3);
+  }
+
+  _startPhase4() {
+    this.phase = 4;
+    this.state = 'p4_telegraph';
+    this.stateT = 0;
+    this.alive = false; // während des Telegraphs/Fluchs unverwundbar
+    this._p4Judged = false; // s. p4_resolve: verhindert Mehrfachauswertung von health.dead
+    const steinOnCooldown = this.system.hallowsSys?.steinActive && (this.system.hallowsSave?.steinCd || 0) > 0;
+    if (steinOnCooldown) {
+      this.system.hud?.showToast('💎 Der Stein ist heute schon verbraucht — kein Netz diesmal.', 4.5);
+    }
+    this.system.audio?.lordAvadaCharge?.();
+    this.onPhaseReached?.(4);
+  }
+
+  _castAvada(player) {
+    this.system.fx.burst({ x: player.pos.x, y: player.pos.y + 1, z: player.pos.z }, 0x2ecc40, 30, 3, { gravity: -1, life: 0.8 });
+    if (!this.system.peaceful) {
+      // Genug Schaden, um IMMER auf 0 zu gehen (health.js klemmt hearts nie
+      // über effectiveMaxHearts) — health.onLethalHit ist bereits der Haken,
+      // an dem hallows.js den Stein der Wiederkehr einhängt (kein neuer Code
+      // für die Rettung nötig, siehe Plan).
+      this.system.health.damage(this.system.health.effectiveMaxHearts, null);
+    }
+  }
+
+  _startPhase5() {
+    this.phase = 5;
+    this.state = 'p5';
+    this.stateT = 0;
+    this.alive = true;
+    this.hp = PHASE5_HP;
+    this.maxHp = PHASE5_HP;
+    this.system.hud?.showToast('😨 „Das … das hätte nicht geschehen dürfen." Der Dunkle Lord ist einen Moment fassungslos.', 4.5);
+    this.system.audio?.lordShieldBreak?.();
+    this.onPhaseReached?.(5);
+  }
+
+  _defeat() {
+    this.state = 'gone';
+    this.alive = false;
+    this.hp = 0;
+    this.group.visible = false;
+    this.system.audio?.lordDefeat?.();
+    this.system.fx.burst({ x: this.pos.x, y: this.pos.y + this.hitY, z: this.pos.z }, 0x2a0030, 50, 6, { gravity: -1, life: 1.4 });
+    this.onDefeated?.();
+  }
+
+  // Verbannung (Plan: "Wenn Buffs fehlen"): setzt den Versuch zurück wie
+  // reset(), aber mit Weißblende + Teleport + erklärendem Dialog statt
+  // stillem Abbruch — nur für Phase 1-3 relevant (siehe Datei-Kopfkommentar).
+  _banish(player, msg) {
+    this.reset();
+    this.system.hud?.setWhiteout(1);
+    player.teleport(BANISH_TELEPORT.x, BANISH_TELEPORT.z, BANISH_TELEPORT.yaw);
+    this.system.audio?.lordBanish?.();
+    this.system.hud?.showDialog('Der Dunkle Lord', [
+      'Er lässt dich mit einer Handbewegung verschwinden — noch bist du ihm nicht gewachsen.',
+      msg,
+    ]);
+    this.state = 'banished';
+    this.banishFadeT = BANISH_FADE_DUR;
+  }
+
   update(dt, player) {
     this.system.time += dt;
+    this.lastPlayer = player;
     switch (this.state) {
       case 'sealed': case 'gone': return;
+      case 'banished': {
+        this.banishFadeT -= dt;
+        this.system.hud?.setWhiteout(Math.max(0, this.banishFadeT) / BANISH_FADE_DUR);
+        if (this.banishFadeT <= 0) {
+          this.system.hud?.setWhiteout(0);
+          this.state = 'sealed';
+        }
+        return;
+      }
       case 'rising': {
         this.stateT += dt;
         const f = Math.min(1, this.stateT / RISE_DUR);
@@ -302,6 +503,10 @@ export class DunklerLord {
           this.phase1ToastShown = true;
           this.system.hud?.showToast('❄️ Eis frisst dieses Feuer — anderswo hast du das gelernt, oder eben nicht.', 4.5);
         }
+        if (this.phase1StallT >= STALL_BANISH_AFTER) {
+          this._banish(player, 'Ohne Eisblitz durchdringt kein Zauber diesen Schild — lerne ihn am Eisaltar der Frostzinnen.');
+          return;
+        }
         break;
       }
       case 'p1_break': {
@@ -323,14 +528,21 @@ export class DunklerLord {
       case 'p2_wait': {
         this.alive = false;
         let nearestDist = Infinity;
-        let anyAlive = false;
+        let remaining = 0;
         for (const d of this.dementors) {
           d.update(dt, player);
           if (d.state === 'active') {
-            anyAlive = true;
+            remaining++;
             const dist = Math.hypot(d.pos.x - player.pos.x, d.pos.z - player.pos.z);
             if (dist < nearestDist) nearestDist = dist;
           }
+        }
+        if (remaining < this._p2LastRemaining) this.phase2StallT = 0;
+        this._p2LastRemaining = remaining;
+        this.phase2StallT += dt;
+        if (this.phase2StallT >= STALL_BANISH_AFTER) {
+          this._banish(player, 'Ohne Expecto Patronum vertreibst du diese Dementoren nie — gewinne zuerst den Hauspokal.');
+          return;
         }
         const inAura = nearestDist < DEMENTOR_AURA_R;
         this.frostFactor = inAura
@@ -345,21 +557,64 @@ export class DunklerLord {
         } else {
           this._drainTimer = 0;
         }
-        if (!anyAlive) {
-          this.state = 'p3_locked';
-          this.stateT = 0;
-          this.frostFactor = 0;
-          this.system.hud?.showToast('🖤 „Beeindruckend … aber das war erst der Anfang." Der Dunkle Lord lässt kurz von dir ab.', 4);
-          this.onPhaseReached?.(3);
+        if (remaining === 0) this._startPhase3();
+        break;
+      }
+      case 'p3': {
+        this.phase3StallT += dt;
+        if (this.phase3StallT >= STALL_BANISH_AFTER) {
+          this._banish(player, 'Sein Blick durchbohrt dich, solange er dich sieht — nur der Umhang der Unsichtbarkeit lässt dich unbemerkt hinter ihn treten.');
+          return;
+        }
+        if (!player.invisible) {
+          const dx = player.pos.x - this.pos.x, dz = player.pos.z - this.pos.z;
+          this.group.rotation.y = angleLerp(this.group.rotation.y, Math.atan2(dx, dz), Math.min(1, dt * 3));
         }
         break;
       }
-      case 'p3_locked': {
-        // V4 baut ab hier Phase 3 (Blickrichtung/Umhang) weiter — bis dahin
-        // idlet der Lord unverwundbar. Kein Softlock: der Rückzugs-Reset
-        // unten bleibt aktiv, ein Verlassen der Arena bricht sauber ab.
-        this.alive = false;
-        this.group.rotation.y += 0.1 * dt;
+      case 'p4_telegraph': {
+        this.stateT += dt;
+        const f = Math.min(1, this.stateT / PHASE4_TELEGRAPH_DUR);
+        this.telegraphMat.opacity = f * 0.85;
+        this.telegraph.scale.setScalar(1 + f * 2);
+        const dx = player.pos.x - this.pos.x, dz = player.pos.z - this.pos.z;
+        this.group.rotation.y = angleLerp(this.group.rotation.y, Math.atan2(dx, dz), Math.min(1, dt * 4));
+        if (this.stateT >= PHASE4_TELEGRAPH_DUR) {
+          this.telegraphMat.opacity = 0;
+          this._castAvada(player);
+          this.state = 'p4_resolve';
+          this.stateT = 0;
+        }
+        return;
+      }
+      case 'p4_resolve': {
+        this.stateT += dt;
+        // `_p4Judged` fängt den EINEN Moment ein, in dem health.dead die
+        // richtige Antwort gibt — sonst würde derselbe Check hier auch noch
+        // Sekunden später erneut auswerten, sobald health.js nach dem
+        // "echten Tod" (kein Stein) den Spieler respawnt und dead wieder
+        // auf false setzt, und fälschlich doch noch Phase 5 starten.
+        if (this.stateT >= 0.15 && !this._p4Judged) {
+          this._p4Judged = true;
+          if (!this.system.health.dead) {
+            this._startPhase5();
+          }
+          // Echter Tod (kein Stein aktiv/verfügbar): bewusst KEIN sofortiges
+          // reset() hier — health.js braucht bis zu 1s (Weißblende), bevor
+          // der Spieler tatsächlich zum Schloss teleportiert wird. Ein
+          // sofortiger reset() würde den Lord auf 'sealed' setzen, während
+          // der Spieler noch physisch in der Arena steht — die Ward-Prüfung
+          // oben triggert ihn dann augenblicklich neu, bevor der Tod
+          // überhaupt sichtbar wurde (im Browser gefunden: Zustand sprang
+          // direkt zurück auf 'rising'). Stattdessen fällt dieser Zweig
+          // einfach durch zum generischen Rückzugs-Reset unten, der erst
+          // greift, sobald die Distanz nach dem echten Teleport stimmt.
+        }
+        break;
+      }
+      case 'p5': {
+        this.hp = Math.min(this.maxHp, this.hp + PHASE5_REGEN * dt);
+        this.group.rotation.y += 0.08 * dt;
         break;
       }
     }
@@ -381,5 +636,10 @@ export class DunklerLord {
     this.group.visible = false;
     this.frostFactor = 0;
     this._drainTimer = 0;
+    this.phase3Hits = 0;
+    this.phase3StallT = 0;
+    this.telegraphMat.opacity = 0;
+    this.hp = PHASE5_HP;
+    this.maxHp = PHASE5_HP;
   }
 }
