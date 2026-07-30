@@ -280,6 +280,26 @@ export class DunklerLord {
     return null;
   }
 
+  // V5: Intensität der --lord-Vignette (0..1) — "pulsiert im Takt der
+  // Phase" (Plan). Sanfter Puls in den frühen Phasen, steigt während des
+  // Avada-Telegraphs hart an (die Vignette selbst wird Teil der Warnung),
+  // hält während des Duells eine gleichmäßig unruhige Grundspannung.
+  get vignetteFrac() {
+    switch (this.state) {
+      case 'rising': return 0.12 * Math.min(1, this.stateT / RISE_DUR);
+      case 'p1': return 0.12 + Math.sin(this.system.time * 2.2) * 0.05;
+      case 'p1_break': return 0.28;
+      case 'p2_summon': case 'p2_wait':
+        return 0.18 + Math.sin(this.system.time * 2.8) * 0.07;
+      case 'p3': return 0.15 + Math.sin(this.system.time * 1.6) * 0.05;
+      case 'p4_telegraph': return Math.min(0.6, 0.15 + (this.stateT / PHASE4_TELEGRAPH_DUR) * 0.45);
+      case 'p4_resolve': return 0.5;
+      case 'p5': return 0.22 + Math.sin(this.system.time * 3.4) * 0.08;
+      case 'banished': return 0;
+      default: return 0;
+    }
+  }
+
   rise() {
     this.state = 'rising';
     this.stateT = 0;
@@ -413,6 +433,7 @@ export class DunklerLord {
     if (steinOnCooldown) {
       this.system.hud?.showToast('💎 Der Stein ist heute schon verbraucht — kein Netz diesmal.', 4.5);
     }
+    this.system.audio?.lordLaugh?.();
     this.system.audio?.lordAvadaCharge?.();
     this.onPhaseReached?.(4);
   }

@@ -59,6 +59,15 @@
     mix-blend-mode: screen;
     opacity: var(--nightvision, 0); transition: opacity 0.5s;
   }
+  /* PLAN-DER-DUNKLE-LORD.md (V5): tiefviolette Rand-Trübung während des
+     Endboss-Kampfs, Wert pulsiert je Phase (siehe voldemort.js
+     vignetteFrac). Kurze Transition, damit das Pulsieren selbst spürbar
+     bleibt statt von einer trägen CSS-Transition geglättet zu werden. */
+  #vignette-lord {
+    position: absolute; inset: 0;
+    background: radial-gradient(ellipse at 50% 50%, transparent 30%, rgba(90,20,140,0.85) 100%);
+    opacity: var(--lord, 0); transition: opacity 0.15s;
+  }
   @keyframes hurtFlash {
     0% { background-color: rgba(210, 30, 30, 0.5); }
     100% { background-color: rgba(210, 30, 30, 0); }
@@ -464,7 +473,7 @@
   <canvas id="game-canvas"></canvas>
 
   <div id="hud">
-    <div id="vignette"><div id="vignette-frost"></div><div id="vignette-underwater"></div><div id="vignette-nightvision"></div></div>
+    <div id="vignette"><div id="vignette-frost"></div><div id="vignette-underwater"></div><div id="vignette-nightvision"></div><div id="vignette-lord"></div></div>
     <div id="whiteout"></div>
     <div id="lightning-flash"></div>
     <div id="crosshair"></div>

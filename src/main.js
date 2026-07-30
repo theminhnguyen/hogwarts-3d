@@ -1316,6 +1316,8 @@ function frame(dt) {
     const lord = schattenfesteRegion.awake ? schattenfesteRegion.handle?.lord : null;
     const lordBoss = lord ? lord.bossFrac : null;
     hud.setBoss(trollBoss ?? dragonBoss ?? giantBoss ?? lordBoss);
+    // V5: --lord-Vignette, pulsiert je Kampfphase (0 außerhalb/schlafend).
+    hud.setLord(lord ? lord.vignetteFrac : 0);
     hud.setMoor(moor.insideFactor(player.pos));
     if (moor.laterneCollected) {
       if (!lanternWasCollected) { lanternWasCollected = true; showLanternWon(); persist(); }

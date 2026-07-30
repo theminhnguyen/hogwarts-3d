@@ -103,6 +103,11 @@ export class Hud {
   // (mix-blend-mode:screen in index.html, siehe --nightvision).
   setNightVision(frac) { this.vignette.style.setProperty('--nightvision', frac.toFixed(3)); }
 
+  // V5 (PLAN-DER-DUNKLE-LORD.md): tiefviolette Vignette, pulsiert im Takt
+  // der jeweiligen Kampfphase (voldemort.js liefert den Wert über
+  // lord.vignetteFrac) — Muster --frost/--cold/--moor.
+  setLord(frac) { this.vignette.style.setProperty('--lord', frac.toFixed(3)); }
+
   // S10 Luftanzeige — nur sichtbar, solange geschwommen wird (main.js steuert
   // das via player.swimming). frac<0.25 färbt den Balken warnend rot-orange.
   setAirGauge(visible, frac) {

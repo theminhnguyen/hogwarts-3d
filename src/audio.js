@@ -1508,6 +1508,207 @@ export class SoundManager {
     src.start(t, Math.random() * 1.5, 0.45);
   }
 
+  // ---------- Der Dunkle Lord (PLAN-DER-DUNKLE-LORD.md, V5) ----------
+
+  // Erwachen in Phase 1: tiefe, aufsteigende Drone + dunkel gefiltertes
+  // Rauschen — bewusst KEIN Gebrüll wie Troll/Drache (der Lord ist kalt,
+  // kein Tier), eher ein unheilvolles "Erwachen aus dem Boden".
+  lordRise() {
+    if (!this.ctx || this.muted) return;
+    const ctx = this.ctx, t = ctx.currentTime;
+    const o = ctx.createOscillator();
+    o.type = 'sawtooth';
+    o.frequency.setValueAtTime(40, t);
+    o.frequency.linearRampToValueAtTime(75, t + 1.6);
+    const f = ctx.createBiquadFilter();
+    f.type = 'lowpass'; f.frequency.value = 320;
+    const g = ctx.createGain();
+    this._env(g, t, 0.3, 0.4, 1.2);
+    o.connect(f).connect(g).connect(this.master);
+    o.start(t); o.stop(t + 1.9);
+
+    const src = ctx.createBufferSource();
+    src.buffer = this.noiseBuf;
+    const nf = ctx.createBiquadFilter();
+    nf.type = 'bandpass'; nf.frequency.value = 180; nf.Q.value = 0.6;
+    const ng = ctx.createGain();
+    this._env(ng, t, 0.3, 0.22, 1.4);
+    src.connect(nf).connect(ng).connect(this.master);
+    src.start(t, Math.random() * 1.5, 1.8);
+  }
+
+  // Kalte, spöttische Kicherei vor Avada Kedavra: kurze, gezackte Impulse
+  // (statt einer durchgehenden Note), enges Bandpass-Timbre für den
+  // "metallischen" Anklang. Rhythmisch angelehnt an ein "ha-ha-ha".
+  lordLaugh() {
+    if (!this.ctx || this.muted) return;
+    const ctx = this.ctx, t = ctx.currentTime;
+    const pulses = [0, 0.18, 0.34, 0.54];
+    for (const dt0 of pulses) {
+      const t0 = t + dt0;
+      const o = ctx.createOscillator();
+      o.type = 'sawtooth';
+      o.frequency.setValueAtTime(140, t0);
+      o.frequency.exponentialRampToValueAtTime(90, t0 + 0.12);
+      const f = ctx.createBiquadFilter();
+      f.type = 'bandpass'; f.frequency.value = 700; f.Q.value = 3;
+      const g = ctx.createGain();
+      this._env(g, t0, 0.004, 0.16, 0.1);
+      o.connect(f).connect(g).connect(this.master);
+      o.start(t0); o.stop(t0 + 0.16);
+    }
+  }
+
+  // Eisblitz durchdringt den Schild (Phase 1) bzw. Treffer von hinten
+  // (Phase 3): heller, kristalliner Krach — Muster kingHit(), aber höher
+  // und kürzer (ein Riss, kein dumpfer Einschlag).
+  lordShieldCrack() {
+    if (!this.ctx || this.muted) return;
+    const ctx = this.ctx, t = ctx.currentTime;
+    const o = ctx.createOscillator();
+    o.type = 'triangle';
+    o.frequency.setValueAtTime(1400, t);
+    o.frequency.exponentialRampToValueAtTime(500, t + 0.14);
+    const g = ctx.createGain();
+    this._env(g, t, 0.002, 0.22, 0.13);
+    o.connect(g).connect(this.master);
+    o.start(t); o.stop(t + 0.17);
+
+    const src = ctx.createBufferSource();
+    src.buffer = this.noiseBuf;
+    const f = ctx.createBiquadFilter();
+    f.type = 'highpass'; f.frequency.value = 2600;
+    const ng = ctx.createGain();
+    this._env(ng, t, 0.001, 0.12, 0.08);
+    src.connect(f).connect(ng).connect(this.master);
+    src.start(t, Math.random() * 1.5, 0.1);
+  }
+
+  // Schild zersplittert komplett (Phase 1->2) bzw. der Lord ist nach dem
+  // Stein "fassungslos" (Phase 4->5): größerer Krach, mehrere absteigende
+  // Töne + breiteres Rauschen — Muster lordShieldCrack(), aber wuchtiger.
+  lordShieldBreak() {
+    if (!this.ctx || this.muted) return;
+    const ctx = this.ctx, t = ctx.currentTime;
+    [1600, 1200, 900].forEach((freq, i) => {
+      const t0 = t + i * 0.03;
+      const o = ctx.createOscillator();
+      o.type = 'triangle';
+      o.frequency.setValueAtTime(freq, t0);
+      o.frequency.exponentialRampToValueAtTime(freq * 0.3, t0 + 0.3);
+      const g = ctx.createGain();
+      this._env(g, t0, 0.003, 0.24, 0.3);
+      o.connect(g).connect(this.master);
+      o.start(t0); o.stop(t0 + 0.35);
+    });
+    const src = ctx.createBufferSource();
+    src.buffer = this.noiseBuf;
+    const f = ctx.createBiquadFilter();
+    f.type = 'highpass'; f.frequency.value = 1800;
+    const ng = ctx.createGain();
+    this._env(ng, t, 0.002, 0.3, 0.35);
+    src.connect(f).connect(ng).connect(this.master);
+    src.start(t, Math.random() * 1.5, 0.4);
+  }
+
+  // Phase 2: Beschwörung der Dementoren-Woge — tiefer, absteigender Chor
+  // aus mehreren Stimmen. Muster ritualChant(), aber tiefer/dunkler und mit
+  // mehr Stimmen (bedrohlicher, keine einzelne Ritual-Note).
+  lordSummon() {
+    if (!this.ctx || this.muted) return;
+    const ctx = this.ctx, t = ctx.currentTime;
+    [110, 138, 165, 196].forEach((freq, i) => {
+      const o = ctx.createOscillator();
+      o.type = 'sine';
+      o.frequency.setValueAtTime(freq * 1.4, t);
+      o.frequency.exponentialRampToValueAtTime(freq, t + 0.8);
+      const g = ctx.createGain();
+      this._env(g, t + i * 0.08, 0.04, 0.16, 0.9);
+      o.connect(g).connect(this.master);
+      o.start(t); o.stop(t + 1.1);
+    });
+  }
+
+  // Phase 4: Avada Kedavra lädt auf — aufsteigender, zunehmend dissonanter
+  // Ton mit schnellem Vibrato (Anlehnung an castCrucio()), aber als
+  // einzelner "Stinger" statt Dauerschleife (der Telegraph selbst läuft
+  // rein visuell über den grünen Lichtkegel in voldemort.js).
+  lordAvadaCharge() {
+    if (!this.ctx || this.muted) return;
+    const ctx = this.ctx, t = ctx.currentTime;
+    const o = ctx.createOscillator();
+    o.type = 'sawtooth';
+    o.frequency.setValueAtTime(80, t);
+    o.frequency.exponentialRampToValueAtTime(340, t + 1.4);
+    const f = ctx.createBiquadFilter();
+    f.type = 'lowpass';
+    f.frequency.setValueAtTime(400, t);
+    f.frequency.linearRampToValueAtTime(2200, t + 1.4);
+    const g = ctx.createGain();
+    this._env(g, t, 0.1, 0.28, 1.2);
+    const lfo = ctx.createOscillator();
+    lfo.frequency.value = 9;
+    const lfoGain = ctx.createGain();
+    lfoGain.gain.value = 12;
+    lfo.connect(lfoGain).connect(o.frequency);
+    lfo.start(t); lfo.stop(t + 1.5);
+    o.connect(f).connect(g).connect(this.master);
+    o.start(t); o.stop(t + 1.5);
+  }
+
+  // Verbannung: dunkles, absteigendes "Weggewischt-Werden" — Muster
+  // kingTeleport(), aber abwärts statt aufwärts und tiefer timbriert (der
+  // Lord verbannt DICH, kein eigenes Verpuffen).
+  lordBanish() {
+    if (!this.ctx || this.muted) return;
+    const ctx = this.ctx, t = ctx.currentTime;
+    const o = ctx.createOscillator();
+    o.type = 'sine';
+    o.frequency.setValueAtTime(900, t);
+    o.frequency.exponentialRampToValueAtTime(140, t + 0.5);
+    const g = ctx.createGain();
+    this._env(g, t, 0.01, 0.24, 0.45);
+    o.connect(g).connect(this.master);
+    o.start(t); o.stop(t + 0.55);
+
+    const src = ctx.createBufferSource();
+    src.buffer = this.noiseBuf;
+    const nf = ctx.createBiquadFilter();
+    nf.type = 'lowpass'; nf.frequency.value = 1200;
+    const ng = ctx.createGain();
+    this._env(ng, t, 0.01, 0.16, 0.4);
+    src.connect(nf).connect(ng).connect(this.master);
+    src.start(t, Math.random() * 1.5, 0.45);
+  }
+
+  // Endgültiger Sieg (Phase 5): dissonanter Akkord löst sich abwärts in
+  // Rauschen auf ("zerfällt zu Asche") — bewusstes Gegenstück zu kingBow()
+  // (dort ein warmer Dur-Dreiklang, hier eine dunkle Auflösung statt Ehre).
+  lordDefeat() {
+    if (!this.ctx || this.muted) return;
+    const ctx = this.ctx, t = ctx.currentTime;
+    [220, 261, 311].forEach((freq, i) => {
+      const o = ctx.createOscillator();
+      o.type = 'sawtooth';
+      o.frequency.setValueAtTime(freq, t);
+      o.frequency.exponentialRampToValueAtTime(freq * 0.2, t + 1.6);
+      const f = ctx.createBiquadFilter();
+      f.type = 'lowpass'; f.frequency.value = 900;
+      const g = ctx.createGain();
+      this._env(g, t + i * 0.1, 0.05, 0.2, 1.5);
+      o.connect(f).connect(g).connect(this.master);
+      o.start(t); o.stop(t + 1.8);
+    });
+    const src = ctx.createBufferSource();
+    src.buffer = this.noiseBuf;
+    const nf = ctx.createBiquadFilter();
+    nf.type = 'bandpass'; nf.frequency.value = 300; nf.Q.value = 0.5;
+    const ng = ctx.createGain();
+    this._env(ng, t + 0.2, 0.2, 0.22, 1.4);
+    src.connect(nf).connect(ng).connect(this.master);
+    src.start(t, Math.random() * 1.5, 1.8);
+  }
+
   // gloom (0..1, von weather.js): bei Regen/Sturm verstummen Vögel/Grillen.
   // owlProximity (0..1, von main.js): Nähe zur Eulerei, gated Eulenrufe nachts.
   update(daylight, gloom = 0, owlProximity = 0) {
