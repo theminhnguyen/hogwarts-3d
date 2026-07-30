@@ -125,6 +125,54 @@ http://localhost:8123 öffnen, sofern nicht anders angegeben.
       und bekommt alle neuen Felder mit sicheren Defaults (siehe
       `tests/save.test.mjs`).
 
+## 9. Der Dunkle Lord — die Schattenfeste (PLAN-DER-DUNKLE-LORD.md V1-V8)
+
+- [ ] Solange das harte Gate (Hauspokal + Seelenlaterne + alle 3 Heiligtümer
+      + Sternentor) nicht vollständig erfüllt ist, bleibt die Ward-Barriere
+      vor der Schattenfeste geschlossen; der Prüfstein nennt in seinem
+      Dialog, was noch fehlt.
+- [ ] Sobald das Gate erfüllt ist: Ward-Barriere zerfällt sichtbar (Toast +
+      Partikel-Effekt), der Prüfstein zeigt die weiche Buff-Checkliste
+      (Eisblitz, Expecto Patronum, Umhang/Stein/Elderstab angelegt, volle
+      Herzen), der Schlossgeist warnt ab sofort mit höchster Priorität
+      namentlich vor dem Dunklen Lord und listet exakt die noch fehlenden
+      Buffs.
+- [ ] Die 5. ferne Horizont-Silhouette (schwarzer, gezackter Turm über der
+      Schattenfeste) ist von Spielbeginn an sichtbar — auch lange bevor das
+      Gate erfüllt ist.
+- [ ] Betreten der Arena bei offenem Tor löst `rise()` aus; Phase 1 (Schild
+      aus schwarzem Feuer) lässt sich nur mit Eisblitz durchbrechen — jeder
+      andere Spruch prallt wirkungslos ab.
+- [ ] Phase 2 (Woge aus 5 Dementoren) ist nur per Expecto Patronum lösbar;
+      Stupor/Incendio bleiben wirkungslos gegen die Dementoren selbst.
+- [ ] Phase 3: ein Treffer von VORN ohne angelegten Umhang reflektiert
+      Schaden auf den Spieler statt den Lord zu treffen; ein Treffer von
+      HINTEN (>100° Winkelabweichung) zählt immer, unabhängig vom Umhang.
+- [ ] Phase 4: Avada-Kedavra-Telegraph (2,5s) ist deutlich länger als bei
+      jedem anderen Boss; ohne angelegten Stein der Wiederkehr endet der
+      Fluch tödlich (echter Respawn); mit angelegtem Stein überlebt der
+      Spieler einmalig (steinCd-Warnung beachten, falls Stein am selben Tag
+      schon verbraucht wurde).
+- [ ] Phase 5: HP sinkt spürbar schneller als sie regeneriert NUR mit
+      angelegtem Elderstab; ohne Elderstab bleibt die HP-Leiste bei
+      realistischer Spielweise praktisch stehen (siehe Balancing-Rechnung in
+      PLAN-DER-DUNKLE-LORD.md Abschnitt 8, im V8-Commit real nachgemessen).
+- [ ] Verbannungs-Sicherheitsnetz: 90 Sekunden ohne Phasenfortschritt in
+      Phase 1/2/3 lösen eine Weißblende + Teleport zurück ins Schloss aus,
+      kein Fortschrittsverlust.
+- [ ] Sieg (Phase 5, HP auf 0): Toast, +200 Gold, +40 Ruf, Titel „Der wahre
+      Meister des Todes" schaltet sich in der Karte des Rumtreibers frei —
+      alles genau einmal, kein Doppel-Reward bei erneutem Betreten.
+- [ ] Nach dem Sieg zeigt die Karte des Rumtreibers wieder das normale
+      Abschluss-Kapitel (kein „Der Dunkle Lord"-Kapitel mehr); Schlossgeist-
+      Warnung verschwindet ebenfalls.
+- [ ] Ein Save von vor Schema v12 (ohne `lord`-Feld) lädt fehlerfrei mit
+      sicheren Defaults (siehe `tests/save.test.mjs`).
+- [ ] „Fortschritt zurücksetzen" setzt auch `save.lord` (torOffen/phaseMax/
+      besiegt/versuche) zurück — Ward-Barriere ist danach wieder geschlossen.
+- [ ] Performance: Turm außen, Arena (auch während Phase 2 mit 5 Dementoren)
+      und Turmspitze im Flug bleiben bei ≥55 fps.
+
 ## Automatisierte Tests
 
 - [ ] `npm test` läuft vollständig grün (Save-Normalisierung, Export/Import,

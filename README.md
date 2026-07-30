@@ -17,8 +17,9 @@ Rätsel und gewinne den Hauspokal, vertreibe Dementoren mit Expecto Patronum,
 zähme Hippogreif, Thestral und Einhorn, handle mit dem Wanderhändler Fero,
 sammle die drei Heiligtümer des Todes im Duell gegen den Bleichen König, per
 Diebstahl und durch Tauchen im See, besiege die vier neuen Bosse und vereine
-ihre Siegel am Sternentor — und werde am Ende sogar selbst zum Animagus:
-verwandle dich per Ritual in Rabe, Katze oder Wolf.
+ihre Siegel am Sternentor, werde selbst zum Animagus: verwandle dich per
+Ritual in Rabe, Katze oder Wolf — und stelle dich am Ende, wenn wirklich
+alles andere geschafft ist, dem **Dunklen Lord** selbst in der Schattenfeste.
 
 > Inoffizielles, nicht-kommerzielles Fan-Projekt. Steht in keiner Verbindung zu
 > Warner Bros., J.K. Rowling oder Wizarding World. Alle 3D-Inhalte sind
@@ -66,10 +67,11 @@ Taste `J` öffnet die **Karte des Rumtreibers**: dein aktuelles Hauptziel,
 bis zu zwei laufende Nebenaufgaben, ein stilisierter Kartenausschnitt mit
 den Orten, die du bereits besucht hast (unentdeckte Orte fehlen bewusst —
 keine Spoilerkarte), ein kurzer Hinweis, was als Nächstes sinnvoll ist, und
-eine **Titel-Übersicht**: alle 12 im Spiel erreichbaren Titel (Hauspokal-Sieger,
+eine **Titel-Übersicht**: alle 13 im Spiel erreichbaren Titel (Hauspokal-Sieger,
 Seelenwächter, Meister des Todes, Drachenbezwinger, Frostbezwinger,
 Einhornfreund, Tiefenbezwinger, Weltensammler, Hüter der vier Reiche,
-Animagus, Grimoire-Kenner, Quidditch-Ass) — erreichte hervorgehoben, offene
+Animagus, Grimoire-Kenner, Quidditch-Ass, Der wahre Meister des Todes) —
+erreichte hervorgehoben, offene
 ausgegraut mit Kurzbeschreibung, was dafür nötig ist. `J` oder `Esc` schließt
 die Karte wieder; während sie offen
 ist, pausiert nur deine Steuerung — die Welt läuft im Hintergrund weiter.
@@ -298,6 +300,35 @@ gleichnamigen Region) sowie der Feenlichttrank, macht insgesamt 9 Rezepte.
   Mondsilber und Tiefenperle gleichzeitig bei dir trägst, tauscht
   Wanderhändler Fero sie dir einmalig gegen eine große Gold-/Ruf-Belohnung
   und den Titel „Weltensammler" ab
+
+### Der Dunkle Lord — das letzte Duell
+
+- ⚡ Ganz im Nordosten, jenseits des Nebelmoors, liegt die **Schattenfeste**:
+  ein verkohlter Turm auf einem Säulenring, von einer sichtbaren
+  Ward-Barriere versperrt. Ein schwarzer, gezackter Turm ist schon von
+  Spielbeginn an als ferne Silhouette am Horizont sichtbar — lange bevor
+  die Region betretbar ist. Ein Prüfstein am Zugang zeigt eine Checkliste,
+  was für den Kampf nötig ist
+- 🔒 Das Tor öffnet sich erst, wenn wirklich **alles** andere geschafft ist:
+  Hauspokal, Silberne Seelenlaterne, alle drei Heiligtümer des Todes UND
+  das Sternentor. Der Schlossgeist warnt dann mit höchster Priorität
+  namentlich vor dem Dunklen Lord und nennt genau die noch fehlenden
+  Kampf-Buffs; Schüler erzählen sich vorher nur vage Gerüchte von einem
+  Turm, „den keiner gebaut hat"
+- ☠️ Fünf Phasen in einem einzigen Duell: ein Schild aus schwarzem Feuer
+  (nur **Eisblitz** durchdringt ihn), eine Woge aus fünf beschworenen
+  Dementoren (nur **Expecto Patronum** vertreibt sie), eine Blickrichtungs-
+  Reflexion (ohne angelegten Umhang wird jeder Frontaltreffer auf dich
+  zurückgeworfen — nur ein Treffer von hinten zählt), ein tödlicher
+  Avada-Kedavra-Fluch mit Telegraph (nur der angelegte **Stein der
+  Wiederkehr** rettet dich), und zuletzt ein reguläres Elderstab-Duell mit
+  HP-Regeneration — ohne den angelegten **Elderstab** ist der Kampf
+  praktisch unmöglich zu gewinnen
+- 🕊️ Ein Verbannungs-Sicherheitsnetz (90 Sekunden ohne Fortschritt in
+  einer Phase) schickt dich sanft zurück ins Schloss, statt dich
+  festzusetzen — kein Fortschritt geht dabei verloren
+- 🏆 Sieg bringt +200 Gold, +40 Ruf und den größten Titel im Spiel:
+  **„Der wahre Meister des Todes"**
 
 ## Entwicklung
 

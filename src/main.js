@@ -516,7 +516,7 @@ const buildSteps = [
       sleepRadius: 130,
       build: (root, deps) => buildSchattenfeste(root, deps),
       deps: {
-        glowTex, hud, audio, fx, interact, spells, health,
+        glowTex, hud, audio, fx, interact, spells, health, economy,
         hallowsSys: hallows,
         pz: save.pz, moor: save.moor, hallowsSave: save.hallows, siegel: save.siegel,
         lord: save.lord,

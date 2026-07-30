@@ -128,7 +128,7 @@ function hardGateMet(pz, moor, hallowsSave, siegel) {
 }
 
 export function buildSchattenfeste(root, deps) {
-  const { glowTex, hud, audio, fx, interact, spells, hallowsSys, health, pz, moor, hallowsSave, siegel, lord, onChange } = deps;
+  const { glowTex, hud, audio, fx, interact, spells, hallowsSys, health, pz, moor, hallowsSave, siegel, lord, economy, onChange } = deps;
 
   // V3: eigenes System-Shim für den Endboss (Muster: hallows.js' `system` für
   // PaleKing) — `peaceful` wird EINMALIG aus dem Getter in deps übernommen
@@ -147,15 +147,17 @@ export function buildSchattenfeste(root, deps) {
   dunklerLord.onPhaseReached = (n) => {
     if (n > (lord.phaseMax || 0)) { lord.phaseMax = n; onChange?.(); }
   };
-  // V4: Sieg-Persistenz — nur `besiegt` selbst (V4 macht den Sieg über-
-  // haupt feststellbar/testbar). Gold/Ruf-Belohnung, Titel (marauders-map)
-  // und das Atmosphäre-Feuerwerk sind eigene, spätere Meilensteine (V5/V6
-  // im Plan) und bewusst NICHT hier mit hineingezogen.
+  // V4: Sieg-Persistenz — `besiegt` selbst. Titel (marauders-map, V6) liest
+  // dieses Flag bereits. V8 (Plan-Abschnitt 8, Belohnungszeile "größter
+  // Einzelbetrag im Spiel"): +200 Gold/+40 Ruf im selben Einmal-Guard —
+  // das Atmosphäre-Feuerwerk bleibt bewusst außen vor (kein Plan-Punkt).
   dunklerLord.onDefeated = () => {
     if (lord.besiegt !== 1) {
       lord.besiegt = 1;
+      economy.addGold(200);
+      economy.addRuf(40);
       onChange?.();
-      hud.showToast('🖤 Der Dunkle Lord ist besiegt.', 5);
+      hud.showToast('🖤 Der Dunkle Lord ist besiegt. +200 Gold, +40 Ruf.', 5);
     }
   };
 
