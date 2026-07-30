@@ -29,7 +29,7 @@ export const TUNING = {
   // zu Incendio/Aschenschwinge).
   eisblitz: { speed: 32, dmg: 1, cooldown: 1.1, ttl: 2.4, gravity: -5 },
   // Verbotene Sprüche (S8, nur dunkler Pfad — siehe cast()-Gate):
-  avada:   { speed: 42, cooldown: 4, ttl: 2.2 }, // Nutzerwunsch 2026-07-30: von 8 auf 4 halbiert
+  avada:   { speed: 42, cooldown: 2, ttl: 2.2 }, // Nutzerwunsch 2026-07-30: 8 -> 4 -> 2
   crucio:  { cooldown: 6, dur: 2, range: 9, coneAngle: 15 * Math.PI / 180, tickInterval: 0.5 },
   imperio: { cooldown: 12, range: 9, coneAngle: 15 * Math.PI / 180 },
   // S10 Heiligtümer des Todes: umhang/stab/stein nutzen nur `cooldown`
