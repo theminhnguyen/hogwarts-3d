@@ -1109,6 +1109,21 @@ let time = 0;
 let fpsEMA = 60;
 let qualityTimer = 0;
 
+// Perf (Nutzer-Feedback 2026-07-30, "stockt besonders bei Kampfszenen"):
+// spells.update() bekam seine Ziel-Liste vorher per 12+ verketteten
+// .concat()-Aufrufen JEDEN Frame neu gebaut — jeder .concat() erzeugt ein
+// frisches Array, macht also aus einer Zeile über ein Dutzend Allokationen
+// pro Frame, unabhängig davon ob überhaupt ein Zauber aktiv ist. Bei der
+// inzwischen sehr großen Kreaturenzahl (E8-Verdichtung, S1-S12 Wildmark) war
+// das spürbarer GC-Druck. Jetzt: EIN wiederverwendetes Array, pro Frame nur
+// geleert (length=0) und neu befüllt — keine Zwischen-Arrays mehr.
+const spellTargets = [];
+const meleeTargets = [];
+function pushAll(target, source) {
+  if (!source) return;
+  for (let i = 0; i < source.length; i++) target.push(source[i]);
+}
+
 function tick() {
   requestAnimationFrame(tick);
   if (!player) return; // Welt noch im Aufbau
@@ -1158,15 +1173,26 @@ function frame(dt) {
     // und einfache Schüler/Hexer sind jetzt echte, respawnende Kampf-Ziele —
     // Lena/Barnaby/Fero/Ondra bleiben bewusst über die K2-Schutzliste in
     // npc.js immun (Quest-/Handelslogik).
-    spells.update(dt, camera, creatures.list.concat(dementors.list).concat(wilderer.list)
-      .concat([hallows.king]).concat(hallows.phantomGhosts)
-      .concat(aschenklammRegion.handle?.dragon ? [aschenklammRegion.handle.dragon] : [])
-      .concat(frostzinnenRegion.handle?.giant ? [frostzinnenRegion.handle.giant] : [])
-      .concat(schwarzwasserRegion.handle?.grindylows || [])
-      .concat(schattenfesteRegion.handle?.lord ? [schattenfesteRegion.handle.lord] : [])
-      .concat(schattenfesteRegion.handle?.lord?.dementors || [])
-      .concat(fauna.deer, fauna.rabbits, fauna.foxes, fauna.nifflers, fauna.bowtruckles, fauna.hippos)
-      .concat(npc.students, npc.wizards), fauna.foxes);
+    spellTargets.length = 0;
+    pushAll(spellTargets, creatures.list);
+    pushAll(spellTargets, dementors.list);
+    pushAll(spellTargets, wilderer.list);
+    spellTargets.push(hallows.king);
+    pushAll(spellTargets, hallows.phantomGhosts);
+    if (aschenklammRegion.handle?.dragon) spellTargets.push(aschenklammRegion.handle.dragon);
+    if (frostzinnenRegion.handle?.giant) spellTargets.push(frostzinnenRegion.handle.giant);
+    pushAll(spellTargets, schwarzwasserRegion.handle?.grindylows);
+    if (schattenfesteRegion.handle?.lord) spellTargets.push(schattenfesteRegion.handle.lord);
+    pushAll(spellTargets, schattenfesteRegion.handle?.lord?.dementors);
+    pushAll(spellTargets, fauna.deer);
+    pushAll(spellTargets, fauna.rabbits);
+    pushAll(spellTargets, fauna.foxes);
+    pushAll(spellTargets, fauna.nifflers);
+    pushAll(spellTargets, fauna.bowtruckles);
+    pushAll(spellTargets, fauna.hippos);
+    pushAll(spellTargets, npc.students);
+    pushAll(spellTargets, npc.wizards);
+    spells.update(dt, camera, spellTargets, fauna.foxes);
     // sky.update() läuft weiter unten, aber creatures braucht den Tag/Nacht-
     // Stand vom LETZTEN Frame — nightGlow ändert sich nur sehr langsam
     // (300s/Zyklus), eine Frame Verzögerung ist unmerklich.
@@ -1232,11 +1258,16 @@ function frame(dt) {
     hallows.update(dt, player, sky);
     broom.update(dt, player);
     // Tritt-Ziele (S5): kreatur.list + wilderer.list — Dementoren bewusst
-    // NICHT dabei (immateriell, K6 aus dem Plan).
-    mount.update(dt, player, creatures.list.concat(wilderer.list));
+    // NICHT dabei (immateriell, K6 aus dem Plan). Perf: beide Aufrufe
+    // teilen sich dieselbe wiederverwendete Liste statt je einen frischen
+    // .concat() zu bauen (Muster: spellTargets oben).
+    meleeTargets.length = 0;
+    pushAll(meleeTargets, creatures.list);
+    pushAll(meleeTargets, wilderer.list);
+    mount.update(dt, player, meleeTargets);
     // S11: gleiche Ziel-Liste wie der Mount-Tritt — der Wolfsbiss nutzt
     // dasselbe Kegel-Nahkampf-Muster.
-    animagus.update(dt, creatures.list.concat(wilderer.list), sky.state.nightGlow);
+    animagus.update(dt, meleeTargets, sky.state.nightGlow);
     home.update(dt, player);
     wand.root.visible = !player.flying && !player.riding && !player.animalForm;
     fahlholz.update(dt);

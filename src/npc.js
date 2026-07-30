@@ -255,6 +255,14 @@ class Student {
     this.radius = 0.3;
     this.hitY = 1.3; // Kopf/Brust-Höhe stehender buildFigure()-Figuren
     this.deadT = 0;
+    // Bugfix: fehlte hier (Muster aus creatures.js/fauna.js — JEDE andere
+    // angreifbare Art hat diesen Alias). Ohne ihn liest spells.js' Bolzen-
+    // Kollisionsschleife `c.pos.x` auf `undefined` und wirft eine Exception,
+    // sobald sie beim Iterieren über die Ziel-Liste (die main.js IMMER mit
+    // npc.students/wizards füllt) hier ankommt — das bricht spells.update()
+    // für ALLE aktiven Bolzen mitten im Frame ab (Symptome: Spiel "stockt"
+    // bei jedem Zauber, Treffer auf Schüler/Hexer registrieren nie).
+    this.pos = this.group.position;
     scene.add(this.group);
   }
 
@@ -379,6 +387,8 @@ class Wizard {
     this.radius = 0.3;
     this.hitY = 1.3;
     this.deadT = 0;
+    // Bugfix: siehe Student-Konstruktor oben — derselbe fehlende Alias.
+    this.pos = this.group.position;
     scene.add(this.group);
   }
 
