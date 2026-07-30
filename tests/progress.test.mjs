@@ -104,6 +104,42 @@ test('Vier Siegel: erscheint erst ab 1 gesammeltem Siegel, verschwindet nach fin
   assert.ok(!done.secondary.some((s) => s.id === 'viersiegel'));
 });
 
+test('Dunkler-Lord-Gate erfüllt, Lord noch nicht besiegt -> Kapitel "Der Dunkle Lord" (höchste Priorität)', () => {
+  const result = resolveProgress(save({
+    pz: { hauspokal: 1 },
+    moor: { laterne: 1 },
+    hallows: { stab: 1, umhang: 1, stein: 1, steinCd: 0 },
+    siegel: { drache: 1, frost: 1, hain: 1, tiefe: 1, finaleWon: 1 },
+    lord: { torOffen: 1, phaseMax: 2, besiegt: 0, versuche: 3 },
+  }));
+  assert.equal(result.chapter, 'Der Dunkle Lord');
+  assert.equal(result.primary.id, 'dunklerlord');
+  assert.equal(result.primary.landmarkId, 'schattenfeste');
+  assert.match(result.primary.description, /Phase 2/);
+});
+
+test('Dunkler-Lord-Gate erfüllt aber Sternentor noch nicht durchschritten -> KEIN Lord-Kapitel', () => {
+  const result = resolveProgress(save({
+    pz: { hauspokal: 1 },
+    moor: { laterne: 1 },
+    hallows: { stab: 1, umhang: 1, stein: 1, steinCd: 0 },
+    siegel: { drache: 1, frost: 1, hain: 1, tiefe: 1, finaleWon: 0 },
+  }));
+  assert.notEqual(result.chapter, 'Der Dunkle Lord');
+});
+
+test('Dunkler Lord besiegt -> Kapitel fällt durch zum Abschluss-Zweig', () => {
+  const result = resolveProgress(save({
+    pz: { hauspokal: 1 },
+    moor: { laterne: 1 },
+    hallows: { stab: 1, umhang: 1, stein: 1, steinCd: 0 },
+    siegel: { drache: 1, frost: 1, hain: 1, tiefe: 1, finaleWon: 1 },
+    lord: { torOffen: 1, phaseMax: 5, besiegt: 1, versuche: 4 },
+  }));
+  assert.notEqual(result.chapter, 'Der Dunkle Lord');
+  assert.equal(result.primary.completed, true);
+});
+
 test('resolveProgress ändert den übergebenen Save nicht (rein lesend)', () => {
   const s = save();
   const before = JSON.stringify(s);

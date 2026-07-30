@@ -32,6 +32,10 @@ export const LANDMARKS = [
   { id: 'frostzinnen', name: 'Die Frostzinnen', x: 0, z: -410, radius: 60, alwaysVisible: false },
   { id: 'silberhain', name: 'Der Silberhain', x: -90, z: 410, radius: 60, alwaysVisible: false },
   { id: 'schwarzwasser', name: 'Schwarzwasser', x: -405, z: -40, radius: 55, alwaysVisible: false },
+  // V6 (PLAN-DER-DUNKLE-LORD.md): Koordinaten 1:1 aus terrain.js SCHATTENFESTE
+  // gespiegelt (x:250, z:-350, r:45), radius = Kernradius + 15 — exakt dasselbe
+  // Muster wie die 4 E11-Boss-Regionen direkt darüber.
+  { id: 'schattenfeste', name: 'Die Schattenfeste', x: 250, z: -350, radius: 60, alwaysVisible: false },
 ];
 
 // Skalierung fürs CSS-Panel: Weltkoordinaten auf 0..100%. WORLD_BOUND aus
@@ -70,6 +74,8 @@ const TITLES = [
   { id: 'animagus', icon: '🐾', name: 'Animagus', desc: 'Die zweite Gestalt erlernen.', earned: (s) => s.animagus.gelernt === 1 },
   { id: 'grimoire', icon: '📖', name: 'Grimoire-Kenner', desc: 'Das Aschene Grimoire lesen.', earned: (s) => s.dunkel.buch === 1 },
   { id: 'quidditchAss', icon: '🧹', name: 'Quidditch-Ass', desc: 'Das Ringe-Rennen perfekt meistern.', earned: (s) => s.ace === 1 },
+  // V6 (PLAN-DER-DUNKLE-LORD.md): 13. Titel, größter Einzelerfolg des Spiels.
+  { id: 'dunklerLord', icon: '⚡', name: 'Der wahre Meister des Todes', desc: 'Den Dunklen Lord in der Schattenfeste besiegen.', earned: (s) => s.lord.besiegt === 1 },
 ];
 
 export function buildMarauderMap(hud, save) {

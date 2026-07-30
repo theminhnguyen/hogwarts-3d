@@ -121,6 +121,30 @@ export function resolveProgress(save) {
     };
   }
 
+  // Der Dunkle Lord (V6, Plan-Abschnitt 6): höchste Priorität, sobald das
+  // harte Fortschritts-Gate erfüllt ist. Gespiegelt aus schattenfeste.js'
+  // hardGateMet() (bewusst dupliziert statt importiert — gleicher Grund wie
+  // die anderen Totals oben: schattenfeste.js hängt an Three.js). Da das Gate
+  // bereits alle 3 Heiligtümer voraussetzt, kann dieser Zweig den
+  // Heiligtümer-Zweig oben strukturell nie überholen — er greift erst danach.
+  const lord = save.lord || {};
+  const lordGateMet = hauspokalWon && laterneWon && hallowsCount === 3 && siegel.finaleWon === 1;
+  if (lordGateMet && lord.besiegt !== 1) {
+    return {
+      chapter: 'Der Dunkle Lord',
+      primary: {
+        id: 'dunklerlord', title: 'Den Dunklen Lord besiegen',
+        description: lord.torOffen === 1
+          ? (lord.phaseMax > 0
+            ? `Die Ward ist gefallen — kehre zur Schattenfeste zurück (schon bis Phase ${lord.phaseMax} vorgedrungen).`
+            : 'Die Ward ist gefallen — betritt die Schattenfeste und stelle dich ihm.')
+          : 'Die Ward der Schattenfeste wartet auf deinen Sieg.',
+        landmarkId: 'schattenfeste', completed: false,
+      },
+      secondary, nextHint: 'Die Schattenfeste im äußersten Nordosten verlangt dein letztes Duell.',
+    };
+  }
+
   return {
     chapter: hallowsUnlocked ? 'Meister des Todes' : 'Nach dem Hauspokal',
     primary: {

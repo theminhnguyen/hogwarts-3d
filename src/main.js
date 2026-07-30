@@ -1375,6 +1375,9 @@ buildWorld().then(() => {
     get einhorn() { return unicornRegion.handle; },
     get schwarzwasser() { return schwarzwasserRegion.handle; },
     get schattenfeste() { return schattenfesteRegion.handle; },
+    // V6: direkter Debug-Zugriff auf den Endboss, statt über
+    // schattenfeste.lord umzuwegen (Plan-Vorgabe "__game.lord-Debug-Handle").
+    get lord() { return schattenfesteRegion.handle?.lord; },
     get save() { return save; },
     get fps() { return fpsEMA; },
     get pixelRatio() { return pixelRatio; },
