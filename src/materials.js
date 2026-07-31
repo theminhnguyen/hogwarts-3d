@@ -51,6 +51,45 @@ function worldMapped(mat, scale, mode = 'triplanar') {
 
 let cache = null;
 
+// Grafik-Stufe (Nutzerwunsch 2026-07-31). Nur 'episch' wechselt die Material-
+// KLASSE von Lambert auf MeshStandardMaterial (echtes PBR mit Glanzlicht,
+// Rauheit und Umgebungsspiegelung). Das ist der mit Abstand grösste optische
+// Hebel im Projekt: Lambert kennt ausschliesslich Streulicht, es gibt darin
+// physikalisch KEINE Glanzkante — deshalb wirkt die Welt in 'schoen'/'schnell'
+// flach, egal wie gut Tonemapping und Bloom sind.
+//
+// WICHTIG: muss vor dem ersten getMaterials() gesetzt werden (main.js ruft es
+// direkt nach dem Laden des Saves auf, lange vor allen Build-Steps). Ein
+// Wechsel zur Laufzeit ist bewusst NICHT möglich — die ~150 Material-Instanzen
+// hängen längst in fertig gebauten Meshes in 20 Dateien; main.js lädt deshalb
+// beim Umschalten die Seite neu (in echten Spielen ebenso üblich).
+let tier = 'schoen';
+export function setMaterialTier(t) {
+  if (cache) return; // zu spät — Materialien stehen schon, Stufe gilt ab Neuladen
+  tier = t;
+}
+export function getMaterialTier() { return tier; }
+
+// PBR-Kennwerte der vier texturierten Grundmaterialien. roughness 1 = komplett
+// matt (wie Lambert), 0 = Spiegel. Die Werte sind bewusst hoch gehalten: das
+// hier ist ein Schloss aus Stein/Holz/Schiefer, kein Autolack — ein zu
+// niedriger Wert lässt alles nach nassem Plastik aussehen.
+const PBR = {
+  stone:   { roughness: 0.94, metalness: 0.0 },
+  roof:    { roughness: 0.72, metalness: 0.05 }, // Schiefer glänzt leicht
+  wood:    { roughness: 0.85, metalness: 0.0 },
+  deco:    { roughness: 0.68, metalness: 0.12 }, // Gold/Beschläge fangen Licht
+  terrain: { roughness: 0.98, metalness: 0.0 },
+};
+
+// Baut je nach Stufe ein Lambert- (schnell/schoen) oder Standard-Material
+// (episch). Ausserhalb von 'episch' bleibt exakt das bisherige Verhalten —
+// dieselbe Klasse, dieselben Parameter, kein zusätzlicher Shader-Aufwand.
+function lit(kind, params) {
+  if (tier !== 'episch') return new THREE.MeshLambertMaterial(params);
+  return new THREE.MeshStandardMaterial({ ...params, ...PBR[kind] });
+}
+
 export function getMaterials() {
   if (cache) return cache;
   const stoneTex = makeStoneTexture();
@@ -59,26 +98,22 @@ export function getMaterials() {
   const groundTex = makeGroundTexture();
 
   cache = {
-    // Mauerwerk: Blöcke ~1.2 m breit
+    // Mauerwerk: Blöcke ~1.2 m breit. War schon immer Standard (einziges
+    // PBR-Material vor der Episch-Stufe) — bekommt jetzt nur noch seine
+    // Kennwerte aus derselben PBR-Tabelle wie alle anderen.
     stone: worldMapped(new THREE.MeshStandardMaterial({
-      vertexColors: true, map: stoneTex, roughness: 0.96, metalness: 0.0,
+      vertexColors: true, map: stoneTex, ...PBR.stone,
     }), 1 / 6),
     // Dächer: Schindelreihen ~0.35 m
-    roof: worldMapped(new THREE.MeshLambertMaterial({
-      vertexColors: true, map: roofTex,
-    }), 1 / 4),
+    roof: worldMapped(lit('roof', { vertexColors: true, map: roofTex }), 1 / 4),
     // Holz
-    wood: worldMapped(new THREE.MeshLambertMaterial({
-      vertexColors: true, map: woodTex,
-    }), 1 / 3),
+    wood: worldMapped(lit('wood', { vertexColors: true, map: woodTex }), 1 / 3),
     // Deko ohne Textur (Gold, Fahnen, Hecken, Kürbisse …)
-    deco: new THREE.MeshLambertMaterial({ vertexColors: true }),
+    deco: lit('deco', { vertexColors: true }),
     // Fenster (unbeleuchtet, glüht nachts über color-Multiplikator)
     window: new THREE.MeshBasicMaterial({ vertexColors: true }),
     // Gelände: Detail von oben projiziert, Kachel ~7 m
-    terrain: worldMapped(new THREE.MeshLambertMaterial({
-      vertexColors: true, map: groundTex,
-    }), 1 / 7, 'topdown'),
+    terrain: worldMapped(lit('terrain', { vertexColors: true, map: groundTex }), 1 / 7, 'topdown'),
   };
   return cache;
 }

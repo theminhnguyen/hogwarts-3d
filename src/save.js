@@ -126,7 +126,12 @@ export function normalizeSave(value) {
     muted: bool(raw.muted),
     music: bool(raw.music),
     peaceful: bool(raw.peaceful),
-    grafik: raw.grafik === 'schnell' ? 'schnell' : 'schoen',
+    // 3 Stufen seit 2026-07-31 (Nutzerwunsch "Grafik wie ein AAA-Titel"):
+    // 'schnell' = direkter Render ohne Post-FX, 'schoen' = Bloom/Grade/FXAA
+    // (bisheriger Default), 'episch' = zusätzlich PBR-Materialien,
+    // Umgebungslicht, Normal-Maps, SSAO und Godrays. Unbekannte Werte fallen
+    // wie bisher auf 'schoen' zurück (alte Saves kennen 'episch' nicht).
+    grafik: (raw.grafik === 'schnell' || raw.grafik === 'episch') ? raw.grafik : 'schoen',
     t: typeof raw.t === 'number' ? raw.t : undefined,
     gold: num(raw.gold, 0),
     ruf: num(raw.ruf, 0),

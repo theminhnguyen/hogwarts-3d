@@ -227,6 +227,15 @@ test('normalizeSave lehnt falsche Typen pro Feld ab, statt sie zu übernehmen', 
   assert.equal(result.animagus.form, 'rabe');
 });
 
+test('normalizeSave akzeptiert alle drei Grafik-Stufen (episch seit 2026-07-31)', () => {
+  assert.equal(normalizeSave({ grafik: 'schnell' }).grafik, 'schnell');
+  assert.equal(normalizeSave({ grafik: 'schoen' }).grafik, 'schoen');
+  assert.equal(normalizeSave({ grafik: 'episch' }).grafik, 'episch');
+  // Alte Saves ohne das Feld und Müllwerte landen weiterhin auf 'schoen'
+  assert.equal(normalizeSave({}).grafik, 'schoen');
+  assert.equal(normalizeSave({ grafik: 'ultra' }).grafik, 'schoen');
+});
+
 test('loadSave/writeSave: Roundtrip über einen Fake-Storage bewahrt Fortschritt', () => {
   const storage = fakeStorage();
   const save = fullSave();

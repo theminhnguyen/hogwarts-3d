@@ -202,7 +202,12 @@ export class PostFX {
   }
 
   render(nightGlow, fpsEMA) {
-    if (this.quality !== 'schoen') {
+    // Nur 'schnell' rendert direkt ohne jeden Pass. 'schoen' UND 'episch'
+    // durchlaufen den Composer — vor der Episch-Stufe stand hier
+    // `!== 'schoen'`, was jede künftige Stufe stillschweigend auf den
+    // Direktpfad geworfen hätte (Post-FX wären in 'episch' komplett aus
+    // gewesen, obwohl die Stufe ausdrücklich MEHR Effekte bedeutet).
+    if (this.quality === 'schnell') {
       this.renderer.setRenderTarget(null);
       this.renderer.render(this.scene, this.camera);
       return;

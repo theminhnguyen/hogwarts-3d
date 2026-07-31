@@ -22,6 +22,8 @@ import { PuzzleSystem } from './puzzles.js';
 import { buildMoor } from './moor.js';
 import { WeatherSystem } from './weather.js';
 import { PostFX } from './post.js';
+import { setMaterialTier } from './materials.js';
+import { EnvironmentProbe } from './envmap.js';
 import { buildVillage } from './village.js';
 import { buildTrain } from './train.js';
 import { buildWillow } from './willow.js';
@@ -125,8 +127,17 @@ window.addEventListener('resize', () => {
 const hud = new Hud();
 const audio = new SoundManager();
 const save = loadSave();
+// MUSS vor dem ersten getMaterials() laufen (alle Build-Steps unten rufen es
+// erst später auf): entscheidet, ob die Welt mit Lambert- oder PBR-Materialien
+// gebaut wird. Ein späterer Wechsel wirkt erst nach einem Neuladen — der
+// Menü-Button unten lädt deshalb selbst neu.
+setMaterialTier(save.grafik);
 const post = new PostFX(renderer, scene, camera);
 post.setQuality(save.grafik);
+// Umgebungslicht nur in 'episch' — in den anderen Stufen bliebe scene.environment
+// ohnehin wirkungslos (Lambert kennt keine Umgebungsspiegelung) und würde nur
+// unnötig PMREM-Rechenzeit kosten.
+const envProbe = save.grafik === 'episch' ? new EnvironmentProbe(renderer, scene) : null;
 post.onDegrade = () => hud.showToast('Grafik automatisch reduziert (Bloom aus)', 3.5);
 
 let sky, water, castle, structures, moor, life, collectibles, player;
@@ -187,7 +198,14 @@ function updatePumpkinGlows(dt) {
 }
 
 const buildSteps = [
-  ['Himmel & Licht', () => { sky = new SkySystem(scene); if (save.t) sky.timeOfDay = save.t; }],
+  ['Himmel & Licht', () => {
+    sky = new SkySystem(scene);
+    if (save.t) sky.timeOfDay = save.t;
+    // In 'episch' übernimmt die Umgebungs-Map den Himmelsanteil — das
+    // Hemisphere-Licht wird zurückgenommen, sonst zählt der Himmel doppelt
+    // (siehe Kommentar in sky.js update()).
+    if (save.grafik === 'episch') sky.hemiMul = 0.45;
+  }],
   ['Wetter', () => { weather = new WeatherSystem(scene, hud, audio); }],
   ['Gelände', () => { scene.add(buildTerrain()); }],
   ['See', () => { water = buildWater(); scene.add(water.mesh); }],
@@ -745,12 +763,26 @@ btnPeaceful.addEventListener('click', () => {
   persist();
 });
 
+// 3 Stufen (Nutzerwunsch 2026-07-31). 'schnell'/'schoen' schalten wie bisher
+// live um (reine Post-FX). 'episch' wechselt zusätzlich die Material-Klasse
+// der ganzen Welt auf PBR — das geht nur beim Weltaufbau, deshalb lädt der
+// Button beim Betreten UND Verlassen dieser Stufe die Seite neu. Der Save ist
+// vorher geschrieben, es geht also kein Fortschritt verloren.
+const GRAFIK_ORDER = ['schnell', 'schoen', 'episch'];
+const GRAFIK_LABEL = { schnell: 'Schnell', schoen: 'Schön', episch: 'Episch' };
 const btnGrafik = document.getElementById('btn-grafik');
-btnGrafik.textContent = `Grafik: ${save.grafik === 'schnell' ? 'Schnell' : 'Schön'}`;
+btnGrafik.textContent = `Grafik: ${GRAFIK_LABEL[save.grafik]}`;
 btnGrafik.addEventListener('click', () => {
-  post.setQuality(post.quality === 'schoen' ? 'schnell' : 'schoen');
-  btnGrafik.textContent = `Grafik: ${post.quality === 'schnell' ? 'Schnell' : 'Schön'}`;
+  const next = GRAFIK_ORDER[(GRAFIK_ORDER.indexOf(save.grafik) + 1) % GRAFIK_ORDER.length];
+  const needsReload = (next === 'episch') !== (save.grafik === 'episch');
+  save.grafik = next;
+  post.setQuality(next);
+  btnGrafik.textContent = `Grafik: ${GRAFIK_LABEL[next]}`;
   persist();
+  if (needsReload) {
+    hud.showToast('✨ Grafik wird umgestellt — die Welt wird neu aufgebaut …', 2.5);
+    setTimeout(() => location.reload(), 350);
+  }
 });
 
 // S11: Formwahl NUR fürs Ritual/Taste V — hat unabhängig von animagus.gelernt
@@ -1287,6 +1319,10 @@ function frame(dt) {
 
     const atmo = atmosphere.update(player.pos);
     sky.update(dt, player.pos, weather.gloom, atmo.regionTint);
+    // Umgebungsspiegelung dem Tag/Nacht-Stand nachziehen (intern auf alle 2 s
+    // gedrosselt). Muss NACH sky.update() laufen, damit sie die Farben dieses
+    // Frames sieht und nicht die vom letzten.
+    envProbe?.update(dt, sky);
     sky.hemi.intensity += weather.lightningBoost; // Blitz-Aufhellung, additiv nach dem normalen Tag/Nacht-Update
     castle.update(dt, time, sky.state.nightGlow);
     structures.update(sky.state.nightGlow, time);

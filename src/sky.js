@@ -141,6 +141,8 @@ export class SkySystem {
     // --- Lichter ---
     this.hemi = new THREE.HemisphereLight(0xbdd8f0, 0x3e4a33, 0.9);
     scene.add(this.hemi);
+    // Von main.js in der Stufe „Episch" auf <1 gesetzt — siehe update().
+    this.hemiMul = 1;
 
     this.sun = new THREE.DirectionalLight(0xffffff, 1.6);
     this.sun.castShadow = true;
@@ -255,7 +257,13 @@ export class SkySystem {
       this.sun.intensity = 0.8;
     }
     this._mix(this.hemi.color, this.pal.hemiSky, daylight, duskAmount * 0.4);
-    this.hemi.intensity = 0.58 + daylight * 0.85;
+    // hemiMul (Grafikstufe „Episch", 2026-07-31): dort liefert die
+    // Umgebungs-Map (envmap.js) den Himmelsanteil bereits physikalisch
+    // korrekt an alle PBR-Materialien. Bliebe das Hemisphere-Licht auf
+    // voller Stärke, wäre der Himmel DOPPELT gezählt — die Welt wurde im
+    // ersten Test sichtbar zu hell und flau. main.js setzt den Faktor einmal
+    // beim Start; in allen anderen Stufen bleibt er 1 (exakt wie bisher).
+    this.hemi.intensity = (0.58 + daylight * 0.85) * this.hemiMul;
 
     // Nebel
     this._mix(this.scene.fog.color, this.pal.fog, daylight, duskAmount);
