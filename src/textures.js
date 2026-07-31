@@ -19,6 +19,57 @@ function finish(c, { repeat = true } = {}) {
   return tex;
 }
 
+// ---------- Normal-Map aus einer vorhandenen Farbtextur (G2, 2026-07-31) ----------
+// Leitet Oberflächenrelief aus der HELLIGKEIT einer bereits gemalten Textur ab:
+// helle Stellen = erhaben, dunkle (Fugen, Ritzen, Maserung) = vertieft. Ein
+// Sobel-Filter liefert das Gefälle in x/y, daraus wird der Normalenvektor.
+// Dadurch bekommen Mauerfugen, Holzmaserung und Schindelkanten echte
+// Lichtkanten, ohne dass ein einziges neues Asset nötig wäre — passt exakt zur
+// prozeduralen Grundidee des Projekts.
+//
+// Zwei Fallstricke, die hier bewusst behandelt sind:
+//  1) Der Zugriff wickelt an den Rändern um (`% S`), sonst entstünde an jeder
+//     Kachelgrenze eine sichtbare Naht — die Quelltexturen sind alle kachelbar.
+//  2) Eine Normal-Map ist DATEN, kein Bild. Sie darf NICHT als sRGB markiert
+//     werden (finish() tut das), sonst verbiegt die Farbraum-Umrechnung die
+//     Vektoren und die Beleuchtung kippt subtil in die falsche Richtung.
+export function makeNormalMap(sourceTex, strength = 2.2) {
+  const src = sourceTex.image;
+  const S = src.width;
+  const data = src.getContext('2d').getImageData(0, 0, S, S).data;
+
+  const lum = new Float32Array(S * S);
+  for (let i = 0, p = 0; i < S * S; i++, p += 4) {
+    lum[i] = (data[p] * 0.299 + data[p + 1] * 0.587 + data[p + 2] * 0.114) / 255;
+  }
+  const at = (x, y) => lum[(((y % S) + S) % S) * S + (((x % S) + S) % S)];
+
+  const [c, ctx] = canvas(S);
+  const out = ctx.createImageData(S, S);
+  for (let y = 0; y < S; y++) {
+    for (let x = 0; x < S; x++) {
+      const dx = (at(x + 1, y - 1) + 2 * at(x + 1, y) + at(x + 1, y + 1))
+               - (at(x - 1, y - 1) + 2 * at(x - 1, y) + at(x - 1, y + 1));
+      const dy = (at(x - 1, y + 1) + 2 * at(x, y + 1) + at(x + 1, y + 1))
+               - (at(x - 1, y - 1) + 2 * at(x, y - 1) + at(x + 1, y - 1));
+      const nx = -dx * strength, ny = -dy * strength, nz = 1;
+      const inv = 1 / Math.hypot(nx, ny, nz);
+      const i = (y * S + x) * 4;
+      out.data[i] = (nx * inv * 0.5 + 0.5) * 255;
+      out.data[i + 1] = (ny * inv * 0.5 + 0.5) * 255;
+      out.data[i + 2] = (nz * inv * 0.5 + 0.5) * 255;
+      out.data[i + 3] = 255;
+    }
+  }
+  ctx.putImageData(out, 0, 0);
+
+  const tex = new THREE.CanvasTexture(c);
+  tex.wrapS = tex.wrapT = THREE.RepeatWrapping;
+  tex.anisotropy = 4;
+  // KEIN colorSpace = SRGBColorSpace — siehe Fallstrick 2 oben.
+  return tex;
+}
+
 // Körnung über das ganze Bild
 function speckle(ctx, size, rng, n, alpha) {
   for (let i = 0; i < n; i++) {
