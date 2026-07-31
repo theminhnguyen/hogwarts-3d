@@ -76,6 +76,19 @@ function buildHerd(scene) {
   const mesh = new THREE.InstancedMesh(geo, getMaterials().deco, HERD_COUNT);
   mesh.castShadow = true;
   mesh.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
+  // Bugfix (Nutzerreport 2026-07-31, "Herde verschwindet beim Nähern"):
+  // InstancedMesh.boundingSphere wird von three.js nur EINMAL lazy berechnet
+  // (beim ersten Frustum-Check, aus den Instanz-Matrizen zum JEWEILIGEN
+  // Zeitpunkt) und danach NIE automatisch neu berechnet. Die Herde startet
+  // eng um HERD_CENTER geclustert (jitterR nur 7), wandert aber bis zu
+  // HERD_RADIUS=65 — die gecachte Kugel deckt diesen Radius nie ab, sobald
+  // die Tiere weiter draußen sind, hält three.js die komplette Mesh für
+  // "außerhalb des Frustums" und rendert gar nichts mehr, obwohl die Kamera
+  // direkt davor steht. Gleiches Muster wie überall sonst im Projekt bei
+  // Meshes mit pro-Frame bewegter Geometrie (fx.js/weather.js/sky.js/
+  // wand.js/creatures.js) — Culling einfach abschalten, bei nur 14 Instanzen
+  // vernachlässigbare Kosten.
+  mesh.frustumCulled = false;
   scene.add(mesh);
 
   const rng = mulberry32(4242);
@@ -205,6 +218,11 @@ function buildFishGeometry() {
 function buildFishSwarm(scene, geo, mat, center, radius, count, depthMin, depthMax, seed) {
   const mesh = new THREE.InstancedMesh(geo, mat, count);
   mesh.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
+  // Bugfix: dieselbe Klasse wie an der Reh-Herde (siehe Kommentar dort) —
+  // auch hier bewegen sich alle Instanzen dauerhaft per setMatrixAt(), die
+  // einmalig gecachte boundingSphere würde sonst irgendwann nicht mehr zur
+  // tatsächlichen Position passen.
+  mesh.frustumCulled = false;
   scene.add(mesh);
   const rng = mulberry32(seed);
   const fish = [];

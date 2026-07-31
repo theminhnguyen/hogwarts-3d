@@ -422,6 +422,64 @@ export function makeDarkTowerSilhouetteTexture() {
   return finish(c, { repeat: false });
 }
 
+// ---------- Dunkles Mal (Nutzerwunsch 2026-07-31): Totenkopf + Schlange,
+// hängt nach summonMal() (dark.js) eine Weile am Himmel über der Beschwörungs-
+// stelle. Additiv leuchtend, dieselbe Grün-Familie wie die Beschwörungs-
+// Partikel in dark.js (0x2ecc55/0x1a5a2a) — bewusst grob-symbolisch (Kalotte+
+// Kiefer-Trapez+zwei ausgestochene Augenhöhlen, Schlange als S-Kurve durchs
+// Maul mit kleinem Kopf am Ende) statt fotorealistisch, passend zum Low-Poly-
+// Stil aller anderen Texturen hier.
+export function makeDarkMarkTexture() {
+  const S = 256;
+  const [c, ctx] = canvas(S);
+  ctx.clearRect(0, 0, S, S);
+  const glow = ctx.createRadialGradient(S * 0.5, S * 0.5, S * 0.04, S * 0.5, S * 0.5, S * 0.46);
+  glow.addColorStop(0, 'rgba(60,220,120,0.55)');
+  glow.addColorStop(1, 'rgba(60,220,120,0)');
+  ctx.fillStyle = glow;
+  ctx.fillRect(0, 0, S, S);
+  ctx.fillStyle = 'rgba(40,205,110,0.92)';
+  // Schädel-Kalotte
+  ctx.beginPath();
+  ctx.arc(S * 0.5, S * 0.4, S * 0.19, Math.PI, 0);
+  ctx.fill();
+  // Kiefer-Trapez
+  ctx.beginPath();
+  ctx.moveTo(S * 0.31, S * 0.4);
+  ctx.lineTo(S * 0.69, S * 0.4);
+  ctx.lineTo(S * 0.61, S * 0.56);
+  ctx.lineTo(S * 0.39, S * 0.56);
+  ctx.closePath();
+  ctx.fill();
+  // Augenhöhlen (ausgestochen, dunkel)
+  ctx.fillStyle = 'rgba(6,20,10,0.95)';
+  for (const s of [-1, 1]) {
+    ctx.beginPath();
+    ctx.ellipse(S * 0.5 + s * S * 0.09, S * 0.4, S * 0.055, S * 0.07, 0, 0, Math.PI * 2);
+    ctx.fill();
+  }
+  ctx.beginPath();
+  ctx.moveTo(S * 0.5, S * 0.44);
+  ctx.lineTo(S * 0.47, S * 0.5);
+  ctx.lineTo(S * 0.53, S * 0.5);
+  ctx.closePath();
+  ctx.fill();
+  // Schlange: S-Kurve aus dem Kiefer, mit kleinem Kopf am Ende
+  ctx.strokeStyle = 'rgba(40,205,110,0.92)';
+  ctx.lineWidth = S * 0.035;
+  ctx.lineCap = 'round';
+  ctx.beginPath();
+  ctx.moveTo(S * 0.5, S * 0.55);
+  ctx.quadraticCurveTo(S * 0.72, S * 0.6, S * 0.66, S * 0.74);
+  ctx.quadraticCurveTo(S * 0.6, S * 0.85, S * 0.4, S * 0.82);
+  ctx.stroke();
+  ctx.fillStyle = 'rgba(40,205,110,0.92)';
+  ctx.beginPath();
+  ctx.ellipse(S * 0.37, S * 0.82, S * 0.045, S * 0.03, -0.3, 0, Math.PI * 2);
+  ctx.fill();
+  return finish(c, { repeat: false });
+}
+
 // ---------- Ferner Leuchtturm (E11, PLAN-EPISCHE-WELT.md 6.6) ----------
 // Fern-Landmarke für Schwarzwasser — Turm-Silhouette + Leuchtfeuer-Punkt
 // (Farbe fff2c0 gespiegelt aus dem echten Leuchtturm in schwarzwasser.js).

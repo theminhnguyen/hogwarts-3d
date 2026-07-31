@@ -8,6 +8,7 @@
 import * as THREE from 'three';
 import { terrainHeight, GROVE } from './terrain.js';
 import { addCircleBlocker } from './geo.js';
+import { makeDarkMarkTexture } from './textures.js';
 
 // Alkoven jenseits des Baumrings (Radius 11-15, siehe grove.js) UND jenseits
 // der beiden zentrumsnahen Netze (Radius ~9) — Winkel 2.5rad frei von beidem
@@ -27,6 +28,20 @@ const DAWN_MIN = 0.05, DAWN_MAX = 0.45; // "Morgengrauen"-Fenster (nightGlow)
 
 const MAL_CD = 60;
 const TRAIL_COLOR = 0x2a1030;
+
+// Nutzerwunsch 2026-07-31 ("Mal sollte permanent bzw. mit einer gewissen
+// Abklingzeit sichtbar am Himmel sein"): vorher verpuffte summonMal() nach
+// nur ~1.6s Partikel-Burst-Lebensdauer spurlos — kein tatsächliches Mal am
+// Himmel. Jetzt ein Sprite (Muster: buildPulsingSilhouette in ambient.js),
+// das über der Beschwörungsstelle erscheint, MAL_SKY_HOLD lang voll sichtbar
+// bleibt und dann über MAL_SKY_FADE ausblendet — Gesamtdauer 60s deckt sich
+// bewusst mit MAL_CD, das Mal verschwindet also ungefähr dann, wenn man es
+// erneut beschwören könnte.
+const MAL_SKY_HOLD = 45;
+const MAL_SKY_FADE = 15;
+const MAL_SKY_HEIGHT = 55;
+const MAL_SKY_SCALE = 80;
+const MAL_SKY_OPACITY = 0.8;
 
 export function buildDark(scene, glowTex, hud, audio, fx, interact, economy, deps) {
   // deps = { dunkel, spells, dementors, health, sky } — direkte Save-
@@ -173,8 +188,26 @@ export function buildDark(scene, glowTex, hud, audio, fx, interact, economy, dep
     },
   });
 
+  // ---------- Dunkles-Mal-Sprite (Himmel) ----------
+  // Additiv, normaler Tiefentest (anders als die Fern-Silhouetten in
+  // ambient.js, die depthTest:false nutzen, weil sie 800 Einheiten entfernte
+  // FESTE Horizont-Landmarken sind) — das Mal hängt dagegen relativ nah über
+  // der Beschwörungsstelle und soll wie die übrigen Glow-Sprites hier (book-
+  // Glow/altarGlow) korrekt von Gebäuden/Gelände verdeckt werden, wenn man
+  // z.B. drinnen steht.
+  const markMat = new THREE.SpriteMaterial({
+    map: makeDarkMarkTexture(), color: 0xffffff, transparent: true, opacity: 0,
+    blending: THREE.AdditiveBlending, depthWrite: false,
+  });
+  const markSprite = new THREE.Sprite(markMat);
+  markSprite.scale.setScalar(MAL_SKY_SCALE);
+  markSprite.visible = false;
+  scene.add(markSprite);
+  let markTime = 0;
+
   let onChange = null;
   let malCdT = 0;
+  let malSkyT = 0;
 
   return {
     set onChange(fn) { onChange = fn; },
@@ -201,6 +234,12 @@ export function buildDark(scene, glowTex, hud, audio, fx, interact, economy, dep
       fx.burst({ x: px, y: terrainHeight(px, pz) + 6, z: pz }, 0x1a5a2a, 30, 5, { gravity: -0.5, life: 1.6 });
       audio.malSummon?.();
       dementors.summonToMal({ x: px, z: pz });
+      // Nutzerwunsch 2026-07-31: das Mal selbst hängt jetzt MAL_SKY_HOLD+
+      // MAL_SKY_FADE lang sichtbar am Himmel über der Beschwörungsstelle,
+      // statt nur als flüchtiger Partikeleffekt zu verpuffen.
+      markSprite.position.set(px, terrainHeight(px, pz) + MAL_SKY_HEIGHT, pz);
+      markSprite.visible = true;
+      malSkyT = MAL_SKY_HOLD + MAL_SKY_FADE;
       hud.showToast('☠️ Das Dunkle Mal steigt in den Himmel … Dementoren driften herbei. (−3 Ruf, 30s)', 4);
       return true;
     },
@@ -212,6 +251,17 @@ export function buildDark(scene, glowTex, hud, audio, fx, interact, economy, dep
       if (dunkel.pfad === 'dunkel' && sprinting && Math.random() < 0.55) {
         fx.trail({ x: player.pos.x, y: player.pos.y + 0.25, z: player.pos.z }, TRAIL_COLOR);
       }
+      // Dunkles-Mal-Sprite: MAL_SKY_HOLD lang voll sichtbar (mit leichtem
+      // Pulsieren fürs "lebendige" Unheil-Gefühl), dann über MAL_SKY_FADE
+      // linear ausgeblendet.
+      if (malSkyT > 0) {
+        markTime += dt;
+        malSkyT = Math.max(0, malSkyT - dt);
+        const frac = Math.min(1, malSkyT / MAL_SKY_FADE);
+        const pulse = frac >= 1 ? Math.sin(markTime * 0.5) * 0.08 : 0;
+        markMat.opacity = Math.max(0, (MAL_SKY_OPACITY + pulse) * frac);
+        if (malSkyT <= 0) markSprite.visible = false;
+      }
     },
 
     // Reset-Button + initialer Load: kompletter visueller Sync aus dunkel.*
@@ -222,6 +272,9 @@ export function buildDark(scene, glowTex, hud, audio, fx, interact, economy, dep
       altarGroup.visible = !!dunkel.buch;
       updateAltarGlow();
       malCdT = 0;
+      malSkyT = 0;
+      markSprite.visible = false;
+      markMat.opacity = 0;
       if (dunkel.buch) spells.unlockDarkSpells(false);
     },
   };
