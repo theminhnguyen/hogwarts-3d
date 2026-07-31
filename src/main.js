@@ -1238,7 +1238,11 @@ function frame(dt) {
       spells.dmgMul = potionDmgMul * (hallows.elderstabActive ? 2 : 1);
       spells.cooldownMul = hallows.elderstabActive ? 0.6 : 1;
     }
-    dementors.update(dt, player);
+    // S12 (Nutzerwunsch 2026-07-31): npc.students/npc.wizards als zusätzliche
+    // Jagd-Ziele — npc.update() (weiter unten in diesem frame()) nutzt
+    // deps.dementors.list intern selbst für die umgekehrte Flucht-Richtung,
+    // beide Richtungen brauchen also keine neue main.js-Variable.
+    dementors.update(dt, player, npc.students, npc.wizards);
     // V3: Phase 2 der Schattenfeste ("Die Woge") speist dieselbe Frost-
     // Vignette — die Lord-Dementoren haben keine eigene Anzeige, sondern
     // teilen sich das bestehende --frost-System mit dem Nebelmoor.

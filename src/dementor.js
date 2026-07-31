@@ -94,6 +94,10 @@ class Dementor {
     this.state = 'drift'; // 'drift' | 'aggro' | 'repelled'
     this.stateT = 0;
     this.homePos = homePos;
+    // S12 (Nutzerwunsch 2026-07-31): Verfolgungs-Ziel im 'aggro'-Zustand —
+    // entweder das globale `player`-Objekt (immer dieselbe Referenz) oder ein
+    // Student/Wizard aus system.students/wizards. null außerhalb von 'aggro'.
+    this.target = null;
 
     const rng = mulberry32(seed * 991 + 3);
     this.phaseA = rng() * Math.PI * 2;
@@ -199,7 +203,17 @@ class Dementor {
       }
     } else {
       const dx = player.pos.x - this.pos.x, dz = player.pos.z - this.pos.z;
-      const distSq = dx * dx + dz * dz;
+      const playerDistSq = dx * dx + dz * dz;
+      // S12 (Nutzerwunsch 2026-07-31): Distanz zum AKTUELLEN Verfolgungs-Ziel
+      // (Spieler ODER Schüler/Hexer) — wie playerDistSq oben VOR der Bewegung
+      // dieses Frames berechnet (der Touch-Check unten nutzt bewusst diesen
+      // "abgestandenen" Stand, exakt das Muster des bisherigen reinen
+      // Spieler-Codes).
+      let targetDistSq = playerDistSq;
+      if (this.state === 'aggro' && this.target && this.target !== player) {
+        const tdx = this.target.pos.x - this.pos.x, tdz = this.target.pos.z - this.pos.z;
+        targetDistSq = tdx * tdx + tdz * tdz;
+      }
       switch (this.state) {
         case 'drift': {
           // S8 Dunkles Mal: solange aktiv, driften Dementoren zum Mal statt
@@ -224,8 +238,32 @@ class Dementor {
           // S11: Katzen-Schleichen verkleinert nur die ERKENNUNGS-Reichweite
           // (dieser aggroR) — leaveR (unten) bleibt unskaliert, ein einmal
           // alarmierter Dementor lässt sich nicht durch Schleichen abschütteln.
-          const aggroR = (TUNING.aggroRange + this.system.aggroRangeExtra) * this.system.aggroRangeMul * this.system.catStealthMul;
-          if (!this.system.playerIsDark && !this.system.masterOfDeath && !player.invisible && distSq < aggroR * aggroR) {
+          // S12 (Nutzerwunsch 2026-07-31, "Dementoren sollen NPCs jagen"):
+          // neben dem Spieler jetzt auch wandernde Schüler/Hexer als gültiges
+          // Ziel — wer näher ist (und gültig ist), wird gejagt. Die NPC-
+          // Reichweite nutzt bewusst KEIN catStealthMul (das ist eine
+          // Eigenschaft des SPIELERS in Tierform, hat nichts mit der
+          // Sichtbarkeit eines Schülers für den Dementor zu tun).
+          const aggroRBase = (TUNING.aggroRange + this.system.aggroRangeExtra) * this.system.aggroRangeMul;
+          const aggroRPlayerSq = (aggroRBase * this.system.catStealthMul) ** 2;
+          let target = null, tDistSq = aggroRBase * aggroRBase;
+          if (!this.system.playerIsDark && !this.system.masterOfDeath && !player.invisible && playerDistSq < aggroRPlayerSq) {
+            target = player; tDistSq = playerDistSq;
+          }
+          for (const n of this.system.students) {
+            if (!n.alive) continue;
+            const ndx = n.pos.x - this.pos.x, ndz = n.pos.z - this.pos.z;
+            const nDistSq = ndx * ndx + ndz * ndz;
+            if (nDistSq < tDistSq) { target = n; tDistSq = nDistSq; }
+          }
+          for (const n of this.system.wizards) {
+            if (!n.alive) continue;
+            const ndx = n.pos.x - this.pos.x, ndz = n.pos.z - this.pos.z;
+            const nDistSq = ndx * ndx + ndz * ndz;
+            if (nDistSq < tDistSq) { target = n; tDistSq = nDistSq; }
+          }
+          if (target) {
+            this.target = target;
             this.state = 'aggro';
             this.stateT = 0;
           }
@@ -233,7 +271,7 @@ class Dementor {
           // Dementor beim Vorbeigehen (Umhang-Dip) — er erkennt den Träger
           // aller drei Heiligtümer als "einen der Ihren" an.
           if (this.system.masterOfDeath) {
-            const dNear = Math.sqrt(distSq);
+            const dNear = Math.sqrt(playerDistSq);
             const dip = dNear < 12 ? (1 - dNear / 12) * 0.5 : 0;
             this.group.rotation.x += (dip - this.group.rotation.x) * Math.min(1, 3 * dt);
           } else if (this.group.rotation.x !== 0) {
@@ -243,25 +281,47 @@ class Dementor {
         }
         case 'aggro': {
           this.stateT += dt;
-          this._steerXZ(player.pos.x, player.pos.z, TUNING.chaseSpeed, dt);
-          if (distSq < TUNING.touchRange * TUNING.touchRange) {
-            // Richtung vom Spieler weg (Dementor minus Spieler) — Muster wie
-            // beim Schattengeist-Kontakt: Spieler-Rückstoß UND Dementor-
-            // Rückteleport nutzen dieselbe Richtung.
-            const ddx = this.pos.x - player.pos.x, ddz = this.pos.z - player.pos.z;
+          // Ziel kann inzwischen ungültig geworden sein (Schüler/Hexer
+          // gestorben — durch genau diesen Kontakt letzten Frame, oder
+          // anderweitig) — der Spieler selbst ist dagegen immer gültig.
+          if (this.target !== player && !this.target?.alive) {
+            this.state = 'drift';
+            this.stateT = 0;
+            this.target = null;
+            break;
+          }
+          const tx = this.target.pos.x, tz = this.target.pos.z;
+          this._steerXZ(tx, tz, TUNING.chaseSpeed, dt);
+          if (targetDistSq < TUNING.touchRange * TUNING.touchRange) {
+            // Richtung vom Ziel weg (Dementor minus Ziel) — Muster wie beim
+            // Schattengeist-Kontakt: Rückstoß UND Dementor-Rückteleport
+            // nutzen dieselbe Richtung.
+            const ddx = this.pos.x - tx, ddz = this.pos.z - tz;
             const d = Math.hypot(ddx, ddz) || 1;
             const dirX = ddx / d, dirZ = ddz / d;
             if (!this.system.peaceful) {
-              this.system.health.damage(TUNING.dmg, { x: dirX, y: 0, z: dirZ });
-              this.system.fx.shake(0.4);
+              if (this.target === player) {
+                this.system.health.damage(TUNING.dmg, { x: dirX, y: 0, z: dirZ });
+                this.system.fx.shake(0.4);
+              } else {
+                // S12: Dementor-Kuss für NPCs — sofortiger Tod (Muster
+                // 'avada' in npcDamage()), respawnt danach ganz normal über
+                // NPC_RESPAWN_DUR wie jeder andere NPC-Tod.
+                this.target.applyHit('dementor', null, 1);
+                this.system.fx.burst(
+                  { x: tx, y: this.target.pos.y + (this.target.hitY || 1.3), z: tz },
+                  0x555b66, 8, 2, { gravity: -1, life: 0.4 },
+                );
+              }
             }
-            this.pos.x = player.pos.x + dirX * TUNING.knockback;
-            this.pos.z = player.pos.z + dirZ * TUNING.knockback;
+            this.pos.x = tx + dirX * TUNING.knockback;
+            this.pos.z = tz + dirZ * TUNING.knockback;
           }
           const leaveR = (TUNING.leaveAggroRange + this.system.aggroRangeExtra) * this.system.aggroRangeMul;
-          if (distSq > leaveR * leaveR) {
+          if (targetDistSq > leaveR * leaveR) {
             this.state = 'drift';
             this.stateT = 0;
+            this.target = null;
           }
           break;
         }
@@ -275,7 +335,7 @@ class Dementor {
     // langsam und ließe kurzzeitige Überschreitungen zu).
     const distMoorAfter = Math.hypot(this.pos.x - MOOR.x, this.pos.z - MOOR.z);
     if (distMoorAfter > TUNING.leash) {
-      if (this.state === 'aggro') { this.state = 'drift'; this.stateT = 0; }
+      if (this.state === 'aggro') { this.state = 'drift'; this.stateT = 0; this.target = null; }
       const f = TUNING.leash / distMoorAfter;
       this.pos.x = MOOR.x + (this.pos.x - MOOR.x) * f;
       this.pos.z = MOOR.z + (this.pos.z - MOOR.z) * f;
@@ -322,6 +382,12 @@ export class DementorSystem {
     this.masterOfDeath = false;
     // S11: Katzen-Schleichen — von main.js aus player.animalForm gesetzt.
     this.catStealthMul = 1;
+    // S12 (Nutzerwunsch 2026-07-31): wandernde Schüler/Hexer als zusätzliche
+    // Ziele — jeden Frame von update() aus main.js neu gesetzt (npc.students/
+    // npc.wizards), von jedem einzelnen Dementor.update() gelesen. Leere
+    // Default-Arrays, falls update() vor dem ersten echten Aufruf gelesen wird.
+    this.students = [];
+    this.wizards = [];
 
     const parts = buildDementorParts(glowTex);
     this.list = SPAWNS.map((s, i) => new Dementor(this, parts, s, i + 1));
@@ -334,7 +400,13 @@ export class DementorSystem {
     this.malLureT = TUNING.repelDur; // dieselbe 30s-Dauer wie repel()
   }
 
-  update(dt, player) {
+  // S12: students/wizards optional (main.js übergibt npc.students/npc.wizards
+  // — beide Arrays existieren immer, sobald buildNpcs() gelaufen ist, was vor
+  // dem ersten frame()-Aufruf der Fall ist; Default [] schützt trotzdem, falls
+  // update() je aus anderem Kontext ohne die Listen aufgerufen wird).
+  update(dt, player, students = [], wizards = []) {
+    this.students = students;
+    this.wizards = wizards;
     this.time += dt;
     if (this.malLureT > 0) this.malLureT = Math.max(0, this.malLureT - dt);
     let nearestDist = Infinity;

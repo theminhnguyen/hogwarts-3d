@@ -225,13 +225,22 @@ export function setFigureOpacity(fig, f) {
 // FLAVOR, K12). Ab RUF_LOW weichen Schüler dem Spieler aus, ab RUF_HIGH
 // grüßen sie kurz (Blick zum Spieler), statt einfach vorbeizulaufen.
 const RUF_FLEE_RANGE = 6, RUF_GREET_RANGE = 4, RUF_FLEE_SPEED = 2.6;
+// S12 (Nutzerwunsch 2026-07-31, "Dementoren sollen NPCs jagen / NPCs vor
+// ihnen fliehen"): zweiter, unabhängiger Flucht-Auslöser neben Ruf/dunklem
+// Pfad. Großzügiger als RUF_FLEE_RANGE, aber knapp unter der Dementor-eigenen
+// aggroRange (22, siehe dementor.js TUNING) — Schüler/Hexer bemerken einen
+// nahenden Dementor also VOR dessen eigenem Aggro-Übergang und rennen los,
+// werden aber (chaseSpeed 5.0 vs. RUF_FLEE_SPEED 2.6) trotzdem manchmal
+// eingeholt, statt garantiert zu entkommen — genau das macht die Begegnung
+// spürbar, ohne sie unfair zu machen (Respawn ist das Sicherheitsnetz).
+const DEMENTOR_FLEE_RANGE = 16;
 
 // Respawn-Dauer für Schüler/Hexer (Muster: fauna.js FAUNA_RESPAWN_DUR,
 // bewusst als eigene Konstante statt Cross-Import — nur der Wert ist geteilt).
 const NPC_RESPAWN_DUR = 60;
 // Gemeinsame Schadenstabelle (Muster: Ghost.applyHit()/fauna.js faunaDamage()).
 function npcDamage(spellId) {
-  return spellId === 'avada' ? Infinity
+  return (spellId === 'avada' || spellId === 'dementor') ? Infinity
     : spellId === 'crucio' ? 0.25
     : spellId === 'claw' ? 0.5
     : (spellId === 'stupor' || spellId === 'incendio' || spellId === 'kick' || spellId === 'bite') ? 1 : 0;
@@ -256,6 +265,13 @@ class Student {
     this.pauseDur = 0;
     this.fade = 1;
     this._greeted = false;
+    // S12: Fluchtziel + zugehörige Reichweite — wovor gerade geflohen wird
+    // (player.pos oder die live-aktualisierte Position eines Dementors),
+    // gesetzt beim Betreten von 'flee', gelesen fürs Bewegungsziel UND den
+    // Ausstiegs-Check (Muster: derselbe 'flee'-Zustand, nur die Richtung/der
+    // Schwellwert wechselt je nach Auslöser).
+    this.fleeFrom = null;
+    this._fleeRange = RUF_FLEE_RANGE;
     const [sx, sz] = pathPts[0];
     this.spawnPos = { x: sx, z: sz };
     this.group.position.set(sx, terrainHeight(sx, sz), sz);
@@ -294,7 +310,7 @@ class Student {
     return false;
   }
 
-  update(dt, nightGlow, player, ruf, isDark = false) {
+  update(dt, nightGlow, player, ruf, isDark = false, dementors = null) {
     if (this.state === 'dead') {
       this.deadT += dt;
       if (this.deadT >= NPC_RESPAWN_DUR) {
@@ -320,17 +336,49 @@ class Student {
     let dPlayer = Infinity;
     if (player) dPlayer = Math.hypot(player.pos.x - this.group.position.x, player.pos.z - this.group.position.z);
 
+    // applyHit() (Crucio/Krallen-Treffer, die nicht töten) setzt state='flee'
+    // OHNE fleeFrom zu kennen (kein player-Zugriff dort) — Fallback: dann war
+    // der Spieler die Ursache, exakt wie vor der Dementor-Erweiterung.
+    if (this.state === 'flee' && !this.fleeFrom && player) {
+      this.fleeFrom = player.pos;
+      this._fleeRange = RUF_FLEE_RANGE;
+    }
+
+    // S12: nächster nicht-vertriebener Dementor in Flucht-Reichweite — geht
+    // ALLEN anderen Zustandswechseln vor (ein Dementor ist bedrohlicher als
+    // Ruf/Gruß-Logik). 'repelled' Dementoren (auf dem Rückzug zum Moor) lösen
+    // bewusst keine Flucht aus, die sind in diesem Moment harmlos.
+    let nearestDementor = null, nearestDementorDistSq = DEMENTOR_FLEE_RANGE * DEMENTOR_FLEE_RANGE;
+    if (dementors) {
+      for (const d of dementors) {
+        if (d.state === 'repelled') continue;
+        const ddx = d.pos.x - this.group.position.x, ddz = d.pos.z - this.group.position.z;
+        const dd = ddx * ddx + ddz * ddz;
+        if (dd < nearestDementorDistSq) { nearestDementor = d; nearestDementorDistSq = dd; }
+      }
+    }
+
     // S8: Schüler fliehen zusätzlich zum bestehenden Ruf-Trigger, sobald der
     // Spieler dem dunklen Pfad folgt — Teil der Weltreaktion aus dem Plan.
-    if ((ruf <= RUF_LOW || isDark) && dPlayer < RUF_FLEE_RANGE) this.state = 'flee';
-    else if (this.state === 'flee' && dPlayer >= RUF_FLEE_RANGE * 1.3) { this.state = 'walk'; }
-    else if (ruf >= RUF_HIGH && dPlayer < RUF_GREET_RANGE && this.state === 'walk' && !this._greeted) {
+    if (nearestDementor) {
+      this.state = 'flee';
+      this.fleeFrom = nearestDementor.pos;
+      this._fleeRange = DEMENTOR_FLEE_RANGE;
+    } else if ((ruf <= RUF_LOW || isDark) && dPlayer < RUF_FLEE_RANGE) {
+      this.state = 'flee';
+      this.fleeFrom = player.pos;
+      this._fleeRange = RUF_FLEE_RANGE;
+    } else if (this.state === 'flee' && this.fleeFrom) {
+      const fdx = this.group.position.x - this.fleeFrom.x, fdz = this.group.position.z - this.fleeFrom.z;
+      if (Math.hypot(fdx, fdz) >= this._fleeRange * 1.3) { this.state = 'walk'; this.fleeFrom = null; }
+    } else if (ruf >= RUF_HIGH && dPlayer < RUF_GREET_RANGE && this.state === 'walk' && !this._greeted) {
       this.state = 'greet'; this.stateT = 0; this._greeted = true;
     }
     if (dPlayer >= RUF_GREET_RANGE * 1.5) this._greeted = false;
 
     if (this.state === 'flee') {
-      const dx = this.group.position.x - player.pos.x, dz = this.group.position.z - player.pos.z;
+      const from = this.fleeFrom || player.pos;
+      const dx = this.group.position.x - from.x, dz = this.group.position.z - from.z;
       const d = Math.hypot(dx, dz) || 1;
       const nx = dx / d, nz = dz / d;
       this.group.position.x += nx * RUF_FLEE_SPEED * dt;
@@ -394,6 +442,9 @@ class Wizard {
     this.stateT = 0;
     this.pauseDur = 0;
     this.fade = 1;
+    // S12: siehe Student-Konstruktor oben — dieselbe Flucht-Ziel/Reichweite.
+    this.fleeFrom = null;
+    this._fleeRange = DEMENTOR_FLEE_RANGE;
     const [sx, sz] = pathPts[0];
     this.spawnPos = { x: sx, z: sz };
     this.group.position.set(sx, terrainHeight(sx, sz), sz);
@@ -426,7 +477,7 @@ class Wizard {
     return false;
   }
 
-  update(dt, nightGlow, player) {
+  update(dt, nightGlow, player, dementors = null) {
     if (this.state === 'dead') {
       this.deadT += dt;
       if (this.deadT >= NPC_RESPAWN_DUR) {
@@ -449,8 +500,36 @@ class Wizard {
     setFigureOpacity(this.fig, this.fade);
     if (this.fade <= 0.01) return;
 
-    if (this.state === 'flee' && player) {
-      const dx = this.group.position.x - player.pos.x, dz = this.group.position.z - player.pos.z;
+    // applyHit() (Crucio/Krallen-Treffer, die nicht töten) setzt state='flee'
+    // ohne fleeFrom zu kennen — Fallback: dann war der Spieler die Ursache
+    // (Muster: siehe Student.update() oben).
+    if (this.state === 'flee' && !this.fleeFrom && player) {
+      this.fleeFrom = player.pos;
+      this._fleeRange = RUF_FLEE_RANGE;
+    }
+
+    // S12 (Nutzerwunsch 2026-07-31): Hexer hatten bisher GAR keinen
+    // Nähe-basierten Flucht-Auslöser (nur applyHit) — Dementoren sind der
+    // erste. Selbes Muster wie bei Student.update(): nächster nicht-
+    // vertriebener Dementor in Reichweite gewinnt gegenüber allem anderen.
+    let nearestDementor = null, nearestDementorDistSq = DEMENTOR_FLEE_RANGE * DEMENTOR_FLEE_RANGE;
+    if (dementors) {
+      for (const d of dementors) {
+        if (d.state === 'repelled') continue;
+        const ddx = d.pos.x - this.group.position.x, ddz = d.pos.z - this.group.position.z;
+        const dd = ddx * ddx + ddz * ddz;
+        if (dd < nearestDementorDistSq) { nearestDementor = d; nearestDementorDistSq = dd; }
+      }
+    }
+    if (nearestDementor) {
+      this.state = 'flee';
+      this.fleeFrom = nearestDementor.pos;
+      this._fleeRange = DEMENTOR_FLEE_RANGE;
+    }
+
+    if (this.state === 'flee' && this.fleeFrom) {
+      const from = this.fleeFrom;
+      const dx = this.group.position.x - from.x, dz = this.group.position.z - from.z;
       const d = Math.hypot(dx, dz) || 1;
       const nx = dx / d, nz = dz / d;
       this.group.position.x += nx * RUF_FLEE_SPEED * dt;
@@ -458,7 +537,7 @@ class Wizard {
       this.group.position.y = terrainHeight(this.group.position.x, this.group.position.z);
       this.group.rotation.y = Math.atan2(-nx, -nz);
       animateFigure(this.fig, dt, true);
-      if (d >= RUF_FLEE_RANGE * 1.3) { this.state = 'walk'; this.stateT = 0; }
+      if (d >= this._fleeRange * 1.3) { this.state = 'walk'; this.stateT = 0; this.fleeFrom = null; }
       return;
     }
     if (this.state === 'pause') {
@@ -1148,8 +1227,12 @@ export function buildNpcs(scene, glowTex, hud, audio, fx, health, interact, deps
 
     update(dt, player, skyState, ruf = 0, isDark = false) {
       currentPlayer = player;
-      for (const s of students) s.update(dt, skyState.nightGlow, player, ruf, isDark);
-      for (const w of wizards) w.update(dt, skyState.nightGlow, player);
+      // S12: deps.dementors ist die echte DementorSystem-Instanz (siehe
+      // main.js buildNpcs()-Aufruf) — .list existiert immer, sobald main.js
+      // sie gebaut hat (vor 'NPCs & Quests' in der Build-Reihenfolge).
+      const dementorList = deps.dementors?.list;
+      for (const s of students) s.update(dt, skyState.nightGlow, player, ruf, isDark, dementorList);
+      for (const w of wizards) w.update(dt, skyState.nightGlow, player, dementorList);
       fero.update(dt);
 
       animateFigure(lenaFig, dt, false);
