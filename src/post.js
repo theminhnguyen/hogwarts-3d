@@ -51,15 +51,105 @@ const BLUR_FRAG = /* glsl */`
   }
 `;
 
+// ---------- SSAO (G3, „Episch") ----------
+// Umgebungsverdeckung: Ecken, Kanten und Berührungspunkte werden abgedunkelt.
+// Das ist der stärkste „Grounding"-Effekt überhaupt — ohne ihn wirken Objekte
+// wie auf den Boden geklebt statt daraufstehend.
+//
+// Die Tiefe kommt aus der depthTexture des Szenen-Render-Targets, es braucht
+// also KEINEN zusätzlichen Geometrie-Durchlauf (ein separater Depth-Prepass
+// würde die gesamte Szene ein zweites Mal zeichnen).
+// Normalen werden aus den Ableitungen der rekonstruierten View-Position
+// gewonnen — bei der durchweg flach schattierten Low-Poly-Geometrie hier ist
+// das sogar exakt, und es spart einen Normal-Buffer.
+const SSAO_FRAG = /* glsl */`
+  uniform sampler2D tDepth;
+  uniform mat4 uProj;
+  uniform mat4 uInvProj;
+  uniform vec2 uRes;
+  uniform float uRadius;
+  uniform float uBias;
+  uniform vec3 uKernel[12];
+  varying vec2 vUv;
+
+  vec3 viewPosAt(vec2 uv) {
+    float d = texture2D(tDepth, uv).x;
+    vec4 clip = vec4(uv * 2.0 - 1.0, d * 2.0 - 1.0, 1.0);
+    vec4 v = uInvProj * clip;
+    return v.xyz / v.w;
+  }
+
+  float hash(vec2 c) { return fract(sin(dot(c, vec2(12.9898, 78.233))) * 43758.5453); }
+
+  void main() {
+    float d = texture2D(tDepth, vUv).x;
+    // Himmel (Tiefe am fernen Rand): niemals verdecken, sonst bekäme die
+    // Silhouette jedes Gebäudes einen dunklen Saum gegen den Himmel.
+    if (d >= 0.9999) { gl_FragColor = vec4(1.0); return; }
+
+    vec3 P = viewPosAt(vUv);
+    vec3 N = normalize(cross(dFdx(P), dFdy(P)));
+
+    // Zufällige Drehung pro Pixel bricht das Kernel-Muster auf; das dadurch
+    // entstehende Rauschen holt der anschliessende Weichzeichner wieder raus.
+    float a = hash(vUv * uRes) * 6.2831853;
+    float ca = cos(a), sa = sin(a);
+
+    float occ = 0.0;
+    for (int i = 0; i < 12; i++) {
+      vec3 k = uKernel[i];
+      vec3 kr = vec3(k.x * ca - k.y * sa, k.x * sa + k.y * ca, k.z);
+      // In die Hemisphäre der Oberflächennormale klappen
+      if (dot(kr, N) < 0.0) kr = -kr;
+
+      vec3 S = P + kr * uRadius;
+      vec4 sc = uProj * vec4(S, 1.0);
+      vec2 sUv = (sc.xy / sc.w) * 0.5 + 0.5;
+      if (sUv.x < 0.0 || sUv.x > 1.0 || sUv.y < 0.0 || sUv.y > 1.0) continue;
+
+      vec3 SP = viewPosAt(sUv);
+      // Blickrichtung ist -Z: ein GRÖSSERES z heisst näher an der Kamera.
+      // Liegt die echte Oberfläche vor dem Abtastpunkt, verdeckt sie ihn.
+      float rangeCheck = smoothstep(0.0, 1.0, uRadius / max(0.0001, abs(P.z - SP.z)));
+      if (SP.z >= S.z + uBias) occ += rangeCheck;
+    }
+    gl_FragColor = vec4(clamp(1.0 - occ / 12.0, 0.0, 1.0));
+  }
+`;
+
+// 4x4-Kastenweichzeichner über das AO-Bild — entfernt das Rauschen aus der
+// zufälligen Kernel-Drehung. Genau so gross wie das Rauschmuster.
+const AOBLUR_FRAG = /* glsl */`
+  uniform sampler2D tAO;
+  uniform vec2 uTexel;
+  varying vec2 vUv;
+  void main() {
+    float s = 0.0;
+    for (int x = -2; x <= 1; x++) {
+      for (int y = -2; y <= 1; y++) {
+        s += texture2D(tAO, vUv + vec2(float(x), float(y)) * uTexel).r;
+      }
+    }
+    gl_FragColor = vec4(s / 16.0);
+  }
+`;
+
 const COMBINE_FRAG = /* glsl */`
   uniform sampler2D tScene;
   uniform sampler2D tBloom;
+  uniform sampler2D tAO;
   uniform float uBloomStrength;
+  uniform float uAOStrength;
   uniform float uSaturation;
   uniform float uNight;
   varying vec2 vUv;
   void main() {
     vec3 scene = texture2D(tScene, vUv).rgb;
+    // AO wird VOR dem Bloom angewandt: verdeckte Stellen sollen auch weniger
+    // ins Leuchten beitragen. uAOStrength ist ausserhalb von „Episch" 0, der
+    // Ausdruck fällt dann exakt auf 1.0 zurück (kein Unterschied zu vorher).
+    float ao = mix(1.0, texture2D(tAO, vUv).r, uAOStrength);
+    scene *= ao;
     vec3 bloom = texture2D(tBloom, vUv).rgb;
     vec3 col = scene + bloom * uBloomStrength;
     // Leichte S-Kurve (nur zu einem Viertel eingeblendet) — die volle
@@ -157,10 +247,34 @@ export class PostFX {
     this.matBlurH = makeQuadMaterial(BLUR_FRAG, { tInput: { value: null }, uDir: { value: new THREE.Vector2() } });
     this.matBlurV = makeQuadMaterial(BLUR_FRAG, { tInput: { value: null }, uDir: { value: new THREE.Vector2() } });
     this.matCombine = makeQuadMaterial(COMBINE_FRAG, {
-      tScene: { value: null }, tBloom: { value: null },
-      uBloomStrength: { value: 0.35 }, uSaturation: { value: 1.08 }, uNight: { value: 0 },
+      tScene: { value: null }, tBloom: { value: null }, tAO: { value: null },
+      uBloomStrength: { value: 0.35 }, uAOStrength: { value: 0 },
+      uSaturation: { value: 1.08 }, uNight: { value: 0 },
     });
     this.matFxaa = makeQuadMaterial(FXAA_FRAG, { tInput: { value: null }, uTexel: { value: new THREE.Vector2() } });
+
+    // G3: Abtastkern für SSAO. Punkte liegen dichter an der Mitte (quadratische
+    // Gewichtung) — nahe Geometrie soll stärker zählen als entfernte, sonst
+    // wirkt die Verschattung diffus statt als Kontaktschatten.
+    const kernel = [];
+    for (let i = 0; i < 12; i++) {
+      const v = new THREE.Vector3(Math.random() * 2 - 1, Math.random() * 2 - 1, Math.random() * 2 - 1);
+      if (v.lengthSq() < 1e-6) v.set(0, 0, 1);
+      v.normalize().multiplyScalar(0.3 + 0.7 * ((i + 1) / 12) ** 2);
+      kernel.push(v);
+    }
+    this.matSSAO = makeQuadMaterial(SSAO_FRAG, {
+      tDepth: { value: null },
+      uProj: { value: new THREE.Matrix4() },
+      uInvProj: { value: new THREE.Matrix4() },
+      uRes: { value: new THREE.Vector2() },
+      uRadius: { value: 1.6 },   // Meter im View-Space
+      uBias: { value: 0.035 },   // gegen Selbstverschattung auf ebenen Flächen
+      uKernel: { value: kernel },
+    });
+    this.matAOBlur = makeQuadMaterial(AOBLUR_FRAG, {
+      tAO: { value: null }, uTexel: { value: new THREE.Vector2() },
+    });
 
     this._allocate();
   }
@@ -176,20 +290,45 @@ export class PostFX {
     const w = Math.max(1, Math.floor(size.x)), h = Math.max(1, Math.floor(size.y));
     const bw = Math.max(1, Math.floor(w / 4)), bh = Math.max(1, Math.floor(h / 4));
 
+    // G3: AO läuft auf halber Auflösung. Umgebungsverdeckung ist von Natur aus
+    // niederfrequent — bei voller Auflösung kostet sie doppelt so viel, ohne
+    // sichtbar besser zu werden.
+    const aw = Math.max(1, Math.floor(w / 2)), ah = Math.max(1, Math.floor(h / 2));
+
     this._disposeRT(this.rtScene); this._disposeRT(this.rtBright);
     this._disposeRT(this.rtBlurA); this._disposeRT(this.rtBlurB); this._disposeRT(this.rtFinal);
+    this._disposeRT(this.rtAO); this._disposeRT(this.rtAOBlur);
+    this.rtScene?.depthTexture?.dispose();
 
     const opts = { minFilter: THREE.LinearFilter, magFilter: THREE.LinearFilter, format: THREE.RGBAFormat, depthBuffer: false };
     this.rtScene = new THREE.WebGLRenderTarget(w, h, { ...opts, depthBuffer: true });
+    // Tiefe direkt am Szenen-Target mitschreiben lassen — dadurch braucht SSAO
+    // keinen eigenen Geometrie-Durchlauf. NearestFilter, weil Tiefenwerte
+    // Messwerte sind: interpoliert man sie, entstehen an Silhouetten Werte,
+    // die zu gar keiner echten Oberfläche gehören.
+    const depthTex = new THREE.DepthTexture(w, h);
+    depthTex.type = THREE.UnsignedIntType;
+    depthTex.minFilter = THREE.NearestFilter;
+    depthTex.magFilter = THREE.NearestFilter;
+    this.rtScene.depthTexture = depthTex;
+
     this.rtBright = new THREE.WebGLRenderTarget(bw, bh, opts);
     this.rtBlurA = new THREE.WebGLRenderTarget(bw, bh, opts);
     this.rtBlurB = new THREE.WebGLRenderTarget(bw, bh, opts);
     this.rtFinal = new THREE.WebGLRenderTarget(w, h, opts);
+    this.rtAO = new THREE.WebGLRenderTarget(aw, ah, opts);
+    this.rtAOBlur = new THREE.WebGLRenderTarget(aw, ah, opts);
 
     this.matBlurH.uniforms.uDir.value.set(1 / bw, 0);
     this.matBlurV.uniforms.uDir.value.set(0, 1 / bh);
     this.matFxaa.uniforms.uTexel.value.set(1 / w, 1 / h);
+    this.matSSAO.uniforms.tDepth.value = depthTex;
+    this.matSSAO.uniforms.uRes.value.set(aw, ah);
+    this.matAOBlur.uniforms.uTexel.value.set(1 / aw, 1 / ah);
     this.matCombine.uniforms.tBloom.value = this.rtBlurB.texture; // gültig auch bei ausgeschaltetem Bloom (Strength=0 nullt den Beitrag)
+    // Dasselbe Muster für AO: Textur immer gesetzt, uAOStrength=0 schaltet ab.
+    // Ein null-Sampler würde in three eine Warnung erzeugen.
+    this.matCombine.uniforms.tAO.value = this.rtAOBlur.texture;
   }
 
   resize() { this._allocate(); }
@@ -228,9 +367,25 @@ export class PostFX {
       return;
     }
     const bloomOn = fpsEMA >= 50;
+    // AO nur in 'episch' und nur solange Luft ist — es ist der teuerste Pass
+    // im Stack (12 Abtastungen plus Weichzeichner). Fällt vor dem Bloom weg,
+    // weil es mehr kostet.
+    const aoOn = this.quality === 'episch' && fpsEMA >= 52;
 
     this.renderer.setRenderTarget(this.rtScene);
     this.renderer.render(this.scene, this.camera);
+
+    if (aoOn) {
+      // Kameramatrizen jeden Frame nachziehen — projectionMatrixInverse hält
+      // three selbst aktuell, muss aber hier hineingereicht werden, weil der
+      // Quad-Pass mit einer eigenen Ortho-Kamera rendert.
+      this.matSSAO.uniforms.uProj.value.copy(this.camera.projectionMatrix);
+      this.matSSAO.uniforms.uInvProj.value.copy(this.camera.projectionMatrixInverse);
+      this._pass(this.matSSAO, this.rtAO);
+      this.matAOBlur.uniforms.tAO.value = this.rtAO.texture;
+      this._pass(this.matAOBlur, this.rtAOBlur);
+    }
+    this.matCombine.uniforms.uAOStrength.value = aoOn ? 1 : 0;
 
     if (bloomOn) {
       this.matBright.uniforms.tScene.value = this.rtScene.texture;
