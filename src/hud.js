@@ -33,6 +33,7 @@ export class Hud {
     this.vignette = el('vignette');
     this.whiteout = el('whiteout');
     this.lightningFlash = el('lightning-flash');
+    this.avadaFlash = el('avada-flash');
     this.bossbar = el('bossbar');
     this.bossbarFill = this.bossbar.querySelector('i');
     this.airgauge = el('airgauge');
@@ -81,6 +82,15 @@ export class Hud {
     this.lightningFlash.classList.remove('flash');
     void this.lightningFlash.offsetWidth;
     this.lightningFlash.classList.add('flash');
+  }
+
+  // Nutzerwunsch 2026-07-31: grüner Einschlags-Blitz bei jedem echten
+  // Avada-Kedavra-Treffer (spells.js _despawnBolt) — eigenes Element statt
+  // flashLightning() wiederzuverwenden, siehe CSS-Kommentar in index.html.
+  flashAvada() {
+    this.avadaFlash.classList.remove('flash');
+    void this.avadaFlash.offsetWidth;
+    this.avadaFlash.classList.add('flash');
   }
 
   // Kälte-Aura nahe Schattengeistern (0..1, blauer Rand-Schleier)

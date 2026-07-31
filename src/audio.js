@@ -152,6 +152,12 @@ export class SoundManager {
 
   // S8 Avada Kedavra: harter Sägezahn-Sturz + scharfer Noise-Crack — dunkler
   // und schneller als Stupor, kein Nachklingen (One-Shot-Charakter).
+  // Nutzerwunsch 2026-07-31 ("tödlichster Fluch mächtiger wirken lassen"):
+  // zusätzlich ein tiefer Sub-Bass-Stoß (Gewicht/Unheil) und ein leises,
+  // langsam verklingendes Tiefpass-Rauschen (kalter Atem) UNTER dem
+  // bestehenden Sägezahn+Crack gelegt — die ursprünglichen zwei Schichten
+  // bleiben unverändert (das "Snap"-Charakteristikum sollte erhalten
+  // bleiben, nur mehr Fundament darunter).
   castAvada() {
     if (!this.ctx || this.muted) return;
     const ctx = this.ctx, t = ctx.currentTime;
@@ -173,6 +179,71 @@ export class SoundManager {
     this._env(ng, t, 0.002, 0.14, 0.04);
     src.connect(f).connect(ng).connect(this.master);
     src.start(t, Math.random() * 1.5, 0.06);
+
+    // Sub-Bass-Stoß: tiefer als jeder andere Spruch-Cast im Spiel, langsamer
+    // Zerfall (0.3s statt 0.15s) — das "Gewicht" der Tötungsformel.
+    const bass = ctx.createOscillator();
+    bass.type = 'sine';
+    bass.frequency.setValueAtTime(70, t);
+    bass.frequency.exponentialRampToValueAtTime(28, t + 0.3);
+    const bg = ctx.createGain();
+    this._env(bg, t, 0.006, 0.32, 0.3);
+    bass.connect(bg).connect(this.master);
+    bass.start(t); bass.stop(t + 0.45);
+
+    // Kalter Atem: leises, tiefpassgefiltertes Rauschen mit langem Ausklang,
+    // liegt unter allem und klingt erst nach — anders als der scharfe Crack
+    // oben (der ist kurz+hell), das hier ist lang+dumpf.
+    const breath = ctx.createBufferSource();
+    breath.buffer = this.noiseBuf;
+    const bf = ctx.createBiquadFilter();
+    bf.type = 'lowpass';
+    bf.frequency.value = 340;
+    const bng = ctx.createGain();
+    this._env(bng, t, 0.02, 0.09, 0.5);
+    breath.connect(bf).connect(bng).connect(this.master);
+    breath.start(t, Math.random() * 1.5, 0.65);
+  }
+
+  // Nutzerwunsch 2026-07-31: eigener, wuchtigerer Einschlags-Sound für einen
+  // ECHTEN Avada-Treffer — vorher lief jeder Spruch-Einschlag (auch Avada)
+  // über das generische spellImpact() mit 800Hz-Fallback (klang identisch zu
+  // einem harmlosen Stupor-Treffer). Tiefer, länger nachhallender Thud +
+  // scharfer Crack + ein zweiter, leiserer Nachhall-Stoß eine Oktave tiefer
+  // für ein "verhallendes Verlöschen"-Gefühl.
+  avadaImpact() {
+    if (!this.ctx || this.muted) return;
+    const ctx = this.ctx, t = ctx.currentTime;
+    const o = ctx.createOscillator();
+    o.type = 'sine';
+    o.frequency.setValueAtTime(180, t);
+    o.frequency.exponentialRampToValueAtTime(38, t + 0.22);
+    const g = ctx.createGain();
+    this._env(g, t, 0.004, 0.4, 0.28);
+    o.connect(g).connect(this.master);
+    o.start(t); o.stop(t + 0.35);
+
+    const src = ctx.createBufferSource();
+    src.buffer = this.noiseBuf;
+    const f = ctx.createBiquadFilter();
+    f.type = 'bandpass';
+    f.frequency.value = 1400;
+    f.Q.value = 1.4;
+    const ng = ctx.createGain();
+    this._env(ng, t, 0.002, 0.22, 0.09);
+    src.connect(f).connect(ng).connect(this.master);
+    src.start(t, Math.random() * 1.5, 0.1);
+
+    // Nachhall-Echo, eine Oktave tiefer, leicht verzögert
+    const t2 = t + 0.09;
+    const echo = ctx.createOscillator();
+    echo.type = 'sine';
+    echo.frequency.setValueAtTime(90, t2);
+    echo.frequency.exponentialRampToValueAtTime(24, t2 + 0.3);
+    const eg = ctx.createGain();
+    this._env(eg, t2, 0.01, 0.16, 0.35);
+    echo.connect(eg).connect(this.master);
+    echo.start(t2); echo.stop(t2 + 0.45);
   }
 
   // S8 Crucio: dissonanter Sinus-Chor mit schnellem Vibrato, läuft bis

@@ -83,6 +83,22 @@
     0% { opacity: 0.85; }
     100% { opacity: 0; }
   }
+  /* Nutzerwunsch 2026-07-31 ("tödlichster Fluch mächtiger wirken lassen"):
+     eigener grüner Einschlags-Blitz für Avada Kedavra — Muster identisch zu
+     #lightning-flash, aber eigene Farbe/Timing statt Wiederverwendung, damit
+     ein Fluch-Treffer nicht wie ein Gewitterblitz aussieht. Etwas länger und
+     mit kurzem Nachglimmen (via zwei Keyframe-Stufen) für mehr Wucht als der
+     reine 1-Stufen-Fade des Blitzes.
+  */
+  #avada-flash {
+    position: absolute; inset: 0; background: #1a5c33; opacity: 0; pointer-events: none;
+  }
+  #avada-flash.flash { animation: avadaFlash 0.55s ease-out; }
+  @keyframes avadaFlash {
+    0% { opacity: 0.8; }
+    30% { opacity: 0.35; }
+    100% { opacity: 0; }
+  }
 
   #hearts {
     position: absolute; top: 18px; left: 22px;
@@ -476,6 +492,7 @@
     <div id="vignette"><div id="vignette-frost"></div><div id="vignette-underwater"></div><div id="vignette-nightvision"></div><div id="vignette-lord"></div></div>
     <div id="whiteout"></div>
     <div id="lightning-flash"></div>
+    <div id="avada-flash"></div>
     <div id="crosshair"></div>
     <div id="tame-ring"></div>
     <div id="compass">N</div>

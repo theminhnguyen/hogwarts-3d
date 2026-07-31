@@ -566,7 +566,10 @@ export class SpellSystem {
     bolt.active = true;
     bolt.sprite.visible = true;
     bolt.sprite.material.color.setHex(SPELLS[spellId].color);
-    bolt.sprite.scale.setScalar(0.55);
+    // Nutzerwunsch 2026-07-31: Avada Kedavra fliegt sichtbar größer/greller
+    // als jeder andere Bolzen — "der tödlichste Fluch" soll sich schon im
+    // Flug bedrohlicher anfühlen, nicht erst beim Einschlag.
+    bolt.sprite.scale.setScalar(spellId === 'avada' ? 0.95 : 0.55);
     bolt.sprite.position.copy(bolt.pos);
     this._assignLight(bolt);
   }
@@ -583,7 +586,9 @@ export class SpellSystem {
     if (!slot) slot = this.lights.reduce((a, b) => (a.life < b.life ? a : b));
     slot.life = bolt.ttl;
     slot.light.color.setHex(SPELLS[bolt.spellId].color);
-    slot.light.intensity = 6;
+    // Avada Kedavra leuchtet deutlich heller als jeder andere Bolzen (Muster:
+    // siehe _fireBolt()-Skalierung oben, dieselbe Begründung).
+    slot.light.intensity = bolt.spellId === 'avada' ? 11 : 6;
     slot.light.position.copy(bolt.pos);
     bolt.light = slot;
   }
@@ -595,9 +600,23 @@ export class SpellSystem {
     if (bolt.light) { bolt.light.life = 0; bolt.light.light.intensity = 0; bolt.light = null; }
     if (withFx) {
       const p = hitPos || bolt.pos;
-      this.fx.burst(p, SPELLS[bolt.spellId].color, 16, 6);
-      this.audio.spellImpact?.(bolt.spellId);
-      if (this._camPos && p.distanceToSquared(this._camPos) < 9) this.fx.shake(0.15);
+      if (bolt.spellId === 'avada') {
+        // Nutzerwunsch 2026-07-31 ("tödlichster Fluch mächtiger wirken
+        // lassen"): deutlich größerer, zweifarbiger Einschlag (heller
+        // Kernblitz + dunkle "entweichende Seele"-Wolke darüber), eigener
+        // Sound statt generischem spellImpact(), HUD-Flash, und Screen-Shake
+        // mit viel größerer Reichweite (30m statt 3m) — ein Treffer soll im
+        // ganzen Raum spürbar sein, nicht nur aus nächster Nähe.
+        this.fx.burst(p, SPELLS.avada.color, 40, 9, { gravity: -1, life: 1.0, size: 0.7 });
+        this.fx.burst({ x: p.x, y: p.y + 0.4, z: p.z }, 0x0a1a0f, 18, 4, { gravity: 1.2, life: 1.3, size: 0.55 });
+        this.audio.avadaImpact?.();
+        this.hud.flashAvada?.();
+        if (this._camPos && p.distanceToSquared(this._camPos) < 900) this.fx.shake(0.4);
+      } else {
+        this.fx.burst(p, SPELLS[bolt.spellId].color, 16, 6);
+        this.audio.spellImpact?.(bolt.spellId);
+        if (this._camPos && p.distanceToSquared(this._camPos) < 9) this.fx.shake(0.15);
+      }
     }
   }
 
@@ -625,7 +644,15 @@ export class SpellSystem {
       bolt.pos.addScaledVector(bolt.vel, dt);
       bolt.sprite.position.copy(bolt.pos);
       if (bolt.light) bolt.light.light.position.copy(bolt.pos);
-      if (Math.random() < 0.6) this.fx.trail(bolt.pos, SPELLS[bolt.spellId].color);
+      // Avada Kedavra bekommt einen dichteren, zweifarbigen Schweif (helles
+      // Grün + dunkle Rauchfahne) statt des generischen Einzelfarb-Schweifs —
+      // wirkt im Flug bedrohlicher als jeder andere Bolzen.
+      if (bolt.spellId === 'avada') {
+        this.fx.trail(bolt.pos, SPELLS.avada.color);
+        if (Math.random() < 0.5) this.fx.trail(bolt.pos, 0x0a1a0f);
+      } else if (Math.random() < 0.6) {
+        this.fx.trail(bolt.pos, SPELLS[bolt.spellId].color);
+      }
 
       // Gelände
       if (bolt.pos.y <= terrainHeight(bolt.pos.x, bolt.pos.z)) {
