@@ -19,7 +19,18 @@ const ROBE_DARK = 0x272c3e;
 const LENA_ROBE = 0x3a3350;
 const BARNABY_ROBE = 0x4a3323;
 
-const STUDENT_PATHS = [PATHS[0], PATHS[1], PATHS[3], PATHS[4]];
+// Nutzerwunsch 2026-07-30 ("mehr NPCs, die rumlaufen"): von 4 auf 8 Schüler
+// erweitert — die 4 neuen nutzen bereits vorhandene, bisher ungenutzte
+// PATHS-Segmente in ruhigen Alltagsgegenden (See, Steinkreis-Rundweg, Dorf,
+// Bahnhof), bewusst KEINE Boss-/Gefahren-Routen (Nebelmoor/Aschenklamm/
+// Frostzinnen/Schwarzwasser/Schattenfeste) — Schüler haben keine Fluchtlogik
+// gegen Kreaturen, nur gegen den Spieler selbst.
+const STUDENT_PATHS = [PATHS[0], PATHS[1], PATHS[3], PATHS[4], PATHS[2], PATHS[5], PATHS[7], PATHS[8]];
+// Perf-Muster (fauna.js/creatures.js): eingefroren+unsichtbar jenseits fester
+// Radien — Student/Wizard hatten das bisher nie, fiel bei der kleinen
+// Ursprungszahl (4+2) nicht ins Gewicht, lohnt sich aber jetzt bei 8+4.
+const CULL_FULL = 140;
+const CULL_HIDE = 160;
 // Hexer-Route (S2): verkettete Wildmark-PATHS-Segmente aus S1 (Index 9-13,
 // Steinkreis→Hügelgrab→Silberauen→Fahlholz→Kate→Waldlichtung) zu EINER
 // langen Patrouille zusammengefügt (jeder Folge-Punkt lässt den doppelten
@@ -295,6 +306,12 @@ class Student {
       }
       return;
     }
+    if (player) {
+      const distSq = this.pos.distanceToSquared(player.pos);
+      if (distSq > CULL_HIDE * CULL_HIDE) { this.group.visible = false; return; }
+      this.group.visible = true;
+      if (distSq > CULL_FULL * CULL_FULL) return;
+    }
     if (nightGlow > 0.55) this.fade = Math.max(0, this.fade - dt / 2.5);
     else if (nightGlow < 0.35) this.fade = Math.min(1, this.fade + dt / 2.5);
     setFigureOpacity(this.fig, this.fade);
@@ -420,6 +437,12 @@ class Wizard {
         this.group.position.set(this.spawnPos.x, terrainHeight(this.spawnPos.x, this.spawnPos.z), this.spawnPos.z);
       }
       return;
+    }
+    if (player) {
+      const distSq = this.pos.distanceToSquared(player.pos);
+      if (distSq > CULL_HIDE * CULL_HIDE) { this.group.visible = false; return; }
+      this.group.visible = true;
+      if (distSq > CULL_FULL * CULL_FULL) return;
     }
     if (nightGlow > 0.55) this.fade = Math.max(0, this.fade - dt / 2.5);
     else if (nightGlow < 0.35) this.fade = Math.min(1, this.fade + dt / 2.5);
@@ -765,7 +788,7 @@ export function buildNpcs(scene, glowTex, hud, audio, fx, health, interact, deps
   }
 
   const students = STUDENT_PATHS.map((p, i) => new Student(scene, p, i));
-  const STUDENT_NAMES = ['Elyas', 'Priya', 'Finn', 'Wren'];
+  const STUDENT_NAMES = ['Elyas', 'Priya', 'Finn', 'Wren', 'Talia', 'Bram', 'Nadia', 'Oskar'];
   students.forEach((s, i) => {
     interact.register({
       get x() { return s.group.position.x; },
@@ -776,13 +799,21 @@ export function buildNpcs(scene, glowTex, hud, audio, fx, health, interact, deps
       onInteract: () => hud.showDialog(STUDENT_NAMES[i], [pickGeruecht()]),
     });
   });
-  // 2 wandernde Hexer (S2): eine läuft die Route vorwärts, die andere rückwärts
-  // los (idx=1 wie Student, aber entgegengesetzte Startrichtung), damit sie
-  // sich nicht die ganze Zeit auf demselben Wegabschnitt begegnen.
-  const wizards = [new Wizard(scene, WIZARD_PATH, 0), new Wizard(scene, WIZARD_PATH, 1)];
+  // Wandernde Hexer (S2, seit 2026-07-30 von 2 auf 4 erweitert — Nutzerwunsch
+  // "mehr NPCs, die rumlaufen"): alle vier patrouillieren dieselbe lange
+  // Wildmark-Route, aber mit gestaffeltem Start (Punkte 0/2/4/6 von 7, je
+  // wechselnde Richtung), damit sie über die ganze Schleife verteilt sind
+  // statt als Klumpen zusammenzulaufen.
+  const wizards = [new Wizard(scene, WIZARD_PATH, 0), new Wizard(scene, WIZARD_PATH, 1), new Wizard(scene, WIZARD_PATH, 2), new Wizard(scene, WIZARD_PATH, 3)];
   wizards[1].idx = WIZARD_PATH.length - 2;
   wizards[1].dir = -1;
   wizards[1].group.position.set(WIZARD_PATH[WIZARD_PATH.length - 1][0], terrainHeight(WIZARD_PATH[WIZARD_PATH.length - 1][0], WIZARD_PATH[WIZARD_PATH.length - 1][1]), WIZARD_PATH[WIZARD_PATH.length - 1][1]);
+  wizards[2].idx = 3;
+  wizards[2].dir = 1;
+  wizards[2].group.position.set(WIZARD_PATH[2][0], terrainHeight(WIZARD_PATH[2][0], WIZARD_PATH[2][1]), WIZARD_PATH[2][1]);
+  wizards[3].idx = 3;
+  wizards[3].dir = -1;
+  wizards[3].group.position.set(WIZARD_PATH[4][0], terrainHeight(WIZARD_PATH[4][0], WIZARD_PATH[4][1]), WIZARD_PATH[4][1]);
 
   const lenaFig = buildFigure(0x8a4a6a, 0x3a2412, LENA_ROBE);
   for (const m of lenaFig.mats) m.opacity = 1;
