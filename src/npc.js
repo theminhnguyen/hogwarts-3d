@@ -11,6 +11,7 @@ import { GeoBatch } from './geo.js';
 import { getMaterials } from './materials.js';
 import { RUF_HIGH, RUF_LOW } from './economy.js';
 import { buildLimbChain } from './model.js';
+import { t } from './i18n.js';
 
 const HOUSE_COLORS = [0xa62b2b, 0x2b6b35, 0x2b4b9b, 0xbfa32b];
 const HAIR_COLORS = [0x2a1c10, 0x1a1a1a, 0x5a3c22, 0x8a7050];
@@ -43,11 +44,11 @@ const BARNABY_POS = { x: GASTHAUS.x, z: GASTHAUS.z + GASTHAUS.d / 2 - 1.7 };
 const CAT_POS = { x: -95, z: 165 };
 const GEIST_POS = { x: -32, z: 8 };
 
-const PUZZLE_HINTS = {
-  flamme: 'den drei Feuerschalen auf dem Viadukt',
-  krone: 'den Druckplatten im Nordgarten',
-  stein: 'dem Lied der Steine im Steinkreis',
-  karte: 'dem Sternbild am Astronomieturm — nur nachts sichtbar',
+const PUZZLE_HINT_KEYS = {
+  flamme: 'npc.puzzleHint.flamme',
+  krone: 'npc.puzzleHint.krone',
+  stein: 'npc.puzzleHint.stein',
+  karte: 'npc.puzzleHint.karte',
 };
 
 function clamp01(v) { return Math.max(0, Math.min(1, v)); }
@@ -622,7 +623,6 @@ function buildGeist(scene, glowTex) {
 // Stelle am Karren (Muster Leuchtkraut-Pickup aus Q2), Fero selbst gibt
 // nur eine kurze Begrüßung per Dialog.
 const FERO_ZUTATEN = ['glitzer', 'seide', 'stern'];
-const ZUTAT_NAMES = { glitzer: 'Glitzerstaub', seide: 'Spinnenseide', stern: 'Sternsplitter', essenz: 'Dunkle Essenz' };
 // Tagesangebot (Plan-Flavor): welche Zutat Fero gerade führt, wechselt alle
 // paar Minuten — an sky.js' DAY_LENGTH (300s) angelehnt, aber bewusst ohne
 // Import (rein kosmetisch, keine echte Tageszeit-Kopplung nötig).
@@ -703,32 +703,31 @@ function buildFero(scene, hud, audio, interact, deps, quests) {
   let zutatPrice = 5 + Math.floor(Math.random() * 6);
 
   const feroEntry = interact.register({
-    x: st.feroX, z: st.feroZ, r: 2.2, prompt: 'E — Mit Fero sprechen', enabled: false,
+    x: st.feroX, z: st.feroZ, r: 2.2, enabled: false,
+    get prompt() { return t('npc.promptTalkWith', { name: 'Fero' }); },
     onInteract: () => {
       if (!quests.feroSammler && hasAllRare()) {
         feroGreeted = true;
         hud.showDialog('Fero', [
-          'Warte... eine Drachenschuppe, ein Frostkristall, Mondsilber UND eine Tiefenperle?',
-          'So einen Vollsatz sieht man nur einmal im Leben — tauschst du?',
-          'Abgemacht! Hier, das ist mehr als fair für so seltene Stücke.',
+          t('npc.fero.rare1'),
+          t('npc.fero.rare2'),
+          t('npc.fero.rare3'),
         ], () => {
           for (const k of RARE_ZUTATEN) heim.zutaten[k]--;
           quests.feroSammler = 1;
           economy.addGold(60);
           economy.addRuf(10);
           audio.chime('fanfare');
-          hud.showToast('🌍 Quest abgeschlossen: Weltensammler — Titel „Weltensammler" errungen! +60 Gold · +10 Ruf', 4.5);
+          hud.showToast(t('npc.fero.questWeltensammlerDone'), 4.5);
           onChange?.();
         });
         return;
       }
       const lines = quests.feroSammler
-        ? ['So einen Vollsatz wie neulich bekomme ich nicht zweimal — aber schau gern am Karren vorbei.']
+        ? [t('npc.fero.afterSammler')]
         : feroGreeted
-        ? ['Immer noch auf Reisen, wie du siehst.', 'Schau am Karren vorbei, wenn du etwas brauchst.']
-        : ['Fero, fahrender Händler, zu deinen Diensten!',
-           'Zutaten, Frischfisch, sogar ein Sattel — alles gegen Gold.',
-           'Der Zug hält nicht lange — sei zügig!'];
+        ? [t('npc.fero.greetedAgain1'), t('npc.fero.greetedAgain2')]
+        : [t('npc.fero.intro1'), t('npc.fero.intro2'), t('npc.fero.intro3')];
       feroGreeted = true;
       hud.showDialog('Fero', lines);
     },
@@ -739,26 +738,27 @@ function buildFero(scene, hud, audio, interact, deps, quests) {
     x: zutatenPos.x, z: zutatenPos.z, r: 1.3, enabled: false,
     get prompt() {
       const item = economy.rufLow ? 'essenz' : offerItem;
-      return `E — ${ZUTAT_NAMES[item]} kaufen (${Math.round(zutatPrice * economy.priceMul)} Gold)`;
+      return t('npc.fero.buyZutatPrompt', { item: t(`item.${item}`), price: Math.round(zutatPrice * economy.priceMul) });
     },
     onInteract: () => {
       const item = economy.rufLow ? 'essenz' : offerItem;
-      if (!economy.spendGold(zutatPrice)) { hud.showToast('Nicht genug Gold.', 2); return; }
+      if (!economy.spendGold(zutatPrice)) { hud.showToast(t('npc.notEnoughGold'), 2); return; }
       heim.zutaten[item]++;
       audio.chime();
-      hud.showToast(`✦ ${ZUTAT_NAMES[item]} gekauft (${heim.zutaten[item]}×)`, 2.5);
+      hud.showToast(t('npc.fero.zutatBought', { item: t(`item.${item}`), n: heim.zutaten[item] }), 2.5);
       onChange?.();
     },
   });
 
   const fischPos = stallPos(0);
   const fischEntry = interact.register({
-    x: fischPos.x, z: fischPos.z, r: 1.3, prompt: 'E — Frischfisch kaufen (8 Gold)', enabled: false,
+    x: fischPos.x, z: fischPos.z, r: 1.3, enabled: false,
+    get prompt() { return t('npc.fero.buyFischPrompt'); },
     onInteract: () => {
-      if (!economy.spendGold(8)) { hud.showToast('Nicht genug Gold.', 2); return; }
+      if (!economy.spendGold(8)) { hud.showToast(t('npc.notEnoughGold'), 2); return; }
       feroState.frischfisch++;
       audio.chime();
-      hud.showToast(`🐟 Frischfisch gekauft (${feroState.frischfisch}× — nützlich für Zähmungen)`, 2.5);
+      hud.showToast(t('npc.fero.fischBought', { n: feroState.frischfisch }), 2.5);
       onChange?.();
     },
   });
@@ -766,13 +766,13 @@ function buildFero(scene, hud, audio, interact, deps, quests) {
   const sattelPos = stallPos(0.6);
   const sattelEntry = interact.register({
     x: sattelPos.x, z: sattelPos.z, r: 1.3, enabled: false,
-    get prompt() { return mounts.sattel ? 'Sattel bereits gekauft' : 'E — Sattel kaufen (40 Gold)'; },
+    get prompt() { return mounts.sattel ? t('npc.fero.saddleOwned') : t('npc.fero.buySaddlePrompt'); },
     onInteract: () => {
       if (mounts.sattel) return;
-      if (!economy.spendGold(40)) { hud.showToast('Nicht genug Gold.', 2); return; }
+      if (!economy.spendGold(40)) { hud.showToast(t('npc.notEnoughGold'), 2); return; }
       mounts.sattel = 1;
       audio.chime('fanfare');
-      hud.showToast('🐴 Sattel gekauft — Mounts sprinten jetzt schneller!', 3);
+      hud.showToast(t('npc.fero.saddleBought'), 3);
       onChange?.();
     },
   });
@@ -813,22 +813,22 @@ export function buildNpcs(scene, glowTex, hud, audio, fx, health, interact, deps
   // gerade ZUTREFFENDEN Gerüchten (lebendiger als feste Priorität); ohne
   // jedes Save-Flag greift ein neutraler Deko-Fallback-Pool.
   const GERUECHTE = [
-    { cond: () => deps.wild?.befreit > 0, line: 'Jemand hat das Wilderer-Lager am See befreit — sagt man.' },
-    { cond: () => deps.wild?.geerntet > 0, line: 'Im Wald sollen dunkle Essenzen geerntet worden sein…' },
-    { cond: () => deps.heim?.kate === 1, line: 'Man sagt, in der Wispernden Kate brennt wieder Licht.' },
-    { cond: () => deps.dunkel?.pfad === 'dunkel', line: 'Manche munkeln, jemand wandle auf dunklen Pfaden…' },
-    { cond: () => deps.dunkel?.buch === 1 && deps.dunkel?.pfad === 'hell', line: 'Ein geläuterter Zauberer soll wieder ins Licht zurückgefunden haben.' },
-    { cond: () => deps.mounts?.hippo === 1, line: 'Ein zahmer Hippogreif soll neuerdings übers Gelände traben.' },
-    { cond: () => deps.mounts?.thestral === 1, line: 'Nachts hört man Flügelschlag, den niemand sehen kann…' },
-    { cond: () => deps.hallows?.stab === 1, line: 'Der bleiche König am Hügelgrab soll besiegt worden sein.' },
-    { cond: () => deps.hallows?.umhang === 1, line: 'Ein Wilderer-Anführer beklagt einen gestohlenen Umhang.' },
-    { cond: () => deps.hallows?.stein === 1, line: 'Im tiefsten See soll ein sagenhafter Stein gefunden worden sein.' },
-    { cond: () => deps.moor?.laterneCollected, line: 'Die Silberne Seelenlaterne soll geborgen worden sein.' },
-    { cond: () => deps.puzzles?.finaleWon, line: 'Man erzählt sich, der Hauspokal sei schon gewonnen.' },
-    { cond: () => deps.animagus?.gelernt === 1 && deps.animagus?.form === 'wolf', line: 'Nachts soll ein Wolf durchs Fahlholz streifen…' },
-    { cond: () => deps.animagus?.gelernt === 1 && deps.animagus?.form === 'katze', line: 'Eine schwarze Katze soll sich lautlos an jeden heranschleichen können.' },
-    { cond: () => deps.animagus?.gelernt === 1 && deps.animagus?.form === 'rabe', line: 'Ein Rabe soll sich manchmal in einen Menschen zurückverwandeln…' },
-    { cond: () => (deps.begleiter?.frei?.length || 0) > 0, line: 'Manche Schüler sollen jetzt tierische Begleiter haben.' },
+    { cond: () => deps.wild?.befreit > 0, key: 'npc.rumor.wildererBefreit' },
+    { cond: () => deps.wild?.geerntet > 0, key: 'npc.rumor.dunkleEssenz' },
+    { cond: () => deps.heim?.kate === 1, key: 'npc.rumor.kateLicht' },
+    { cond: () => deps.dunkel?.pfad === 'dunkel', key: 'npc.rumor.dunklerPfad' },
+    { cond: () => deps.dunkel?.buch === 1 && deps.dunkel?.pfad === 'hell', key: 'npc.rumor.gelaeutert' },
+    { cond: () => deps.mounts?.hippo === 1, key: 'npc.rumor.hippogreif' },
+    { cond: () => deps.mounts?.thestral === 1, key: 'npc.rumor.thestral' },
+    { cond: () => deps.hallows?.stab === 1, key: 'npc.rumor.hallowsStab' },
+    { cond: () => deps.hallows?.umhang === 1, key: 'npc.rumor.hallowsUmhang' },
+    { cond: () => deps.hallows?.stein === 1, key: 'npc.rumor.hallowsStein' },
+    { cond: () => deps.moor?.laterneCollected, key: 'npc.rumor.laterne' },
+    { cond: () => deps.puzzles?.finaleWon, key: 'npc.rumor.hauspokal' },
+    { cond: () => deps.animagus?.gelernt === 1 && deps.animagus?.form === 'wolf', key: 'npc.rumor.animagusWolf' },
+    { cond: () => deps.animagus?.gelernt === 1 && deps.animagus?.form === 'katze', key: 'npc.rumor.animagusKatze' },
+    { cond: () => deps.animagus?.gelernt === 1 && deps.animagus?.form === 'rabe', key: 'npc.rumor.animagusRabe' },
+    { cond: () => (deps.begleiter?.frei?.length || 0) > 0, key: 'npc.rumor.begleiter' },
     // Opus-5-Audit-Fix: Entdeckungs-Gerüchte für die 4 neuen Regionen (E4-E7).
     // VOR dieser Ergänzung gab es im gesamten Hinweissystem (hier + Schloss-
     // geist + Objective Resolver) NULL Erwähnungen der Regionen, bevor der
@@ -841,10 +841,10 @@ export function buildNpcs(scene, glowTex, hud, audio, fx, health, interact, deps
     // was der Spieler schon weiß. Jede Zeile verschwindet automatisch wieder,
     // sobald das jeweilige Siegel errungen ist (siegel.* wird beim Bosssieg/
     // Erfolg gesetzt, siehe die entsprechenden Region-Dateien).
-    { cond: () => deps.siegel?.drache !== 1, line: 'Reisende erzählen von Rauch, der tief im Osten aus einer Schlucht aufsteigt — manche munkeln, dort hause ein Drache.' },
-    { cond: () => deps.siegel?.frost !== 1, line: 'Hoch im eisigen Norden sollen zerklüftete Zinnen liegen, die ein Riese bewacht.' },
-    { cond: () => deps.siegel?.hain !== 1, line: 'Im Silberhain tief im Südwesten soll ein scheues Einhorn zwischen silbernen Bäumen wandeln.' },
-    { cond: () => deps.siegel?.tiefe !== 1, line: 'Im Schwarzwasser weit im Westen soll unter der Oberfläche etwas Riesiges lauern, das noch niemand ganz gesehen hat.' },
+    { cond: () => deps.siegel?.drache !== 1, key: 'npc.rumor.regionDrache' },
+    { cond: () => deps.siegel?.frost !== 1, key: 'npc.rumor.regionFrost' },
+    { cond: () => deps.siegel?.hain !== 1, key: 'npc.rumor.regionHain' },
+    { cond: () => deps.siegel?.tiefe !== 1, key: 'npc.rumor.regionTiefe' },
     // V7 (PLAN-DER-DUNKLE-LORD.md): Foreshadowing für die Schattenfeste,
     // gestaffelt in zwei Zeilen. Die erste ist IMMER aktiv (kein cond-Gate,
     // reines Deko-Gerücht ab Spielbeginn — Muster: die 4 Regions-Gerüchte
@@ -852,18 +852,14 @@ export function buildNpcs(scene, glowTex, hud, audio, fx, health, interact, deps
     // hier ist reine Atmosphäre und bräuchte keins). Die zweite ersetzt die
     // erste erst, sobald das Sternentor durchschritten ist (siegel.finaleWon)
     // — an diesem Punkt weiß der Spieler ohnehin schon von der Bedrohung.
-    { cond: () => deps.siegel?.finaleWon !== 1, line: 'Im Nordosten steht ein Turm, den keiner gebaut hat.' },
-    { cond: () => deps.siegel?.finaleWon === 1, line: 'Seit das Sternentor offen ist, brennt im Nordosten ein grünes Licht.' },
+    { cond: () => deps.siegel?.finaleWon !== 1, key: 'npc.rumor.schattenfesteVorher' },
+    { cond: () => deps.siegel?.finaleWon === 1, key: 'npc.rumor.schattenfesteNachher' },
   ];
-  const GERUECHTE_FALLBACK = [
-    'Die Hauselfen sollen heute Nacht Kürbiskuchen gebacken haben.',
-    'Man munkelt, im Verbotenen Wald raschelt es öfter als sonst.',
-    'Ein Vertrauensschüler hat angeblich beim Astronomieturm gefroren.',
-  ];
+  const GERUECHTE_FALLBACK = ['npc.rumor.fallback1', 'npc.rumor.fallback2', 'npc.rumor.fallback3'];
   function pickGeruecht() {
     const active = GERUECHTE.filter((g) => g.cond());
-    const pool = active.length ? active.map((g) => g.line) : GERUECHTE_FALLBACK;
-    return pool[Math.floor(Math.random() * pool.length)];
+    const pool = active.length ? active.map((g) => g.key) : GERUECHTE_FALLBACK;
+    return t(pool[Math.floor(Math.random() * pool.length)]);
   }
 
   const students = STUDENT_PATHS.map((p, i) => new Student(scene, p, i));
@@ -874,7 +870,7 @@ export function buildNpcs(scene, glowTex, hud, audio, fx, health, interact, deps
       get z() { return s.group.position.z; },
       r: 2.2,
       get enabled() { return s.alive && s.fade > 0.5 && s.state !== 'flee'; },
-      prompt: `E — Mit ${STUDENT_NAMES[i]} sprechen`,
+      get prompt() { return t('npc.promptTalkWith', { name: STUDENT_NAMES[i] }); },
       onInteract: () => hud.showDialog(STUDENT_NAMES[i], [pickGeruecht()]),
     });
   });
@@ -938,32 +934,33 @@ export function buildNpcs(scene, glowTex, hud, audio, fx, health, interact, deps
   placeCatHome();
 
   interact.register({
-    x: LENA_POS.x, z: LENA_POS.z, r: 2.4, prompt: 'E — Mit Lena sprechen',
+    x: LENA_POS.x, z: LENA_POS.z, r: 2.4,
+    get prompt() { return t('npc.promptTalkWith', { name: 'Lena' }); },
     onInteract: () => {
       // S11: Als Tier gibt's nur die Lach-Zeile, keine echte Quest-Interaktion
       // (Katze/Rabe/Wolf können nicht sprechen) — Prüfung VOR dem dunklen
       // Pfad, weil sie unabhängig vom Pfad immer greift.
       if (currentPlayer?.animalForm) {
-        hud.showDialog('Lena', ['Lena kichert. „Süß — aber ich rede lieber mit dir in deiner echten Gestalt!" …(du bist ein Tier)']);
+        hud.showDialog('Lena', [t('npc.lena.animalForm')]);
         return;
       }
       // S8: im dunklen Pfad verweigert Lena ängstlich das Gespräch — die
       // Quest PAUSIERT (kein onClose, quests.katze bleibt unverändert),
       // geht aber nie verloren (Läuterung setzt sie einfach fort).
       if (deps.dunkel?.pfad === 'dunkel') {
-        hud.showDialog('Lena', ['Lena weicht zurück, die Augen weit vor Angst. Sie bringt kein Wort heraus.']);
+        hud.showDialog('Lena', [t('npc.lena.darkPath')]);
         return;
       }
       if (quests.katze === 0) {
         hud.showDialog('Lena', [
-          'Hast du meine Katze gesehen? Musch ist weggelaufen…',
-          'Ich glaube, sie ist Richtung See gelaufen, zum Bootshaus.',
-          'Bitte, wenn du sie findest — sag ihr, sie soll heimkommen!',
+          t('npc.lena.questStart1'),
+          t('npc.lena.questStart2'),
+          t('npc.lena.questStart3'),
         ], () => { quests.katze = 1; onQuestChange?.(); });
       } else if (quests.katze === 1 && catFollowing) {
         hud.showDialog('Lena', [
-          'Musch! Da bist du ja! Vielen Dank, dass du sie gefunden hast!',
-          'Hier — das ist für dich.',
+          t('npc.lena.questReturn1'),
+          t('npc.lena.questReturn2'),
         ], () => {
           quests.katze = 2;
           placeCatHome();
@@ -973,54 +970,55 @@ export function buildNpcs(scene, glowTex, hud, audio, fx, health, interact, deps
             { x: lenaFig.group.position.x, y: lenaFig.group.position.y + 1.2, z: lenaFig.group.position.z },
             0xffcf8a, 24, 4, { gravity: -3, life: 0.9, size: 0.3 }
           );
-          hud.showToast('✨ Quest abgeschlossen: Die verlorene Katze — Herzen aufgefrischt!', 4);
+          hud.showToast(t('npc.lena.questDoneToast'), 4);
           onQuestChange?.();
         });
       } else if (quests.katze === 1) {
-        hud.showDialog('Lena', ['Hast du Musch schon gefunden? Sie war zuletzt beim Bootshaus.']);
+        hud.showDialog('Lena', [t('npc.lena.questReminder')]);
       } else if (deps.begleiter && !deps.begleiter.frei.includes('musch')) {
         // S9: Begleiter-Freischaltung — eigener Dialogzweig, nur einmal.
         hud.showDialog('Lena', [
-          'Weißt du, Musch mag dich sehr — seit du sie zurückgebracht hast.',
-          'Ich glaube, sie würde gern mit dir losziehen, wenn du magst.',
+          t('npc.lena.companion1'),
+          t('npc.lena.companion2'),
         ], () => {
           deps.begleiter.frei.push('musch');
-          hud.showToast('🐈 Musch mag dich — sie ist jetzt dein Begleiter! (Taste G)', 4.5);
+          hud.showToast(t('npc.lena.companionToast'), 4.5);
           onQuestChange?.();
         });
       } else {
-        hud.showDialog('Lena', ['Danke nochmal, dass du Musch gefunden hast!', pickGeruecht()]);
+        hud.showDialog('Lena', [t('npc.lena.thanks'), pickGeruecht()]);
       }
     },
   });
 
   interact.register({
-    x: BARNABY_POS.x, z: BARNABY_POS.z, r: 2.4, prompt: 'E — Mit Barnaby sprechen',
+    x: BARNABY_POS.x, z: BARNABY_POS.z, r: 2.4,
+    get prompt() { return t('npc.promptTalkWith', { name: 'Barnaby' }); },
     onInteract: () => {
       // S8: siehe Lena — Quest pausiert, geht nie verloren.
       if (deps.dunkel?.pfad === 'dunkel') {
-        hud.showDialog('Barnaby', ['Barnaby drückt sich hinter den Tresen und winkt hastig ab — kein Wort.']);
+        hud.showDialog('Barnaby', [t('npc.barnaby.darkPath')]);
         return;
       }
       if (!quests.kraeuterStarted && !quests.kraeuterDone) {
         hud.showDialog('Barnaby', [
-          'Ah, ein Abenteurer! Ich brauche etwas für meinen Kessel.',
-          'Im Gewächshaus wachsen Leuchtkräuter — bring mir drei davon!',
+          t('npc.barnaby.questStart1'),
+          t('npc.barnaby.questStart2'),
         ], () => { quests.kraeuterStarted = 1; onQuestChange?.(); });
       } else if (!quests.kraeuterDone && quests.kraeuter < 3) {
-        hud.showDialog('Barnaby', [`Noch ${3 - quests.kraeuter} Leuchtkräuter, dann kann ich brauen!`]);
+        hud.showDialog('Barnaby', [t('npc.barnaby.questReminder', { n: 3 - quests.kraeuter })]);
       } else if (!quests.kraeuterDone) {
         hud.showDialog('Barnaby', [
-          'Alle drei? Wunderbar, danke dir!',
-          'Als Dank braue ich dir etwas Wärmendes — das hält den Frost fern.',
+          t('npc.barnaby.questComplete1'),
+          t('npc.barnaby.questComplete2'),
         ], () => {
           quests.kraeuterDone = 1;
           audio.chime('fanfare');
-          hud.showToast('🔥 Quest abgeschlossen: Kräuter für den Kessel — "Warm ums Herz" wirkt jetzt dauerhaft!', 4.5);
+          hud.showToast(t('npc.barnaby.questDoneToast'), 4.5);
           onQuestChange?.();
         });
       } else {
-        hud.showDialog('Barnaby', ['Danke nochmal für die Leuchtkräuter — mein Kessel dampft wie nie zuvor.', pickGeruecht()]);
+        hud.showDialog('Barnaby', [t('npc.barnaby.thanks'), pickGeruecht()]);
       }
     },
   });
@@ -1028,7 +1026,7 @@ export function buildNpcs(scene, glowTex, hud, audio, fx, health, interact, deps
   leuchtkraeuter.slice(0, 3).forEach((lk, i) => {
     const entry = interact.register({
       x: lk.x, z: lk.z, r: 1.6,
-      get prompt() { return quests.kraeuterDone ? 'E — Leuchtkraut pflücken (für den Kessel)' : 'E — Leuchtkraut pflücken'; },
+      get prompt() { return quests.kraeuterDone ? t('npc.leuchtkraut.promptKessel') : t('npc.leuchtkraut.prompt'); },
       enabled: false,
       onInteract: () => {
         // Nach Q2: freies Nachwachsen, füllt den Braukessel-Vorrat statt des
@@ -1040,7 +1038,7 @@ export function buildNpcs(scene, glowTex, hud, audio, fx, health, interact, deps
           entry.enabled = false;
           deps.heim.zutaten.leuchtkraut++;
           audio.chime();
-          hud.showToast(`✦ Leuchtkraut gepflückt (${deps.heim.zutaten.leuchtkraut}× im Vorrat)`, 2);
+          hud.showToast(t('npc.leuchtkraut.pickedStock', { n: deps.heim.zutaten.leuchtkraut }), 2);
           onQuestChange?.();
           return;
         }
@@ -1049,7 +1047,7 @@ export function buildNpcs(scene, glowTex, hud, audio, fx, health, interact, deps
         lk.sprite.visible = false;
         entry.enabled = false;
         audio.chime();
-        hud.showToast(`✦ Leuchtkraut eingesammelt (${quests.kraeuter}/3)`, 2);
+        hud.showToast(t('npc.leuchtkraut.pickedQuest', { n: quests.kraeuter, total: 3 }), 2);
         onQuestChange?.();
       },
     });
@@ -1059,16 +1057,18 @@ export function buildNpcs(scene, glowTex, hud, audio, fx, health, interact, deps
   const catEntry = interact.register({
     get x() { return cat.group.position.x; },
     get z() { return cat.group.position.z; },
-    r: 2, prompt: 'E — Musch ansprechen', enabled: false,
+    r: 2, enabled: false,
+    get prompt() { return t('npc.cat.promptTalk'); },
     onInteract: () => {
       if (quests.katze !== 1 || catFollowing) return;
       catFollowing = true;
-      hud.showToast('🐾 Musch schnurrt und folgt dir jetzt!', 2.5);
+      hud.showToast(t('npc.cat.followToast'), 2.5);
     },
   });
 
   interact.register({
-    x: GEIST_POS.x, z: GEIST_POS.z, r: 3, prompt: 'E — Mit dem Schlossgeist sprechen',
+    x: GEIST_POS.x, z: GEIST_POS.z, r: 3,
+    get prompt() { return t('npc.geist.promptTalk'); },
     onInteract: () => {
       const lines = [];
       // V7 (PLAN-DER-DUNKLE-LORD.md): HÖCHSTE Priorität von allen Zweigen —
@@ -1083,39 +1083,39 @@ export function buildNpcs(scene, glowTex, hud, audio, fx, health, interact, deps
         && deps.hallows?.stab === 1 && deps.hallows?.umhang === 1 && deps.hallows?.stein === 1
         && deps.siegel?.finaleWon === 1;
       if (lordGateMet && deps.lord?.besiegt !== 1) {
-        lines.push('Der Dunkle Lord ist erwacht. In der Schattenfeste, ganz im Nordosten, wartet er auf dich.');
+        lines.push(t('npc.geist.lordAwake'));
         const missing = [];
-        if (!deps.spells.eisblitzUnlocked) missing.push('den Eisblitz');
-        if (!deps.spells.epUnlocked) missing.push('Expecto Patronum');
-        if (!deps.hallowsSys?.umhangActive) missing.push('den angelegten Umhang');
-        if (!deps.hallowsSys?.steinActive) missing.push('den angelegten Stein');
-        if (!deps.hallowsSys?.elderstabActive) missing.push('den angelegten Elderstab');
-        if (health.hearts < health.maxHearts) missing.push('volle Herzen');
+        if (!deps.spells.eisblitzUnlocked) missing.push(t('npc.geist.missing.eisblitz'));
+        if (!deps.spells.epUnlocked) missing.push(t('npc.geist.missing.ep'));
+        if (!deps.hallowsSys?.umhangActive) missing.push(t('npc.geist.missing.umhang'));
+        if (!deps.hallowsSys?.steinActive) missing.push(t('npc.geist.missing.stein'));
+        if (!deps.hallowsSys?.elderstabActive) missing.push(t('npc.geist.missing.elderstab'));
+        if (health.hearts < health.maxHearts) missing.push(t('npc.geist.missing.herzen'));
         lines.push(missing.length
-          ? `Noch fehlt dir: ${missing.join(', ')}.`
-          : 'Du bist bereit — nichts hält dich noch zurück.');
+          ? t('npc.geist.lordMissing', { missing: missing.join(', ') })
+          : t('npc.geist.lordReady'));
       }
       // S10: höchste Priorität, sobald freigeschaltet (Hauspokal+Laterne) —
       // zu diesem Zeitpunkt sind die Bedingungen der übrigen Zweige ohnehin
       // schon erfüllt (Hauspokal braucht 12/12 Schnätze + alle Artefakte).
       else if (deps.puzzles.finaleWon && deps.moor.laterneCollected
         && !(deps.hallows.stab && deps.hallows.umhang && deps.hallows.stein)) {
-        lines.push('Ich spüre es noch immer — drei Dinge, die der Tod einst verlor, liegen verstreut in dieser Welt…');
+        lines.push(t('npc.geist.hallowsIntro'));
         if (!deps.hallows.stab) {
-          lines.push('Am Hügelgrab, wenn die Mitternacht schlägt, erhebt sich ein bleicher König. Nur wer würdig kämpft, gewinnt seinen Stab.');
+          lines.push(t('npc.geist.hallowsStab'));
         } else if (!deps.hallows.umhang) {
-          lines.push('Ein Wilderer-Anführer hütet einen Umhang, der unsichtbar macht — gestohlen werden muss er, nicht erkämpft.');
+          lines.push(t('npc.geist.hallowsUmhang'));
         } else {
-          lines.push('Am tiefsten Grund des Sees liegt ein Stein, der den Tod betrügt — wer tief genug taucht, findet ihn.');
+          lines.push(t('npc.geist.hallowsStein'));
         }
       } else if (deps.spells.epUnlocked && !deps.moor.laterneCollected) {
-        lines.push('Im Nebelmoor wartet noch die Silberne Seelenlaterne auf dich…');
-        lines.push('Fünf Seelenlichter müssen heimkehren, bevor sich die Krypta öffnet.');
+        lines.push(t('npc.geist.nebelmoor1'));
+        lines.push(t('npc.geist.nebelmoor2'));
       } else if (deps.puzzles.artifactCount < ARTIFACT_ORDER.length) {
         const missing = ARTIFACT_ORDER.find((id) => !deps.puzzles.artifacts.has(id));
-        const hint = PUZZLE_HINTS[missing] || 'einen vergessenen Winkel des Schlosses';
-        lines.push('Noch nicht alle Geheimnisse dieses Schlosses sind gelüftet…');
-        lines.push(`Versuch dich an ${hint}.`);
+        const hintKey = PUZZLE_HINT_KEYS[missing] || 'npc.puzzleHint.fallback';
+        lines.push(t('npc.geist.artifactIntro'));
+        lines.push(t('npc.geist.artifactHint', { hint: t(hintKey) }));
       } else if (deps.collectibles.count < deps.collectibles.total) {
         let nearest = null, nearestD = Infinity;
         if (currentPlayer) {
@@ -1125,16 +1125,16 @@ export function buildNpcs(scene, glowTex, hud, audio, fx, health, interact, deps
             if (d < nearestD) { nearestD = d; nearest = item; }
           }
         }
-        lines.push(`${deps.collectibles.total - deps.collectibles.count} Schnätze schweben noch irgendwo im Schloss…`);
-        lines.push(nearest ? `Ich spüre goldenes Glitzern — „${nearest.name}“.` : 'Wo genau, weiß selbst ich nicht mehr.');
+        lines.push(t('npc.geist.schnaetzeRemaining', { n: deps.collectibles.total - deps.collectibles.count }));
+        lines.push(nearest ? t('npc.geist.schnatzNearest', { name: nearest.name }) : t('npc.geist.schnatzUnknown'));
       } else if (deps.heim?.kate && deps.animagus && !deps.animagus.gelernt) {
         // S11: reine Bonus-Quest, blockiert nichts anderes — deshalb erst
         // sichtbar, wenn alle dringlicheren Hinweise oben schon erledigt sind.
-        lines.push('Es gibt eine alte, fast vergessene Kunst … die zweite Gestalt.');
-        lines.push('Braue den „Trank der zweiten Gestalt" an deinem Kessel — dann such in einer Sturmnacht den Steinkreis auf.');
+        lines.push(t('npc.geist.animagus1'));
+        lines.push(t('npc.geist.animagus2'));
       } else {
-        lines.push('Du hast schon fast alles gesehen, was dieses Schloss zu bieten hat.');
-        lines.push('Ich bin stolz auf dich, kleiner Zauberer.');
+        lines.push(t('npc.geist.allDone1'));
+        lines.push(t('npc.geist.allDone2'));
       }
       // Opus-5-Audit-Fix: Zusatzhinweis auf die 4 neuen Regionen (E4-E7) — ALS
       // ANHANG statt eigener if-Zweig, weil die Regionen bewusst orthogonal
@@ -1147,9 +1147,9 @@ export function buildNpcs(scene, glowTex, hud, audio, fx, health, interact, deps
       const siegel = deps.siegel || {};
       const siegelCount = [siegel.drache, siegel.frost, siegel.hain, siegel.tiefe].filter((v) => v === 1).length;
       if (siegelCount === 0) {
-        lines.push('Übrigens: Jenseits der Berge, in alle vier Himmelsrichtungen, warten neue Wunder und Gefahren auf dich, die du noch nicht gesehen hast.');
+        lines.push(t('npc.geist.regionTeaser'));
       }
-      hud.showDialog('Schlossgeist', lines);
+      hud.showDialog(t('npc.geist.name'), lines);
     },
   });
 
@@ -1173,7 +1173,7 @@ export function buildNpcs(scene, glowTex, hud, audio, fx, health, interact, deps
         fx.burst({ x: getPos().x, y: getPos().y + 1, z: getPos().z }, 0x8a8fa0, 8, 2, { gravity: -1, life: 0.4 });
         if (!shieldToastShown) {
           shieldToastShown = true;
-          hud.showToast('👻 „Zauber gegen Freunde? Das lässt dieses Schloss nicht zu." — der Schlossgeist klingt missbilligend.', 4.5);
+          hud.showToast(t('npc.shield.toast'), 4.5);
         }
       },
     });
@@ -1267,7 +1267,7 @@ export function buildNpcs(scene, glowTex, hud, audio, fx, health, interact, deps
         const dx = currentPlayer.pos.x - cat.group.position.x, dz = currentPlayer.pos.z - cat.group.position.z;
         if (!muschSniffShown && Math.hypot(dx, dz) < 3) {
           muschSniffShown = true;
-          hud.showToast('🐈 Musch beschnuppert dich neugierig … und schnurrt.', 2.5);
+          hud.showToast(t('npc.cat.sniffToast'), 2.5);
         }
       } else {
         muschSniffShown = false;
