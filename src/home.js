@@ -7,6 +7,7 @@
 
 import * as THREE from 'three';
 import { terrainHeight } from './terrain.js';
+import { t } from './i18n.js';
 
 const KAUF_GOLD = 60;
 const RUF_FREI = 30; // ab diesem Ruf ist die Kate ein Geschenk der Nachbarschaft
@@ -15,11 +16,13 @@ const MORNING_T = 0.28; // sky.timeOfDay-Ziel für "bis zum Morgen rasten"
 const EVENING_T = 0.75; // ... "bis zum Abend"
 
 const POTION_DUR = 300; // 5 Minuten, exakt wie im Plan
+// i18n Etappe 5: name/desc sind jetzt Schlüssel (home.recipe.<id>.name/.desc)
+// statt fertiger Texte — übersetzt wird erst beim Rendern des Prompts/Toasts.
 const RECIPES = [
-  { id: 'flink', name: 'Flinktrank', need: { glitzer: 1, leuchtkraut: 1 }, desc: 'Tempo ×1.3' },
-  { id: 'herz', name: 'Herztrank', need: { seide: 1, leuchtkraut: 1 }, desc: '+2 Herzen' },
-  { id: 'frost', name: 'Frostbann', need: { stern: 1, glitzer: 1 }, desc: 'Frost-Immunität' },
-  { id: 'dunkel', name: 'Dunkler Sud', need: { essenz: 1, seide: 1 }, desc: 'Spruchschaden ×1.5 (nur dunkler Pfad)' },
+  { id: 'flink', need: { glitzer: 1, leuchtkraut: 1 } },
+  { id: 'herz', need: { seide: 1, leuchtkraut: 1 } },
+  { id: 'frost', need: { stern: 1, glitzer: 1 } },
+  { id: 'dunkel', need: { essenz: 1, seide: 1 } },
   // S11: kein Dauerbuff wie die anderen 4 — läuft genau wie sie über
   // heim.trank (5 min, siehe POTION_DUR), aber animagus.js liest
   // heim.trank.id==='animagus' als "bereit fürs Ritual" statt einen
@@ -27,36 +30,29 @@ const RECIPES = [
   // INNERHALB der 5 Minuten am Steinkreis gelingen, sonst verfliegt der
   // Trank ungenutzt — passt zur "Tränke: 5 min"-Balancing-Zeile, die
   // keine Ausnahme für den Animagus-Trank vorsieht.
-  { id: 'animagus', name: 'Trank der zweiten Gestalt', need: { stern: 1, seide: 1, leuchtkraut: 1 }, desc: 'Bereit fürs Ritual im Sturm am Steinkreis (5 min)' },
+  { id: 'animagus', need: { stern: 1, seide: 1, leuchtkraut: 1 } },
   // E4 (PLAN-EPISCHE-WELT.md): schuppe fällt nur beim Sieg über Aschenschwinge
   // ab — kein eigenes Unlock-Flag nötig (Muster wie alle anderen Rezepte:
   // "brauchbar sobald Zutat vorhanden", nicht per Flag gesperrt).
-  { id: 'feuerschutz', name: 'Feuerschutztrank', need: { schuppe: 1, essenz: 1 }, desc: 'Immunität gegen Drachenfeuer' },
+  { id: 'feuerschutz', need: { schuppe: 1, essenz: 1 } },
   // E5 (PLAN-EPISCHE-WELT.md Abschnitt 5): "Eisatem" ist EIGENS benannt statt
   // die bestehende Frostbann-Zutatenkombi wiederzuverwenden — Frostbann
   // schützt vor Dementoren-Kälte (eigenes Ziel-System), Eisatem vor dem
   // Eiswurf des Frostriesen (eigenes region-lokales Flag) — beide Effekte
   // heißen "Frost", sind aber verschiedene Mechaniken, daher getrennt.
-  { id: 'eisatem', name: 'Eisatem-Trank', need: { frostkristall: 1, essenz: 1 }, desc: 'Immunität gegen die Eiswürfe des Frostriesen' },
+  { id: 'eisatem', need: { frostkristall: 1, essenz: 1 } },
   // E6 (PLAN-EPISCHE-WELT.md Abschnitt 6.4): mondsilber fällt nur beim Lösen
   // des Feenlicht-Rätsels in Silberhain ab. Effekt bewusst KEINE neue
   // Immunität/Buff-Mechanik, sondern ein eigenständiges, in unicorn.js
   // gelesenes Flag (Muster fireImmune/iceThrowImmune) — ein scheues Einhorn
   // lässt sich auch auf dem dunklen Pfad zähmen, solange der Trank wirkt.
-  { id: 'feenlicht', name: 'Feenlichttrank', need: { mondsilber: 1, stern: 1 }, desc: 'Ein scheues Einhorn vertraut dir, egal welchem Pfad du folgst' },
+  { id: 'feenlicht', need: { mondsilber: 1, stern: 1 } },
   // E7 (PLAN-EPISCHE-WELT.md Abschnitt 6.5): tiefenperle fällt nur beim Lösen
   // des Tauch-Rätsels in Schwarzwasser ab. Effekt spiegelt Feuerschutz/
   // Eisatem (Immunität gegen die jeweils regionseigene Gefahr) — hier gegen
   // den Berührungsschaden der Grindeloh-Wassergeister UNTER Wasser.
-  { id: 'tiefenatem', name: 'Tiefenatem-Trank', need: { tiefenperle: 1, essenz: 1 }, desc: 'Immunität gegen Grindeloh-Berührung beim Tauchen' },
+  { id: 'tiefenatem', need: { tiefenperle: 1, essenz: 1 } },
 ];
-const ZUTAT_NAMES = {
-  glitzer: 'Glitzerstaub', seide: 'Spinnenseide', stern: 'Sternsplitter', essenz: 'Dunkle Essenz',
-  leuchtkraut: 'Leuchtkraut', schuppe: 'Drachenschuppe', frostkristall: 'Frostkristall',
-  // Echter Bug gefunden+gefixt (E7): mondsilber (E6) fehlte hier komplett —
-  // der Feenlichttrank-Brauprompt hätte "undefinedx Mondsilber" gezeigt.
-  mondsilber: 'Mondsilber', tiefenperle: 'Tiefenperle',
-};
 
 // Meteor-Nächte (Sternsplitter): in klaren Nächten 15% Chance beim
 // Abend-Übergang, 2 Splitter landen zufällig in der Wildmark, verschwinden
@@ -97,17 +93,17 @@ export function buildHome(scene, camera, glowTex, hud, audio, fx, health, intera
     get enabled() { return !heim.kate; },
     get prompt() {
       return economy.ruf >= RUF_FREI
-        ? 'E — Kate übernehmen (die Nachbarschaft vertraut dir)'
-        : `E — Kate kaufen (${Math.round(KAUF_GOLD * economy.priceMul)} Gold)`;
+        ? t('home.promptClaim')
+        : t('home.promptBuy', { gold: Math.round(KAUF_GOLD * economy.priceMul) });
     },
     onInteract: () => {
       if (economy.ruf < RUF_FREI && !economy.spendGold(KAUF_GOLD)) {
-        hud.showToast('Nicht genug Gold.', 2);
+        hud.showToast(t('npc.notEnoughGold'), 2);
         return;
       }
       heim.kate = 1;
       applyOwnership();
-      hud.showToast('🏠 Die Wispernde Kate gehört jetzt dir!', 4);
+      hud.showToast(t('home.toastOwned'), 4);
       audio.chime?.('fanfare');
       fx.burst({ x: kx, y: ky + 1.5, z: kz }, 0xffd98c, 24, 3.5, { gravity: -2, life: 1 });
       onChange?.();
@@ -206,14 +202,14 @@ export function buildHome(scene, camera, glowTex, hud, audio, fx, health, intera
     x: bedX, z: bedZ, r: 1.5,
     get enabled() { return heim.kate === 1; },
     get prompt() {
-      return sky.state.nightGlow > 0.5 ? 'E — Rasten bis zum Morgen' : 'E — Rasten bis zum Abend';
+      return t(sky.state.nightGlow > 0.5 ? 'home.promptRestMorning' : 'home.promptRestEvening');
     },
     onInteract: () => {
       const wasNight = sky.state.nightGlow > 0.5;
       sky.timeOfDay = wasNight ? MORNING_T : EVENING_T;
       health.hearts = health.effectiveMaxHearts;
       hud.setHearts(health.hearts, health.effectiveMaxHearts);
-      hud.showToast(wasNight ? '☀️ Du wachst erholt auf. ♥ voll!' : '🌙 Der Abend bricht an. ♥ voll!', 3);
+      hud.showToast(t(wasNight ? 'home.toastWakeUp' : 'home.toastEvening'), 3);
       audio.chime?.();
     },
   });
@@ -230,18 +226,19 @@ export function buildHome(scene, camera, glowTex, hud, audio, fx, health, intera
       get enabled() { return heim.kate === 1; },
       get prompt() {
         const have = Object.entries(r.need).every(([k, n]) => heim.zutaten[k] >= n);
-        const needStr = Object.entries(r.need).map(([k, n]) => `${n}× ${ZUTAT_NAMES[k]}`).join(' + ');
+        const needStr = Object.entries(r.need).map(([k, n]) => `${n}× ${t(`item.${k}`)}`).join(' + ');
+        const name = t(`home.recipe.${r.id}.name`);
         return have
-          ? `E — ${r.name} brauen (${needStr})`
-          : `${r.name}: ${needStr} (nicht genug)`;
+          ? t('home.promptBrew', { name, need: needStr })
+          : t('home.promptBrewMissing', { name, need: needStr });
       },
       onInteract: () => {
         const have = Object.entries(r.need).every(([k, n]) => heim.zutaten[k] >= n);
-        if (!have) { hud.showToast('Nicht genug Zutaten.', 2); return; }
+        if (!have) { hud.showToast(t('home.toastNotEnoughZutaten'), 2); return; }
         for (const [k, n] of Object.entries(r.need)) heim.zutaten[k] -= n;
         heim.trank.id = r.id;
         heim.trank.restT = POTION_DUR;
-        hud.showToast(`🧪 ${r.name} gebraut! ${r.desc} (5 min)`, 4);
+        hud.showToast(t('home.toastBrewed', { name: t(`home.recipe.${r.id}.name`), desc: t(`home.recipe.${r.id}.desc`) }), 4);
         audio.chime?.('fanfare');
         fx.burst({ x: cauldronX, y: cauldronY + 0.8, z: cauldronZ }, 0x4ad8a0, 22, 3, { gravity: -2, life: 0.8 });
         onChange?.();
@@ -287,7 +284,7 @@ export function buildHome(scene, camera, glowTex, hud, audio, fx, health, intera
       const a = Math.random() * Math.PI * 2, r = 60 + Math.random() * 80;
       fx.burst({ x: kx + Math.cos(a) * r, y: 90 + Math.random() * 30, z: kz + Math.sin(a) * r }, 0xd8f0ff, 14, 8, { gravity: -1, life: 0.7 });
     }
-    hud.showToast('🌠 Eine Sternschnuppennacht! Irgendwo landeten Sternsplitter …', 3.5);
+    hud.showToast(t('home.toastMeteorNight'), 3.5);
   }
 
   function clearSplitters() {
@@ -310,7 +307,7 @@ export function buildHome(scene, camera, glowTex, hud, audio, fx, health, intera
     splitters[i] = null;
     heim.zutaten.stern += 1;
     audio.chime?.();
-    hud.showToast(`✨ Sternsplitter gefunden (${heim.zutaten.stern}× im Vorrat)`, 2.5);
+    hud.showToast(t('home.toastSplitterFound', { n: heim.zutaten.stern }), 2.5);
     onChange?.();
   }
 
@@ -347,7 +344,7 @@ export function buildHome(scene, camera, glowTex, hud, audio, fx, health, intera
         if (heim.trank.restT <= 0) {
           heim.trank.restT = 0;
           heim.trank.id = '';
-          hud.showToast('Die Wirkung des Trankes lässt nach.', 2.2);
+          hud.showToast(t('home.toastPotionFading'), 2.2);
           onChange?.();
         }
       }
