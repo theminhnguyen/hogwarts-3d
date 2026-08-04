@@ -69,7 +69,7 @@ const SSAO_FRAG = /* glsl */`
   uniform vec2 uRes;
   uniform float uRadius;
   uniform float uBias;
-  uniform vec3 uKernel[12];
+  uniform vec3 uKernel[8];
   varying vec2 vUv;
 
   vec3 viewPosAt(vec2 uv) {
@@ -96,7 +96,7 @@ const SSAO_FRAG = /* glsl */`
     float ca = cos(a), sa = sin(a);
 
     float occ = 0.0;
-    for (int i = 0; i < 12; i++) {
+    for (int i = 0; i < 8; i++) {
       vec3 k = uKernel[i];
       vec3 kr = vec3(k.x * ca - k.y * sa, k.x * sa + k.y * ca, k.z);
       // In die Hemisphäre der Oberflächennormale klappen
@@ -113,7 +113,7 @@ const SSAO_FRAG = /* glsl */`
       float rangeCheck = smoothstep(0.0, 1.0, uRadius / max(0.0001, abs(P.z - SP.z)));
       if (SP.z >= S.z + uBias) occ += rangeCheck;
     }
-    gl_FragColor = vec4(clamp(1.0 - occ / 12.0, 0.0, 1.0));
+    gl_FragColor = vec4(clamp(1.0 - occ / 8.0, 0.0, 1.0));
   }
 `;
 
@@ -134,9 +134,41 @@ const AOBLUR_FRAG = /* glsl */`
   }
 `;
 
+// ---------- Godrays / Lichtschächte (G4, „Episch") ----------
+// Radiale Streuung von der Sonnenposition aus: entlang der Verbindungslinie
+// Pixel→Sonne wird abgetastet und aufsummiert, aber NUR Himmelspixel tragen
+// bei. Dadurch wirft jede Geometrie zwischen Auge und Sonne einen echten
+// Schatten IN die Strahlen — genau der Effekt, der Sonnenstrahlen zwischen
+// Türmen und Bäumen erzeugt.
+// Die Himmelserkennung nutzt wieder die Tiefentextur (wie SSAO), es braucht
+// also keine separate Maske.
+const GODRAY_FRAG = /* glsl */`
+  uniform sampler2D tScene;
+  uniform sampler2D tDepth;
+  uniform vec2 uSun;
+  varying vec2 vUv;
+  void main() {
+    vec2 delta = (vUv - uSun) / 16.0 * 0.9;
+    vec2 uv = vUv;
+    float w = 1.0;
+    vec3 acc = vec3(0.0);
+    for (int i = 0; i < 16; i++) {
+      uv -= delta;
+      // step(): 1.0 nur am fernen Tiefenrand = Himmel. Alles davor blockt.
+      float sky = step(0.9999, texture2D(tDepth, uv).x);
+      acc += texture2D(tScene, uv).rgb * sky * w;
+      w *= 0.933; // Abklingen: 0.955^(24/16), damit die Strahllaenge trotz
+                  // weniger Schritte gleich bleibt
+    }
+    gl_FragColor = vec4(acc / 16.0, 1.0);
+  }
+`;
+
 const COMBINE_FRAG = /* glsl */`
   uniform sampler2D tScene;
   uniform sampler2D tBloom;
+  uniform sampler2D tGod;
+  uniform float uGodStrength;
   uniform sampler2D tAO;
   uniform float uBloomStrength;
   uniform float uAOStrength;
@@ -151,7 +183,10 @@ const COMBINE_FRAG = /* glsl */`
     float ao = mix(1.0, texture2D(tAO, vUv).r, uAOStrength);
     scene *= ao;
     vec3 bloom = texture2D(tBloom, vUv).rgb;
-    vec3 col = scene + bloom * uBloomStrength;
+    // Godrays additiv obendrauf — Streulicht in der Luft, das von nichts
+    // verdeckt wird (deshalb NACH der AO-Multiplikation).
+    vec3 god = texture2D(tGod, vUv).rgb * uGodStrength;
+    vec3 col = scene + bloom * uBloomStrength + god;
     // Leichte S-Kurve (nur zu einem Viertel eingeblendet) — die volle
     // Smoothstep-Kurve crusht dunkle Nachtszenen fast auf Schwarz, siehe
     // Testbefund: eine Vollkurve ist für "leichte" Kontrastanhebung viel
@@ -171,6 +206,8 @@ const COMBINE_FRAG = /* glsl */`
 const FXAA_FRAG = /* glsl */`
   uniform sampler2D tInput;
   uniform vec2 uTexel;
+  uniform float uCA;        // G4: Stärke der chromatischen Aberration
+  uniform float uVignette;  // G4: Stärke der Randabdunklung
   varying vec2 vUv;
 
   // Rendern in eigene Render-Targets überspringt renderer.outputColorSpace
@@ -217,6 +254,25 @@ const FXAA_FRAG = /* glsl */`
 
     float lB = dot(rgbB, lw);
     vec3 result = (lB < lMin || lB > lMax) ? rgbA : rgbB;
+
+    // G4 Kino-Grading (nur „Episch"; uCA und uVignette sind sonst 0 und der
+    // Block bleibt dann wirkungslos). Sitzt hier im LETZTEN Pass,
+    // weil beides auf dem fertigen Bild wirken muss — vor dem FXAA angewandt
+    // würde die Kantenglättung die Farbsäume wieder verschmieren.
+    vec2 off = vUv - 0.5;
+    float r2 = dot(off, off);
+    // Chromatische Aberration: zum Bildrand hin zunehmender Farbversatz, wie
+    // ihn ein echtes Objektiv erzeugt. In der Mitte exakt null.
+    vec2 caOff = off * r2 * uCA;
+    float cr = texture2D(tInput, vUv - caOff).r;
+    float cb = texture2D(tInput, vUv + caOff).b;
+    result = vec3(mix(result.r, cr, 0.85), result.g, mix(result.b, cb, 0.85));
+    // Vignette: Randabdunklung, lenkt den Blick zur Bildmitte. Breiter
+    // Übergang (0.95 -> 0.35), damit sie als Stimmung wirkt und nicht als
+    // sichtbarer dunkler Ring.
+    float vig = smoothstep(0.95, 0.35, length(off));
+    result *= mix(1.0, vig, uVignette);
+
     gl_FragColor = vec4(linearToSRGB(result), 1.0);
   }
 `;
@@ -247,20 +303,30 @@ export class PostFX {
     this.matBlurH = makeQuadMaterial(BLUR_FRAG, { tInput: { value: null }, uDir: { value: new THREE.Vector2() } });
     this.matBlurV = makeQuadMaterial(BLUR_FRAG, { tInput: { value: null }, uDir: { value: new THREE.Vector2() } });
     this.matCombine = makeQuadMaterial(COMBINE_FRAG, {
-      tScene: { value: null }, tBloom: { value: null }, tAO: { value: null },
-      uBloomStrength: { value: 0.35 }, uAOStrength: { value: 0 },
+      tScene: { value: null }, tBloom: { value: null }, tAO: { value: null }, tGod: { value: null },
+      uBloomStrength: { value: 0.35 }, uAOStrength: { value: 0 }, uGodStrength: { value: 0 },
       uSaturation: { value: 1.08 }, uNight: { value: 0 },
     });
-    this.matFxaa = makeQuadMaterial(FXAA_FRAG, { tInput: { value: null }, uTexel: { value: new THREE.Vector2() } });
+    this.matFxaa = makeQuadMaterial(FXAA_FRAG, {
+      tInput: { value: null }, uTexel: { value: new THREE.Vector2() },
+      uCA: { value: 0 }, uVignette: { value: 0 },
+    });
+    this.matGod = makeQuadMaterial(GODRAY_FRAG, {
+      tScene: { value: null }, tDepth: { value: null },
+      uSun: { value: new THREE.Vector2(0.5, 0.5) },
+    });
+    // Wiederverwendete Vektoren für die Sonnen-Projektion (kein Allokieren pro Frame)
+    this._sunWorld = new THREE.Vector3();
+    this._sunNdc = new THREE.Vector3();
 
     // G3: Abtastkern für SSAO. Punkte liegen dichter an der Mitte (quadratische
     // Gewichtung) — nahe Geometrie soll stärker zählen als entfernte, sonst
     // wirkt die Verschattung diffus statt als Kontaktschatten.
     const kernel = [];
-    for (let i = 0; i < 12; i++) {
+    for (let i = 0; i < 8; i++) {
       const v = new THREE.Vector3(Math.random() * 2 - 1, Math.random() * 2 - 1, Math.random() * 2 - 1);
       if (v.lengthSq() < 1e-6) v.set(0, 0, 1);
-      v.normalize().multiplyScalar(0.3 + 0.7 * ((i + 1) / 12) ** 2);
+      v.normalize().multiplyScalar(0.3 + 0.7 * ((i + 1) / 8) ** 2);
       kernel.push(v);
     }
     this.matSSAO = makeQuadMaterial(SSAO_FRAG, {
@@ -297,7 +363,7 @@ export class PostFX {
 
     this._disposeRT(this.rtScene); this._disposeRT(this.rtBright);
     this._disposeRT(this.rtBlurA); this._disposeRT(this.rtBlurB); this._disposeRT(this.rtFinal);
-    this._disposeRT(this.rtAO); this._disposeRT(this.rtAOBlur);
+    this._disposeRT(this.rtAO); this._disposeRT(this.rtAOBlur); this._disposeRT(this.rtGod);
     this.rtScene?.depthTexture?.dispose();
 
     const opts = { minFilter: THREE.LinearFilter, magFilter: THREE.LinearFilter, format: THREE.RGBAFormat, depthBuffer: false };
@@ -318,12 +384,18 @@ export class PostFX {
     this.rtFinal = new THREE.WebGLRenderTarget(w, h, opts);
     this.rtAO = new THREE.WebGLRenderTarget(aw, ah, opts);
     this.rtAOBlur = new THREE.WebGLRenderTarget(aw, ah, opts);
+    // Godrays auf Bloom-Auflösung (Viertel) — Lichtschächte sind weiche,
+    // grossflächige Gebilde, feine Auflösung bringt dort nichts.
+    this.rtGod = new THREE.WebGLRenderTarget(bw, bh, opts);
 
     this.matBlurH.uniforms.uDir.value.set(1 / bw, 0);
     this.matBlurV.uniforms.uDir.value.set(0, 1 / bh);
     this.matFxaa.uniforms.uTexel.value.set(1 / w, 1 / h);
     this.matSSAO.uniforms.tDepth.value = depthTex;
     this.matSSAO.uniforms.uRes.value.set(aw, ah);
+    this.matGod.uniforms.tDepth.value = depthTex;
+    this.matGod.uniforms.tScene.value = this.rtScene.texture;
+    this.matCombine.uniforms.tGod.value = this.rtGod.texture;
     this.matAOBlur.uniforms.uTexel.value.set(1 / aw, 1 / ah);
     this.matCombine.uniforms.tBloom.value = this.rtBlurB.texture; // gültig auch bei ausgeschaltetem Bloom (Strength=0 nullt den Beitrag)
     // Dasselbe Muster für AO: Textur immer gesetzt, uAOStrength=0 schaltet ab.
@@ -340,7 +412,10 @@ export class PostFX {
     this.renderer.render(this.quadScene, this.quadCam);
   }
 
-  render(nightGlow, fpsEMA) {
+  // sunDir (optional, G4): Weltrichtung ZUR Sonne. Wird auf den Bildschirm
+  // projiziert, um den Ursprung der Lichtschächte zu bestimmen. Fehlt sie,
+  // bleiben Godrays einfach aus.
+  render(nightGlow, fpsEMA, sunDir = null) {
     // Nur 'schnell' rendert direkt ohne jeden Pass. 'schoen' UND 'episch'
     // durchlaufen den Composer — vor der Episch-Stufe stand hier
     // `!== 'schoen'`, was jede künftige Stufe stillschweigend auf den
@@ -367,10 +442,16 @@ export class PostFX {
       return;
     }
     const bloomOn = fpsEMA >= 50;
+    // Beide tiefenbasierten Effekte (SSAO, Godrays) rechnen mit der Projektions-
+    // matrix. Ist das Fenster gerade 0 Pixel breit (minimiert, versteckter Tab,
+    // Resize-Rennen), wird camera.aspect zu 0/0 = NaN und die Matrix damit
+    // unbrauchbar — die Shader würden dann Müll abtasten. In dem Fall lieber
+    // ganz überspringen als ein kaputtes Bild zeigen.
+    const projOk = Number.isFinite(this.camera.projectionMatrix.elements[0]);
     // AO nur in 'episch' und nur solange Luft ist — es ist der teuerste Pass
     // im Stack (12 Abtastungen plus Weichzeichner). Fällt vor dem Bloom weg,
     // weil es mehr kostet.
-    const aoOn = this.quality === 'episch' && fpsEMA >= 52;
+    const aoOn = this.quality === 'episch' && fpsEMA >= 52 && projOk;
 
     this.renderer.setRenderTarget(this.rtScene);
     this.renderer.render(this.scene, this.camera);
@@ -386,6 +467,39 @@ export class PostFX {
       this._pass(this.matAOBlur, this.rtAOBlur);
     }
     this.matCombine.uniforms.uAOStrength.value = aoOn ? 1 : 0;
+
+    // ---------- Godrays ----------
+    let godStrength = 0;
+    if (this.quality === 'episch' && sunDir && fpsEMA >= 50 && projOk) {
+      // Punkt weit in Sonnenrichtung auf den Bildschirm projizieren.
+      this._sunWorld.copy(this.camera.position).addScaledVector(sunDir, 1000);
+      this._sunNdc.copy(this._sunWorld).project(this.camera);
+      // z > 1 heisst hinter der Kamera — dann gäbe es einen gespiegelten
+      // Geisterstrahl auf der falschen Bildseite.
+      if (this._sunNdc.z < 1) {
+        const sx = this._sunNdc.x * 0.5 + 0.5, sy = this._sunNdc.y * 0.5 + 0.5;
+        this.matGod.uniforms.uSun.value.set(sx, sy);
+        // Ausblenden, je weiter die Sonne aus der Bildmitte wandert, sonst
+        // würde sie beim Wegdrehen hart abreissen. Zusätzlich mit der
+        // Tageshelligkeit koppeln — nachts gibt es keine Sonnenstrahlen.
+        const dx = sx - 0.5, dy = sy - 0.5;
+        const edge = 1 - Math.min(1, Math.hypot(dx, dy) / 0.85);
+        godStrength = 0.6 * edge * Math.max(0, 1 - nightGlow * 1.6);
+      }
+      if (godStrength > 0.001) this._pass(this.matGod, this.rtGod);
+    }
+    this.matCombine.uniforms.uGodStrength.value = godStrength;
+
+    // Kino-Grading nur in 'episch' (sonst exakt 0 = kein Unterschied).
+    // uCA-Grössenordnung nachgerechnet statt geschätzt: der Versatz ist
+    // |off| * r2 * uCA, am Bildrand also ~0.707 * 0.5 * uCA = 0.354 * uCA in
+    // UV-Einheiten. Für die angepeilten ~2 Pixel auf 1280 Breite (2/1280 =
+    // 0.00156 UV) folgt uCA ≈ 0.0044. Der erste Versuch mit 0.9 ergab 0.32 UV
+    // = ein Drittel der Bildbreite — im Screenshot lag ein Regenbogenrand über
+    // der halben Szene. Echte Objektiv-Aberration ist kaum wahrnehmbar.
+    const cine = this.quality === 'episch';
+    this.matFxaa.uniforms.uCA.value = cine ? 0.005 : 0;
+    this.matFxaa.uniforms.uVignette.value = cine ? 0.32 : 0;
 
     if (bloomOn) {
       this.matBright.uniforms.tScene.value = this.rtScene.texture;

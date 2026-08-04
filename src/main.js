@@ -1166,7 +1166,7 @@ function tick() {
 
   if (playing) frame(dt);
 
-  post.render(sky.state.nightGlow, fpsEMA);
+  post.render(sky.state.nightGlow, fpsEMA, sky.state.sunDir);
 }
 
 // Ein Simulationsschritt (vom Render-Loop und von __game.step() genutzt)
@@ -1464,7 +1464,7 @@ buildWorld().then(() => {
     // Für automatisierte Tests: n Frames direkt simulieren (ohne rAF)
     step: (n = 60, dt = 1 / 60) => {
       for (let i = 0; i < n; i++) frame(dt);
-      post.render(sky.state.nightGlow, fpsEMA);
+      post.render(sky.state.nightGlow, fpsEMA, sky.state.sunDir);
     },
     // Sofort in eine Richtung schauen und zaubern (Kamera-Rotation synchron
     // vor dem Cast aktualisieren, sonst nutzt getWorldDirection() die
