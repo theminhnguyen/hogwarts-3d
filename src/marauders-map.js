@@ -78,6 +78,115 @@ const TITLES = [
   { id: 'dunklerLord', icon: '⚡', name: 'Der wahre Meister des Todes', desc: 'Den Dunklen Lord in der Schattenfeste besiegen.', earned: (s) => s.lord.besiegt === 1 },
 ];
 
+// Almanach (Nutzerwunsch 2026-08-04: "ich weiß nicht, was es noch alles
+// gibt"). Anders als TITLES oben (das sind ERRUNGENSCHAFTEN — Name+Zustand,
+// aber kein "wo starte ich das") ist das hier eine Liste der SYSTEME selbst,
+// mit Fundort/Auslöser. Bewusst NICHT deckungsgleich mit TITLES: die vier
+// Elementar-Siegel und die Heiligtümer haben dort schon je einen eigenen
+// Titel — hier stehen sie nur einmal gebündelt, mit dem Hinweis, WO man
+// anfängt (das fehlt bei TITLES komplett).
+// `status(save)` liefert 'offen' (verfügbar, noch nicht erledigt), 'fertig'
+// (abgeschlossen) oder 'gesperrt' (Bedingung noch nicht erfüllt). Kein
+// eigenes Speicherfeld nötig — liest ausschließlich vorhandene save.*-Werte,
+// exakt wie TITLES.
+const ALMANAC = [
+  {
+    id: 'fliegen', icon: '🧹', name: 'Fliegen lernen',
+    status: (s) => (s.besen ? 'fertig' : 'offen'),
+    hint: (s) => (s.besen
+      ? 'Der Besen ist dein — Taste B hebt ab, das 12-Ringe-Rennen wartet am Quidditch-Feld.'
+      : 'Im Besenschuppen am Quidditch-Feld im Westen liegt ein Besen bereit.'),
+  },
+  {
+    id: 'hippogreif', icon: '🦅', name: 'Hippogreif zähmen',
+    status: (s) => (s.mounts.hippo ? 'fertig' : 'offen'),
+    hint: (s) => (s.mounts.hippo
+      ? 'Gezähmt — Taste R ruft ihn, 2× Leertaste hebt im Flug ab.'
+      : 'Wilde Hippogreife streifen über die Wildmark im Osten — anschleichen und zähmen.'),
+  },
+  {
+    id: 'thestral', icon: '💀', name: 'Thestral zähmen',
+    status: (s) => (s.mounts.thestral ? 'fertig' : (s.seenDeath ? 'offen' : 'gesperrt')),
+    hint: (s) => (s.mounts.thestral
+      ? 'Gezähmt — nur du (und andere, die den Tod sahen) können ihn sehen.'
+      : s.seenDeath
+        ? 'Er ist jetzt sichtbar — geh einfach hin, kein Zähm-Ritual nötig.'
+        : 'Wird erst sichtbar, nachdem du einmal einen Tod miterlebt hast.'),
+  },
+  {
+    id: 'einhorn', icon: '🦄', name: 'Einhorn gewinnen',
+    status: (s) => (s.mounts.einhorn ? 'fertig' : 'offen'),
+    hint: (s) => (s.mounts.einhorn
+      ? 'Gezähmt und reitbar — auch fliegend.'
+      : 'Ein wildes Einhorn grast im Silberhain im Norden — ruhig nähern und verbeugen.'),
+  },
+  {
+    id: 'begleiter', icon: '🐾', name: 'Begleiter finden',
+    status: (s) => (s.begleiter.frei.length >= 3 ? 'fertig' : 'offen'),
+    hint: (s) => `${s.begleiter.frei.length}/3 gefunden — Musch über die Katzenquest, `
+      + 'eine zweite Kreatur nachts, eine dritte irgendwo in der Wildnis. Taste G ruft den aktiven Begleiter.',
+  },
+  {
+    id: 'fero', icon: '💰', name: 'Mit Fero handeln',
+    status: (s) => (s.quests.feroSammler ? 'fertig' : 'offen'),
+    hint: (s) => (s.quests.feroSammler
+      ? 'Alle vier seltenen Zutaten gegen Fero eingetauscht.'
+      : 'Fero der Wanderhändler erscheint zeitweise am Bahnhof in Eulenbrück — Handel gegen Gold.'),
+  },
+  {
+    id: 'wilderer', icon: '🏕️', name: 'Wilderer-Lager befreien',
+    status: () => 'offen',
+    hint: (s) => `${s.wild.befreit || 0} Lager bisher befreit — 6 Spots rotieren übers Wildmark-Gebiet, `
+      + 'gefangene Kreaturen warten in Käfigen.',
+  },
+  {
+    id: 'duell', icon: '⚔️', name: 'Der Duellring',
+    status: () => 'offen',
+    hint: () => 'Fechtmeisterin Ondra fordert dich am Dorfplatz in Eulenbrück (10-16 Uhr) — Einsatz und Gewinn in Gold.',
+  },
+  {
+    id: 'regionen', icon: '🌋', name: 'Die vier Elementar-Regionen',
+    status: (s) => {
+      const n = [s.siegel.drache, s.siegel.frost, s.siegel.hain, s.siegel.tiefe].filter((v) => v === 1).length;
+      return n === 4 ? 'fertig' : 'offen';
+    },
+    hint: (s) => {
+      const n = [s.siegel.drache, s.siegel.frost, s.siegel.hain, s.siegel.tiefe].filter((v) => v === 1).length;
+      return `${n}/4 Siegel — Aschenklamm (Osten), Frostzinnen (Süden), Silberhain (Norden), `
+        + 'Schwarzwasser (Westen): jede hat einen eigenen Endgegner und ein eigenes Rätsel.';
+    },
+  },
+  {
+    id: 'heiligtuemer', icon: '☠️', name: 'Die Heiligtümer des Todes',
+    status: (s) => {
+      const n = [s.hallows.stab, s.hallows.umhang, s.hallows.stein].filter((v) => v === 1).length;
+      return n === 3 ? 'fertig' : 'offen';
+    },
+    hint: (s) => {
+      const n = [s.hallows.stab, s.hallows.umhang, s.hallows.stein].filter((v) => v === 1).length;
+      return `${n}/3 gefunden — der Elderstab wird im Duell am Hügelgrab errungen, `
+        + 'die anderen beiden Heiligtümer sind über die Welt verstreut.';
+    },
+  },
+  {
+    id: 'animagus', icon: '🐦', name: 'Animagus werden',
+    status: (s) => (s.animagus.gelernt ? 'fertig' : (s.heim.kate ? 'offen' : 'gesperrt')),
+    hint: (s) => (s.animagus.gelernt
+      ? `Zweite Gestalt erlernt — Taste V wechselt die Form (aktuell: ${s.animagus.form}).`
+      : s.heim.kate
+        ? 'Den "Trank der zweiten Gestalt" am eigenen Braukessel brauen, dann bei Sturm am Steinkreis das Ritual wagen.'
+        : 'Voraussetzung: die Wispernde Kate im Wildmark-Gebiet kaufen (eigener Braukessel).'),
+  },
+  {
+    id: 'dunklerPfad', icon: '🌑', name: 'Der dunkle Pfad',
+    status: (s) => (s.dunkel.buch ? 'fertig' : 'offen'),
+    hint: (s) => (s.dunkel.buch
+      ? `Grimoire gelesen — aktueller Pfad: ${s.dunkel.pfad === 'dunkel' ? 'dunkel' : 'hell'} `
+        + '(am Innenhof-Brunnen im Morgengrauen umkehrbar).'
+      : 'Das Aschene Grimoire liegt irgendwo in der Welt — wer es liest, kann die drei verbotenen Sprüche erlernen.'),
+  },
+];
+
 export function buildMarauderMap(hud, save) {
   const overlay = document.getElementById('marauders-map');
   const chapterEl = document.getElementById('mm-chapter');
@@ -87,6 +196,7 @@ export function buildMarauderMap(hud, save) {
   const nextHintEl = document.getElementById('mm-next-hint');
   const worldEl = document.getElementById('mm-world');
   const titlesList = document.getElementById('mm-titles-list');
+  const almanacList = document.getElementById('mm-almanac-list');
 
   let isOpen = false;
   let lastPos = null;
@@ -135,6 +245,29 @@ export function buildMarauderMap(hud, save) {
       text.append(name, desc);
       badge.append(icon, text);
       titlesList.appendChild(badge);
+    }
+
+    almanacList.replaceChildren();
+    for (const a of ALMANAC) {
+      const st = a.status(save);
+      const badge = document.createElement('div');
+      badge.className = 'mm-title-badge mm-alm-badge'
+        + (st === 'gesperrt' ? ' mm-title-locked' : '')
+        + (st === 'fertig' ? ' mm-alm-done' : '');
+      const icon = document.createElement('span');
+      icon.className = 'mm-title-icon';
+      icon.textContent = st === 'gesperrt' ? '🔒' : a.icon;
+      const text = document.createElement('div');
+      text.className = 'mm-title-text';
+      const name = document.createElement('div');
+      name.className = 'mm-title-name';
+      name.textContent = st === 'fertig' ? `${a.name} ✓` : a.name;
+      const desc = document.createElement('div');
+      desc.className = 'mm-title-desc';
+      desc.textContent = a.hint(save);
+      text.append(name, desc);
+      badge.append(icon, text);
+      almanacList.appendChild(badge);
     }
 
     for (const lm of LANDMARKS) {
