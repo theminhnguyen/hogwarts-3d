@@ -429,7 +429,22 @@ export function buildMount(scene, camera, glowTex, hud, audio, fx, health, inter
   }
 
   function whistle() {
-    if (currentPlayer.flying) return; // Absteigen/Wechseln erst nach der Landung
+    // Bugfix (2026-08-04): R war während des Flugs bisher ein stummes No-Op
+    // ("erst landen") — ohne jede Rückmeldung, und "landen" hieß: manuell
+    // exakt bis auf den Boden sinken UND dort eine volle durchgehende
+    // Sekunde stillhalten (flight.js' automatischer Abstieg). Jede kleine
+    // Bewegung oder ein Meter zu hoch setzte den Timer zurück — genau das
+    // fühlte sich wie "Absteigen funktioniert manchmal nicht" an. R soll wie
+    // am Boden (siehe Aufsteige-Toast "R zum Absteigen") IMMER sofort
+    // funktionieren: Flug abbrechen und direkt absteigen. Kein Fallschaden
+    // im Spiel (player.js' onLand spielt nur einen Sound) — der Spieler
+    // segelt ganz normal wie bei jedem Sprung zu Boden.
+    if (currentPlayer.flying) {
+      currentPlayer.flying = false;
+      currentPlayer._noAscendT = 0;
+      dismount();
+      return;
+    }
     if (riding) { dismount(); return; }
     const kind = preferredKind();
     if (!kind) return;

@@ -212,15 +212,22 @@ export function buildBroom(scene, camera, glowTex, hud, audio, fx, interact, wan
     },
 
     update(dt, player) {
-      // S11: player.flying wird auch von der Animagus-Rabenform gesetzt —
-      // dann darf kein Besen im Blickfeld schweben (Muster: wand.root.visible
-      // in main.js bekam dasselbe Gate).
-      flightBroom.visible = besenUnlocked && player.flying && !player.animalForm;
+      // Bugfix (2026-08-04): player.flying wird auch vom Reit-Mount-Flug
+      // (mount.js Hippogreif/Thestral, S6) UND von der Animagus-Rabenform
+      // gesetzt — beide haben ihre eigene Optik (Reiter-Overlay bzw. eigener
+      // dunkler Trail in animagus.js/mount.js) und brauchen KEINEN
+      // schwebenden Besen. !player.animalForm allein reichte daher nicht,
+      // der Besen blieb beim Mount-Flug sichtbar. player.flightTuning ist
+      // exakt dann null, wenn wirklich der Besen fliegt (main.js' KeyB setzt
+      // es explizit auf null; Mounts/Rabe setzen dort immer ihr eigenes
+      // Tuning-Objekt, siehe flight.js) — das ist der zuverlässige Marker.
+      const onBroom = player.flying && !player.animalForm && !player.flightTuning;
+      flightBroom.visible = besenUnlocked && onBroom;
       // wand.root.visible wird zentral in main.js gesetzt (S5: muss zusätzlich
       // player.riding kennen) — hier nicht mehr redundant zuweisen.
       startEntry.enabled = besenUnlocked && race.state === 'idle';
 
-      if (player.flying) {
+      if (onBroom) {
         trailTimer += dt;
         if (trailTimer > 0.035) {
           trailTimer = 0;
