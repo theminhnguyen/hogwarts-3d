@@ -531,81 +531,82 @@
 
   <div id="menu">
     <h1>HOGWARTS</h1>
-    <div class="subtitle">Ein begehbares 3D-Schloss · Fan-Projekt</div>
+    <div class="subtitle" data-i18n="menu.subtitle">Ein begehbares 3D-Schloss · Fan-Projekt</div>
     <div id="hauspokal-status" class="hidden">🏆 Hauspokal gewonnen ⚡</div>
     <div id="lantern-status" class="hidden">🏮 Seelenlaterne geborgen</div>
     <div id="ace-status" class="hidden">🧹 Quidditch-Ass</div>
     <div id="progress-status" class="hidden"></div>
 
     <div id="menu-loading">
-      <div style="font-size:15px; color:rgba(232,223,200,0.7);">Die Welt wird erschaffen …</div>
+      <div style="font-size:15px; color:rgba(232,223,200,0.7);" data-i18n="menu.loading">Die Welt wird erschaffen …</div>
       <div id="loading-bar-wrap"><div id="loading-bar"></div></div>
     </div>
 
     <!-- Sonnet-5-Polish (D1): Fehlerpfad, falls ein Build-Schritt wirft — ohne
          das bliebe die Ladeanzeige oben für immer stehen. -->
     <div id="menu-error" class="hidden">
-      <div style="font-size:15px; color:rgba(255,180,180,0.9);">Beim Erschaffen der Welt ist etwas schiefgelaufen.</div>
-      <button id="btn-reload-error">Neu laden</button>
+      <div style="font-size:15px; color:rgba(255,180,180,0.9);" data-i18n="menu.errorBuild">Beim Erschaffen der Welt ist etwas schiefgelaufen.</div>
+      <button id="btn-reload-error" data-i18n="menu.reload">Neu laden</button>
     </div>
 
     <div id="menu-main" class="hidden">
       <div class="controls">
-        <b>W A S D</b><span>Bewegen</span>
-        <b>Maus</b><span>Umsehen</span>
-        <b>Maustaste</b><span>Zaubern</span>
-        <b>E</b><span>Interagieren</span>
+        <b>W A S D</b><span data-i18n="ctrl.move">Bewegen</span>
+        <b data-i18n="ctrl.mouseKey">Maus</b><span data-i18n="ctrl.look">Umsehen</span>
+        <b data-i18n="ctrl.mouseBtnKey">Maustaste</b><span data-i18n="ctrl.cast">Zaubern</span>
+        <b>E</b><span data-i18n="ctrl.interact">Interagieren</span>
       </div>
-      <div class="controls-hint">🗺️ Nach dem Start öffnet <b>J</b> die Karte des Rumtreibers mit deinen Aufgaben.</div>
+      <div class="controls-hint" data-i18n-html="menu.mapHintHtml">🗺️ Nach dem Start öffnet <b>J</b> die Karte des Rumtreibers mit deinen Aufgaben.</div>
       <details id="controls-more">
-        <summary>Weitere Steuerung</summary>
+        <summary data-i18n="menu.moreControls">Weitere Steuerung</summary>
         <div class="controls">
-        <b>Shift</b><span>Rennen (beim Schwimmen: abtauchen)</span>
-        <b>Leertaste</b><span>Springen</span>
-        <b>B</b><span>Besen auf-/absteigen</span>
-        <b>R</b><span>Hippogreif/Thestral/Einhorn rufen/aufsitzen/absitzen</span>
-        <b>G</b><span>Begleiter rufen/wegschicken (Musch/Piniva/Grabbel)</span>
-        <b>J</b><span>Karte des Rumtreibers & Aufgaben öffnen/schließen</span>
-        <b>U</b><span>Umhang der Unsichtbarkeit an/aus (nach dem Diebstahl, auch per Mausrad wählbar)</span>
-        <b>2× Leertaste</b><span>Beritten abheben (Hippogreif/Thestral)</span>
-        <b>Rad / 1-9</b><span>Zauber wählen — alle freigeschalteten Sprüche und Heiligtümer, danach Linksklick zum Wirken</span>
-        <b>5</b><span>Expecto Patronum wählen (nach dem Hauspokal)</span>
-        <b>6 / 7 / 8 / 9</b><span>Avada Kedavra / Crucio / Imperio / Dunkles Mal wählen (nach dem Aschenen Grimoire, nur dunkler Pfad)</span>
-        <b>· (nur Rad)</b><span>Elderstab / Stein der Wiederkehr — erscheinen automatisch im Spruchrad, sobald gefunden (rein passive Boni)</span>
-        <b>I</b><span>Eisblitz wählen (nach dem Eisaltar in den Frostzinnen), danach Linksklick zum Wirken</span>
-        <b>V</b><span>Animagus-Verwandlung an/aus (nach dem Ritual im Sturm am Steinkreis); als Wolf: V-Doppeldruck = Biss</span>
-        <b>T</b><span>Tageszeit vorspulen</span>
-        <b>L</b><span>Lumos (Lichtzauber)</span>
-        <b>M</b><span>Ton an / aus</span>
-        <b>F</b><span>FPS anzeigen</span>
-        <b>Esc</b><span>Menü</span>
+        <b>Shift</b><span data-i18n="ctrl.sprint">Rennen (beim Schwimmen: abtauchen)</span>
+        <b data-i18n="ctrl.spaceKey">Leertaste</b><span data-i18n="ctrl.jump">Springen</span>
+        <b>B</b><span data-i18n="ctrl.broom">Besen auf-/absteigen</span>
+        <b>R</b><span data-i18n="ctrl.mount">Hippogreif/Thestral/Einhorn rufen/aufsitzen/absitzen</span>
+        <b>G</b><span data-i18n="ctrl.companion">Begleiter rufen/wegschicken (Musch/Piniva/Grabbel)</span>
+        <b>J</b><span data-i18n="ctrl.map">Karte des Rumtreibers & Aufgaben öffnen/schließen</span>
+        <b>U</b><span data-i18n="ctrl.cloak">Umhang der Unsichtbarkeit an/aus (nach dem Diebstahl, auch per Mausrad wählbar)</span>
+        <b data-i18n="ctrl.doubleSpaceKey">2× Leertaste</b><span data-i18n="ctrl.takeoff">Beritten abheben (Hippogreif/Thestral)</span>
+        <b data-i18n="ctrl.wheelKey">Rad / 1-9</b><span data-i18n="ctrl.spellwheel">Zauber wählen — alle freigeschalteten Sprüche und Heiligtümer, danach Linksklick zum Wirken</span>
+        <b>5</b><span data-i18n="ctrl.patronus">Expecto Patronum wählen (nach dem Hauspokal)</span>
+        <b>6 / 7 / 8 / 9</b><span data-i18n="ctrl.darkspells">Avada Kedavra / Crucio / Imperio / Dunkles Mal wählen (nach dem Aschenen Grimoire, nur dunkler Pfad)</span>
+        <b data-i18n="ctrl.hallowsKey">· (nur Rad)</b><span data-i18n="ctrl.hallows">Elderstab / Stein der Wiederkehr — erscheinen automatisch im Spruchrad, sobald gefunden (rein passive Boni)</span>
+        <b>I</b><span data-i18n="ctrl.iceblitz">Eisblitz wählen (nach dem Eisaltar in den Frostzinnen), danach Linksklick zum Wirken</span>
+        <b>V</b><span data-i18n="ctrl.animagus">Animagus-Verwandlung an/aus (nach dem Ritual im Sturm am Steinkreis); als Wolf: V-Doppeldruck = Biss</span>
+        <b>T</b><span data-i18n="ctrl.time">Tageszeit vorspulen</span>
+        <b>L</b><span data-i18n="ctrl.lumos">Lumos (Lichtzauber)</span>
+        <b>M</b><span data-i18n="ctrl.sound">Ton an / aus</span>
+        <b>F</b><span data-i18n="ctrl.fps">FPS anzeigen</span>
+        <b data-i18n="ctrl.escKey">Esc</b><span data-i18n="ctrl.escape">Menü</span>
         </div>
       </details>
-      <button id="btn-start">Spiel starten</button>
+      <button id="btn-start" data-i18n="menu.start">Spiel starten</button>
       <div class="small-buttons">
         <button id="btn-sound">Ton: an</button>
         <button id="btn-peaceful">Kreaturen: wild</button>
         <button id="btn-grafik">Grafik: Schön</button>
         <button id="btn-animagus-form">Tierform: Rabe</button>
         <button id="btn-music">Musik: aus</button>
-        <button id="btn-map">Karte & Aufgaben</button>
-        <button id="btn-export">Spielstand exportieren</button>
-        <button id="btn-import">Spielstand importieren</button>
-        <button id="btn-restore-backup" class="hidden">Letzte Sicherung wiederherstellen</button>
-        <button id="btn-reset">Fortschritt zurücksetzen</button>
+        <button id="btn-lang">Sprache: Deutsch</button>
+        <button id="btn-map" data-i18n="menu.btnMap">Karte & Aufgaben</button>
+        <button id="btn-export" data-i18n="menu.btnExport">Spielstand exportieren</button>
+        <button id="btn-import" data-i18n="menu.btnImport">Spielstand importieren</button>
+        <button id="btn-restore-backup" class="hidden" data-i18n="menu.btnRestoreBackup">Letzte Sicherung wiederherstellen</button>
+        <button id="btn-reset" data-i18n="menu.btnReset">Fortschritt zurücksetzen</button>
       </div>
       <input type="file" id="import-file-input" accept="application/json,.json" class="hidden">
     </div>
 
-    <div class="footnote">Inoffizielles, nicht-kommerzielles Fan-Projekt · komplett prozedural erzeugt · läuft lokal im Browser</div>
+    <div class="footnote" data-i18n="menu.footnote">Inoffizielles, nicht-kommerzielles Fan-Projekt · komplett prozedural erzeugt · läuft lokal im Browser</div>
   </div>
 
   <div id="confirm-overlay" class="hidden">
     <div id="confirm-box">
       <div id="confirm-text"></div>
       <div class="small-buttons">
-        <button id="confirm-yes">Ja, fortfahren</button>
-        <button id="confirm-no">Abbrechen</button>
+        <button id="confirm-yes" data-i18n="confirm.yes">Ja, fortfahren</button>
+        <button id="confirm-no" data-i18n="confirm.no">Abbrechen</button>
       </div>
     </div>
   </div>
@@ -613,39 +614,39 @@
   <div id="marauders-map" class="hidden">
     <div id="mm-panel">
       <div id="mm-header">
-        <h2>Karte des Rumtreibers</h2>
+        <h2 data-i18n="mm.title">Karte des Rumtreibers</h2>
         <div id="mm-chapter"></div>
       </div>
       <div id="mm-body">
         <div id="mm-left">
-          <h3>Hauptaufgabe</h3>
+          <h3 data-i18n="mm.mainTask">Hauptaufgabe</h3>
           <div id="mm-primary-title"></div>
           <div id="mm-primary-desc"></div>
-          <h3>Nebenaufgaben</h3>
+          <h3 data-i18n="mm.sideTasks">Nebenaufgaben</h3>
           <ul id="mm-secondary-list"></ul>
         </div>
         <div id="mm-world"></div>
         <div id="mm-right">
-          <h3>Legende</h3>
+          <h3 data-i18n="mm.legend">Legende</h3>
           <div id="mm-legend">
-            <div><span class="mm-legend-dot"></span> Entdeckter Ort</div>
-            <div><span class="mm-legend-dot mm-legend-target"></span> Aktuelles Ziel</div>
-            <div><span class="mm-legend-dot mm-legend-player"></span> Du</div>
+            <div><span class="mm-legend-dot"></span> <span data-i18n="mm.legendDiscovered">Entdeckter Ort</span></div>
+            <div><span class="mm-legend-dot mm-legend-target"></span> <span data-i18n="mm.legendTarget">Aktuelles Ziel</span></div>
+            <div><span class="mm-legend-dot mm-legend-player"></span> <span data-i18n="mm.legendYou">Du</span></div>
           </div>
-          <h3>Als Nächstes</h3>
+          <h3 data-i18n="mm.next">Als Nächstes</h3>
           <div id="mm-next-hint"></div>
         </div>
       </div>
       <div id="mm-titles">
-        <h3>Titel</h3>
+        <h3 data-i18n="mm.titlesHeading">Titel</h3>
         <div id="mm-titles-list"></div>
       </div>
       <div id="mm-almanac">
-        <h3>Almanach</h3>
-        <div id="mm-almanac-sub">Alles, was die Welt sonst noch zu bieten hat.</div>
+        <h3 data-i18n="mm.almanachHeading">Almanach</h3>
+        <div id="mm-almanac-sub" data-i18n="mm.almanachSub">Alles, was die Welt sonst noch zu bieten hat.</div>
         <div id="mm-almanac-list"></div>
       </div>
-      <div id="mm-footer">J / Esc — Karte schließen</div>
+      <div id="mm-footer" data-i18n="mm.footer">J / Esc — Karte schließen</div>
     </div>
   </div>
 

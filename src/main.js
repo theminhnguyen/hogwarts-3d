@@ -41,9 +41,10 @@ import { buildMount } from './mount.js';
 import { buildDark } from './dark.js';
 import { buildCompanion } from './companion.js';
 import { buildHallows } from './hallows.js';
-import { buildAnimagus, FORM_ORDER, FORM_LABEL } from './animagus.js';
+import { buildAnimagus, FORM_ORDER } from './animagus.js';
 import { buildMarauderMap } from './marauders-map.js';
 import { buildTutorial } from './tutorial.js';
+import { t, getLang, cycleLang, applyStaticI18n } from './i18n.js';
 import { createRegionManager } from './regions.js';
 import { createAtmosphereSystem } from './atmosphere.js';
 import { buildAschenklamm } from './aschenklamm.js';
@@ -57,6 +58,11 @@ import { loadSave as loadSaveFromStorage, writeSave as writeSaveToStorage, creat
 
 function loadSave() { return loadSaveFromStorage(localStorage); }
 function writeSave(data) { writeSaveToStorage(localStorage, data); }
+
+// i18n Etappe 1: die feste Menü-/Karten-Hülle so früh wie möglich übersetzen
+// — noch bevor überhaupt ein Build-Schritt läuft, damit Ladeanzeige und
+// Steuerungs-Grid nie kurz auf Deutsch aufblitzen, wenn EN gespeichert ist.
+applyStaticI18n();
 
 // Sonnet-5-Polish (A3/A4): zwei rotierende Backup-Slots statt nur einem —
 // beim Import/Reset wird jeweils der ÄLTERE Slot überschrieben, sodass immer
@@ -640,13 +646,21 @@ const btnReset = document.getElementById('btn-reset');
 let playing = false;
 let started = false;
 
+// i18n Etappe 1: Beschriftungen mit Laufzeit-Zustand (Ton/Musik/Kreaturen/
+// Grafik/Tierform) lassen sich nicht per data-i18n abdecken — dafür eigene
+// relabel-Funktionen, jeweils an jeder bestehenden textContent-Zuweisung UND
+// im Sprachumschalter (btnLang unten) aufgerufen, damit ein Sprachwechsel
+// auch schon offene Menü-Buttons sofort korrekt umbeschriftet.
+function relabelSound() { btnSound.textContent = t('menu.btnSound', { state: t(audio.muted ? 'state.off' : 'state.on') }); }
+function relabelMusic() { btnMusic.textContent = t('menu.btnMusic', { state: t(audio.musicOn ? 'state.on' : 'state.off') }); }
+
 audio.setMuted(save.muted === true);
-btnSound.textContent = `Ton: ${audio.muted ? 'aus' : 'an'}`;
+relabelSound();
 audio.setMusic(save.music === true);
-btnMusic.textContent = `Musik: ${audio.musicOn ? 'an' : 'aus'}`;
+relabelMusic();
 btnMusic.addEventListener('click', () => {
   audio.setMusic(!audio.musicOn);
-  btnMusic.textContent = `Musik: ${audio.musicOn ? 'an' : 'aus'}`;
+  relabelMusic();
   persist();
 });
 
@@ -714,7 +728,7 @@ function setPlaying(on) {
     tutorial.onStart();
   }
   if (!on) {
-    btnStart.textContent = 'Weiterspielen';
+    btnStart.textContent = t('menu.continue');
     // Karte darf nie hinter dem Pausenmenü offen bleiben (z.B. wenn im
     // Pointer-Lock-Modus Escape sowohl die Karte schließen als auch den
     // Lock beenden würde — Letzteres kann JS nicht verhindern).
@@ -744,12 +758,13 @@ btnStart.addEventListener('click', () => {
 
 btnSound.addEventListener('click', () => {
   audio.setMuted(!audio.muted);
-  btnSound.textContent = `Ton: ${audio.muted ? 'aus' : 'an'}`;
+  relabelSound();
   persist();
 });
 
 const btnPeaceful = document.getElementById('btn-peaceful');
-btnPeaceful.textContent = `Kreaturen: ${save.peaceful ? 'zahm' : 'wild'}`;
+function relabelPeaceful() { btnPeaceful.textContent = t('menu.btnPeaceful', { state: t(creatures.peaceful ? 'state.tame' : 'state.wild') }); }
+btnPeaceful.textContent = t('menu.btnPeaceful', { state: t(save.peaceful ? 'state.tame' : 'state.wild') });
 btnPeaceful.addEventListener('click', () => {
   creatures.peaceful = !creatures.peaceful;
   dementors.peaceful = creatures.peaceful;
@@ -760,7 +775,7 @@ btnPeaceful.addEventListener('click', () => {
   // (nur gesetzt, falls die Region schon gebaut wurde — sonst No-Op).
   if (schwarzwasserRegion.handle) schwarzwasserRegion.handle.peaceful = creatures.peaceful;
   if (schattenfesteRegion.handle) schattenfesteRegion.handle.peaceful = creatures.peaceful;
-  btnPeaceful.textContent = `Kreaturen: ${creatures.peaceful ? 'zahm' : 'wild'}`;
+  relabelPeaceful();
   persist();
 });
 
@@ -770,15 +785,16 @@ btnPeaceful.addEventListener('click', () => {
 // Button beim Betreten UND Verlassen dieser Stufe die Seite neu. Der Save ist
 // vorher geschrieben, es geht also kein Fortschritt verloren.
 const GRAFIK_ORDER = ['schnell', 'schoen', 'episch'];
-const GRAFIK_LABEL = { schnell: 'Schnell', schoen: 'Schön', episch: 'Episch' };
+const GRAFIK_KEY = { schnell: 'grafik.schnell', schoen: 'grafik.schoen', episch: 'grafik.episch' };
 const btnGrafik = document.getElementById('btn-grafik');
-btnGrafik.textContent = `Grafik: ${GRAFIK_LABEL[save.grafik]}`;
+function relabelGrafik() { btnGrafik.textContent = t('menu.btnGrafik', { state: t(GRAFIK_KEY[save.grafik]) }); }
+relabelGrafik();
 btnGrafik.addEventListener('click', () => {
   const next = GRAFIK_ORDER[(GRAFIK_ORDER.indexOf(save.grafik) + 1) % GRAFIK_ORDER.length];
   const needsReload = (next === 'episch') !== (save.grafik === 'episch');
   save.grafik = next;
   post.setQuality(next);
-  btnGrafik.textContent = `Grafik: ${GRAFIK_LABEL[next]}`;
+  relabelGrafik();
   persist();
   if (needsReload) {
     hud.showToast('✨ Grafik wird umgestellt — die Welt wird neu aufgebaut …', 2.5);
@@ -790,11 +806,32 @@ btnGrafik.addEventListener('click', () => {
 // immer einen Wert (Default 'rabe' aus dem Save-Schema), damit man die Form
 // schon vor dem Ritual vorwählen kann.
 const btnAnimagusForm = document.getElementById('btn-animagus-form');
-btnAnimagusForm.textContent = `Tierform: ${FORM_LABEL[save.animagus.form]}`;
+const FORM_KEY = { rabe: 'form.rabe', katze: 'form.katze', wolf: 'form.wolf' };
+function relabelAnimagusForm() { btnAnimagusForm.textContent = t('menu.btnAnimagusForm', { state: t(FORM_KEY[save.animagus.form]) }); }
+relabelAnimagusForm();
 btnAnimagusForm.addEventListener('click', () => {
   const i = FORM_ORDER.indexOf(save.animagus.form);
   save.animagus.form = FORM_ORDER[(i + 1) % FORM_ORDER.length];
-  btnAnimagusForm.textContent = `Tierform: ${FORM_LABEL[save.animagus.form]}`;
+  relabelAnimagusForm();
+  persist();
+});
+
+// i18n: Sprachumschalter — zyklisch DE<->EN, sofortige Neubeschriftung aller
+// Menü-Elemente (statisch über applyStaticI18n(), die 5 Laufzeit-Buttons
+// hier per relabel*()). Bewusst KEIN location.reload(): anders als bei
+// 'episch' (Materialklassen fest im gebauten Mesh) ist hier nichts an eine
+// Baustufe gebunden.
+const btnLang = document.getElementById('btn-lang');
+function relabelLang() { btnLang.textContent = t('menu.btnLang', { name: t(`lang.${getLang()}`) }); }
+relabelLang();
+btnLang.addEventListener('click', () => {
+  cycleLang(); // ruft intern bereits applyStaticI18n()
+  relabelLang();
+  relabelSound();
+  relabelMusic();
+  relabelPeaceful();
+  relabelGrafik();
+  relabelAnimagusForm();
   persist();
 });
 
@@ -887,7 +924,7 @@ function performReset() {
   if (player) player.invisible = false;
   Object.assign(save.animagus, { gelernt: 0, form: 'rabe' });
   if (animagus) animagus.restore();
-  if (btnAnimagusForm) btnAnimagusForm.textContent = `Tierform: ${FORM_LABEL[save.animagus.form]}`;
+  if (btnAnimagusForm) relabelAnimagusForm();
   // Sonnet-5-Polish: ein Reset ist ein "neuer Anfang" — Kartenaufdeckung und
   // bereits gesehene Tutorial-Hinweise gehören zum Fortschritt dazu.
   Object.assign(save.tutorial, { seen: [] });
@@ -1071,7 +1108,7 @@ window.addEventListener('keydown', (e) => {
     hud.showToast(`Zeit vorgespult → ${sky.clockText}`, 1.6);
   } else if (e.code === 'KeyM') {
     audio.setMuted(!audio.muted);
-    btnSound.textContent = `Ton: ${audio.muted ? 'aus' : 'an'}`;
+    relabelSound();
     hud.showToast(audio.muted ? 'Ton aus' : 'Ton an', 1.2);
     persist();
   } else if (e.code === 'KeyF') {
