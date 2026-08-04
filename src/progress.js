@@ -9,6 +9,16 @@
 // festen Gesamtzahlen unten sind daher manuell aus dem jeweiligen Modul
 // gespiegelt (siehe Kommentare) und müssen bei einer echten Inhaltsänderung
 // dort manuell nachgezogen werden.
+//
+// i18n (2026-08-04): dieses Modul liefert bewusst KEINE fertigen Texte mehr,
+// sondern nur Übersetzungs-SCHLÜSSEL + Variablen (chapterKey/titleKey/
+// descKey/descVars/nextHintKey/...). Grund: src/i18n.js braucht echtes
+// `localStorage` (Node 25 hat zwar ein globales `localStorage`-Objekt, aber
+// `getItem`/`setItem` fehlen ohne `--localstorage-file` und werfen sofort —
+// ein Import von i18n.js hier würde also `node --test` crashen lassen,
+// genau der Grund, aus dem dieses Modul schon immer ohne Browser-Module
+// auskommt (siehe Kommentar oben). Die eigentliche Übersetzung passiert erst
+// in marauders-map.js/tutorial.js (beides reine Browser-Module).
 const SCHNATZ_TOTAL = 12;   // collectibles.js: SPOTS.length
 const ARTIFACT_TOTAL = 4;   // puzzles.js: ARTIFACT_ORDER.length
 const LICHTER_TOTAL = 5;    // moor.js: 5 Seelenlichter
@@ -44,20 +54,21 @@ export function resolveProgress(save) {
   const secondary = [];
   if (quests.katze === 1) {
     secondary.push({
-      id: 'katze', title: 'Die verlorene Katze',
-      description: 'Musch ist gefunden — bring sie zurück zu Lena.', landmarkId: null,
+      id: 'katze', titleKey: 'progress.secondary.katze.title',
+      descKey: 'progress.secondary.katze.desc', descVars: {}, landmarkId: null,
     });
   }
   if (quests.kraeuterStarted === 1 && quests.kraeuterDone !== 1) {
     secondary.push({
-      id: 'kraeuter', title: 'Kräuter für den Kessel',
-      description: `Leuchtkraut für Barnaby sammeln (${quests.kraeuter || 0}/${KRAEUTER_TOTAL}).`, landmarkId: null,
+      id: 'kraeuter', titleKey: 'progress.secondary.kraeuter.title',
+      descKey: 'progress.secondary.kraeuter.desc',
+      descVars: { n: quests.kraeuter || 0, total: KRAEUTER_TOTAL }, landmarkId: null,
     });
   }
   if (kateOwned && !animagusLearned && secondary.length < 2) {
     secondary.push({
-      id: 'animagus', title: 'Trank der zweiten Gestalt',
-      description: 'Zutaten brauen und im Sturm am Steinkreis das Ritual wagen.', landmarkId: 'steinkreis',
+      id: 'animagus', titleKey: 'progress.secondary.animagus.title',
+      descKey: 'progress.secondary.animagus.desc', descVars: {}, landmarkId: 'steinkreis',
     });
   }
   // "Die vier Siegel" (E10, Plan 6.7): Meta-Strang über alle 4 neuen Regionen
@@ -68,56 +79,58 @@ export function resolveProgress(save) {
   const siegelCount = [siegel.drache, siegel.frost, siegel.hain, siegel.tiefe].filter((v) => v === 1).length;
   if (siegelCount > 0 && siegel.finaleWon !== 1 && secondary.length < 2) {
     secondary.push({
-      id: 'viersiegel', title: 'Die vier Siegel',
-      description: siegelCount === 4
-        ? 'Alle vier Siegel vereint — das Sternentor beim Schloss wartet.'
-        : `Siegel gesammelt (${siegelCount}/4) — vervollständige sie fürs Sternentor.`,
-      landmarkId: null,
+      id: 'viersiegel', titleKey: 'progress.secondary.viersiegel.title',
+      descKey: siegelCount === 4 ? 'progress.secondary.viersiegel.descDone' : 'progress.secondary.viersiegel.descPartial',
+      descVars: { n: siegelCount }, landmarkId: null,
     });
   }
 
   if (!hauspokalWon) {
+    // Jeder Eintrag ist selbst schon ein {key,vars}-Paar (z.B. "9 Schnätze")
+    // — der Render-Layer übersetzt und verbindet sie (join(', ')), das
+    // Trennzeichen selbst ist sprachneutral genug, um hier fest zu bleiben.
     const missing = [];
-    if (collected < SCHNATZ_TOTAL) missing.push(`${SCHNATZ_TOTAL - collected} Schnätze`);
-    if (art < ARTIFACT_TOTAL) missing.push(`${ARTIFACT_TOTAL - art} Artefakte`);
-    if (raetselDone < 4) missing.push(`${4 - raetselDone} Rätsel`);
-    let nextHint = 'Erkunde das Schlossgelände und sammle goldene Schnätze.';
+    if (collected < SCHNATZ_TOTAL) missing.push({ key: 'progress.missing.schnaetze', vars: { n: SCHNATZ_TOTAL - collected } });
+    if (art < ARTIFACT_TOTAL) missing.push({ key: 'progress.missing.artefakte', vars: { n: ARTIFACT_TOTAL - art } });
+    if (raetselDone < 4) missing.push({ key: 'progress.missing.raetsel', vars: { n: 4 - raetselDone } });
+    let nextHintKey = 'progress.nextHint.default';
     let landmarkId = null;
-    if (!pz.lied) { nextHint = 'Löse das Lied der Steine im Steinkreis.'; landmarkId = 'steinkreis'; }
-    else if (!pz.sterne) { nextHint = 'Beobachte nachts den Sternenhimmel am Astronomieturm.'; landmarkId = 'astronomieturm'; }
-    else if (art < ARTIFACT_TOTAL) { nextHint = 'Suche nach den verborgenen Artefakten.'; }
+    if (!pz.lied) { nextHintKey = 'progress.nextHint.lied'; landmarkId = 'steinkreis'; }
+    else if (!pz.sterne) { nextHintKey = 'progress.nextHint.sterne'; landmarkId = 'astronomieturm'; }
+    else if (art < ARTIFACT_TOTAL) { nextHintKey = 'progress.nextHint.artefakte'; }
     return {
-      chapter: 'Der Hauspokal',
+      chapterKey: 'progress.chapter.hauspokal',
       primary: {
-        id: 'hauspokal', title: 'Den Hauspokal gewinnen',
-        description: missing.length ? `Noch offen: ${missing.join(', ')}.` : 'Alles gesammelt — der Hauspokal ist nah.',
+        id: 'hauspokal', titleKey: 'progress.primary.hauspokal.title',
+        descKey: missing.length ? 'progress.primary.hauspokal.missing' : 'progress.primary.hauspokal.done',
+        descVars: { missing }, // Liste von {key,vars} — Render-Layer übersetzt+verbindet
         landmarkId, completed: false,
       },
-      secondary, nextHint,
+      secondary, nextHintKey,
     };
   }
 
   if (!laterneWon) {
     return {
-      chapter: 'Das Nebelmoor',
+      chapterKey: 'progress.chapter.nebelmoor',
       primary: {
-        id: 'nebelmoor', title: 'Die Seelenlaterne bergen',
-        description: `Seelenlichter zur Krypta bringen (${lichterCount}/${LICHTER_TOTAL}).`,
+        id: 'nebelmoor', titleKey: 'progress.primary.nebelmoor.title',
+        descKey: 'progress.primary.nebelmoor.desc', descVars: { n: lichterCount, total: LICHTER_TOTAL },
         landmarkId: 'nebelmoor', completed: false,
       },
-      secondary, nextHint: 'Suche die Seelenlichter im Nebelmoor und bring sie zur Krypta.',
+      secondary, nextHintKey: 'progress.nextHint.nebelmoor',
     };
   }
 
   if (hallowsUnlocked && hallowsCount < 3) {
     return {
-      chapter: 'Die Heiligtümer des Todes',
+      chapterKey: 'progress.chapter.heiligtuemer',
       primary: {
-        id: 'heiligtuemer', title: 'Meister des Todes werden',
-        description: `Heiligtümer gefunden (${hallowsCount}/3).`,
+        id: 'heiligtuemer', titleKey: 'progress.primary.heiligtuemer.title',
+        descKey: 'progress.primary.heiligtuemer.desc', descVars: { n: hallowsCount },
         landmarkId: null, completed: false,
       },
-      secondary, nextHint: 'Die Heiligtümer des Todes warten irgendwo im Schlossgelände.',
+      secondary, nextHintKey: 'progress.nextHint.heiligtuemer',
     };
   }
 
@@ -130,31 +143,30 @@ export function resolveProgress(save) {
   const lord = save.lord || {};
   const lordGateMet = hauspokalWon && laterneWon && hallowsCount === 3 && siegel.finaleWon === 1;
   if (lordGateMet && lord.besiegt !== 1) {
+    let descKey, descVars;
+    if (lord.torOffen === 1) {
+      if (lord.phaseMax > 0) { descKey = 'progress.primary.dunklerlord.torOffenPhase'; descVars = { phase: lord.phaseMax }; }
+      else { descKey = 'progress.primary.dunklerlord.torOffen'; descVars = {}; }
+    } else { descKey = 'progress.primary.dunklerlord.torZu'; descVars = {}; }
     return {
-      chapter: 'Der Dunkle Lord',
+      chapterKey: 'progress.chapter.dunklerLord',
       primary: {
-        id: 'dunklerlord', title: 'Den Dunklen Lord besiegen',
-        description: lord.torOffen === 1
-          ? (lord.phaseMax > 0
-            ? `Die Ward ist gefallen — kehre zur Schattenfeste zurück (schon bis Phase ${lord.phaseMax} vorgedrungen).`
-            : 'Die Ward ist gefallen — betritt die Schattenfeste und stelle dich ihm.')
-          : 'Die Ward der Schattenfeste wartet auf deinen Sieg.',
+        id: 'dunklerlord', titleKey: 'progress.primary.dunklerlord.title',
+        descKey, descVars,
         landmarkId: 'schattenfeste', completed: false,
       },
-      secondary, nextHint: 'Die Schattenfeste im äußersten Nordosten verlangt dein letztes Duell.',
+      secondary, nextHintKey: 'progress.nextHint.dunklerlord',
     };
   }
 
   return {
-    chapter: hallowsUnlocked ? 'Meister des Todes' : 'Nach dem Hauspokal',
+    chapterKey: hallowsUnlocked ? 'progress.chapter.meisterDesTodes' : 'progress.chapter.nachHauspokal',
     primary: {
-      id: 'erkundung', title: hallowsUnlocked ? 'Alle drei Heiligtümer vereint' : 'Weiter erkunden',
-      description: hallowsUnlocked
-        ? 'Hauspokal, Seelenlaterne und alle drei Heiligtümer sind dein.'
-        : 'Hauspokal und Seelenlaterne sind dein — erkunde den Rest der Welt.',
-      landmarkId: null, completed: true,
+      id: 'erkundung', titleKey: hallowsUnlocked ? 'progress.primary.erkundung.titleHallows' : 'progress.primary.erkundung.titleDefault',
+      descKey: hallowsUnlocked ? 'progress.primary.erkundung.descHallows' : 'progress.primary.erkundung.descDefault',
+      descVars: {}, landmarkId: null, completed: true,
     },
     secondary,
-    nextHint: secondary.length ? 'Es gibt noch offene Nebenaufgaben in der Welt.' : 'Genieße die freie Erkundung von Hogwarts.',
+    nextHintKey: secondary.length ? 'progress.nextHint.secondaryOpen' : 'progress.nextHint.freeRoam',
   };
 }

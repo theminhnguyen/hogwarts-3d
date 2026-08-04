@@ -12,6 +12,7 @@
 // umgekehrt NIE einen noch sichtbaren wichtigeren Toast (Plan C2: "Hinweise
 // ... überlagern wichtige Gameplay-Meldungen nicht").
 import { resolveProgress } from './progress.js';
+import { t } from './i18n.js';
 
 const SPELL_TARGET_RADIUS = 20;
 const NEXT_HINT_IDLE_SECONDS = 90;
@@ -94,12 +95,16 @@ export function buildTutorial(hud, save, deps) {
       // Cooldown, nur wenn sich das Hauptziel längere Zeit nicht verändert
       // hat (kein Fortschritt trotz aktivem Hauptziel).
       const progress = resolveProgress(save);
-      const key = `${progress.primary.id}|${progress.primary.description}`;
+      // i18n (2026-08-04): progress.primary.description gibt es seit der
+      // Umstellung von progress.js auf Schlüssel+Variablen nicht mehr — der
+      // "hat sich das Hauptziel verändert"-Vergleich nutzt jetzt descKey
+      // plus die rohen Vars (unabhängig von der aktuellen Sprache stabil).
+      const key = `${progress.primary.id}|${progress.primary.descKey}|${JSON.stringify(progress.primary.descVars)}`;
       if (key !== lastPrimaryKey) { lastPrimaryKey = key; idleTimer = 0; }
       else idleTimer += dt;
       nextHintCooldown = Math.max(0, nextHintCooldown - dt);
       if (!progress.primary.completed && idleTimer >= NEXT_HINT_IDLE_SECONDS && nextHintCooldown <= 0) {
-        hud.showToast(progress.nextHint, 4, 0);
+        hud.showToast(t(progress.nextHintKey), 4, 0);
         nextHintCooldown = NEXT_HINT_COOLDOWN_SECONDS;
         idleTimer = 0;
       }

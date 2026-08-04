@@ -3,6 +3,14 @@
 // Ausgangsbasis, damit die Testdaten immer ein gültiges, vollständiges
 // Save-Objekt sind (keine handgestrickten Teil-Objekte, die an echten
 // Feldern vorbeigehen könnten).
+//
+// i18n (2026-08-04): progress.js liefert seit der Umstellung auf i18n keine
+// fertigen deutschen Texte mehr, sondern Schlüssel+Variablen (siehe
+// Kommentar in progress.js — Grund: i18n.js braucht echtes `localStorage`,
+// das `node --test` unter Node 25 zwar als globales Objekt kennt, aber ohne
+// `--localstorage-file` bei jedem Methodenaufruf wirft). Diese Tests prüfen
+// deshalb Schlüssel und Variablen statt übersetzter Strings — das prüft
+// dieselbe Verzweigungslogik, ist aber sprachunabhängig.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { DEFAULT_SAVE, normalizeSave } from '../src/save.js';
@@ -14,12 +22,14 @@ function save(overrides = {}) {
 
 test('frischer Save: Kapitel "Der Hauspokal", nichts entdeckt', () => {
   const result = resolveProgress(save());
-  assert.equal(result.chapter, 'Der Hauspokal');
+  assert.equal(result.chapterKey, 'progress.chapter.hauspokal');
   assert.equal(result.primary.id, 'hauspokal');
   assert.equal(result.primary.completed, false);
-  assert.match(result.primary.description, /12 Schnätze/);
-  assert.match(result.primary.description, /4 Artefakte/);
-  assert.match(result.primary.description, /4 Rätsel/);
+  assert.equal(result.primary.descKey, 'progress.primary.hauspokal.missing');
+  const missing = result.primary.descVars.missing;
+  assert.ok(missing.some((m) => m.key === 'progress.missing.schnaetze' && m.vars.n === 12));
+  assert.ok(missing.some((m) => m.key === 'progress.missing.artefakte' && m.vars.n === 4));
+  assert.ok(missing.some((m) => m.key === 'progress.missing.raetsel' && m.vars.n === 4));
   assert.deepEqual(result.secondary, []);
 });
 
@@ -29,13 +39,14 @@ test('Hauspokal-Fortschritt: teilweise Schnätze/Artefakte/Rätsel gelöst', () 
     art: ['flamme'],
     pz: { feuer: 1, garten: 1, lied: 0, sterne: 0 },
   }));
-  assert.equal(result.chapter, 'Der Hauspokal');
-  assert.match(result.primary.description, /9 Schnätze/);
-  assert.match(result.primary.description, /3 Artefakte/);
-  assert.match(result.primary.description, /2 Rätsel/);
+  assert.equal(result.chapterKey, 'progress.chapter.hauspokal');
+  const missing = result.primary.descVars.missing;
+  assert.ok(missing.some((m) => m.key === 'progress.missing.schnaetze' && m.vars.n === 9));
+  assert.ok(missing.some((m) => m.key === 'progress.missing.artefakte' && m.vars.n === 3));
+  assert.ok(missing.some((m) => m.key === 'progress.missing.raetsel' && m.vars.n === 2));
   // Lied der Steine noch offen -> Hinweis zeigt auf den Steinkreis.
   assert.equal(result.primary.landmarkId, 'steinkreis');
-  assert.match(result.nextHint, /Steinkreis/);
+  assert.equal(result.nextHintKey, 'progress.nextHint.lied');
 });
 
 test('Hauspokal gewonnen, Nebelmoor noch offen -> Kapitel "Das Nebelmoor"', () => {
@@ -43,10 +54,10 @@ test('Hauspokal gewonnen, Nebelmoor noch offen -> Kapitel "Das Nebelmoor"', () =
     pz: { feuer: 1, garten: 1, lied: 1, sterne: 1, hauspokal: 1 },
     moor: { lichter: ['l1', 'l2'], laterne: 0 },
   }));
-  assert.equal(result.chapter, 'Das Nebelmoor');
+  assert.equal(result.chapterKey, 'progress.chapter.nebelmoor');
   assert.equal(result.primary.id, 'nebelmoor');
   assert.equal(result.primary.landmarkId, 'nebelmoor');
-  assert.match(result.primary.description, /2\/5/);
+  assert.deepEqual(result.primary.descVars, { n: 2, total: 5 });
 });
 
 test('Hauspokal + Laterne erledigt, Heiligtümer offen -> "Die Heiligtümer des Todes"', () => {
@@ -55,9 +66,9 @@ test('Hauspokal + Laterne erledigt, Heiligtümer offen -> "Die Heiligtümer des 
     moor: { laterne: 1 },
     hallows: { stab: 1, umhang: 0, stein: 0, steinCd: 0 },
   }));
-  assert.equal(result.chapter, 'Die Heiligtümer des Todes');
+  assert.equal(result.chapterKey, 'progress.chapter.heiligtuemer');
   assert.equal(result.primary.id, 'heiligtuemer');
-  assert.match(result.primary.description, /1\/3/);
+  assert.deepEqual(result.primary.descVars, { n: 1 });
 });
 
 test('Alles erledigt (Hauspokal, Laterne, alle 3 Heiligtümer) -> abgeschlossen', () => {
@@ -66,7 +77,7 @@ test('Alles erledigt (Hauspokal, Laterne, alle 3 Heiligtümer) -> abgeschlossen'
     moor: { laterne: 1 },
     hallows: { stab: 1, umhang: 1, stein: 1, steinCd: 0 },
   }));
-  assert.equal(result.chapter, 'Meister des Todes');
+  assert.equal(result.chapterKey, 'progress.chapter.meisterDesTodes');
   assert.equal(result.primary.completed, true);
 });
 
@@ -98,7 +109,8 @@ test('Vier Siegel: erscheint erst ab 1 gesammeltem Siegel, verschwindet nach fin
   const partial = resolveProgress(save({ siegel: { drache: 1, frost: 1, hain: 0, tiefe: 0, finaleWon: 0 } }));
   const entry = partial.secondary.find((s) => s.id === 'viersiegel');
   assert.ok(entry);
-  assert.match(entry.description, /2\/4/);
+  assert.equal(entry.descKey, 'progress.secondary.viersiegel.descPartial');
+  assert.deepEqual(entry.descVars, { n: 2 });
 
   const done = resolveProgress(save({ siegel: { drache: 1, frost: 1, hain: 1, tiefe: 1, finaleWon: 1 } }));
   assert.ok(!done.secondary.some((s) => s.id === 'viersiegel'));
@@ -112,10 +124,11 @@ test('Dunkler-Lord-Gate erfüllt, Lord noch nicht besiegt -> Kapitel "Der Dunkle
     siegel: { drache: 1, frost: 1, hain: 1, tiefe: 1, finaleWon: 1 },
     lord: { torOffen: 1, phaseMax: 2, besiegt: 0, versuche: 3 },
   }));
-  assert.equal(result.chapter, 'Der Dunkle Lord');
+  assert.equal(result.chapterKey, 'progress.chapter.dunklerLord');
   assert.equal(result.primary.id, 'dunklerlord');
   assert.equal(result.primary.landmarkId, 'schattenfeste');
-  assert.match(result.primary.description, /Phase 2/);
+  assert.equal(result.primary.descKey, 'progress.primary.dunklerlord.torOffenPhase');
+  assert.deepEqual(result.primary.descVars, { phase: 2 });
 });
 
 test('Dunkler-Lord-Gate erfüllt aber Sternentor noch nicht durchschritten -> KEIN Lord-Kapitel', () => {
@@ -125,7 +138,7 @@ test('Dunkler-Lord-Gate erfüllt aber Sternentor noch nicht durchschritten -> KE
     hallows: { stab: 1, umhang: 1, stein: 1, steinCd: 0 },
     siegel: { drache: 1, frost: 1, hain: 1, tiefe: 1, finaleWon: 0 },
   }));
-  assert.notEqual(result.chapter, 'Der Dunkle Lord');
+  assert.notEqual(result.chapterKey, 'progress.chapter.dunklerLord');
 });
 
 test('Dunkler Lord besiegt -> Kapitel fällt durch zum Abschluss-Zweig', () => {
@@ -136,7 +149,7 @@ test('Dunkler Lord besiegt -> Kapitel fällt durch zum Abschluss-Zweig', () => {
     siegel: { drache: 1, frost: 1, hain: 1, tiefe: 1, finaleWon: 1 },
     lord: { torOffen: 1, phaseMax: 5, besiegt: 1, versuche: 4 },
   }));
-  assert.notEqual(result.chapter, 'Der Dunkle Lord');
+  assert.notEqual(result.chapterKey, 'progress.chapter.dunklerLord');
   assert.equal(result.primary.completed, true);
 });
 

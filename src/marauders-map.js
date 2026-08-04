@@ -3,7 +3,12 @@
 // Vollbild-Overlay (Markup/CSS in index.html) mit CSS-gezeichneter
 // Weltübersicht, gespeist vom Objective Resolver (progress.js) und dem
 // Entdeckungs-Fortschritt in save.map.discovered.
+//
+// i18n (2026-08-04, Etappe 2): dieses Modul ist reines Browser-UI (DOM,
+// hud.showToast) — anders als progress.js darf es i18n.js bedenkenlos
+// importieren, node --test rührt es nie an.
 import { resolveProgress } from './progress.js';
+import { t } from './i18n.js';
 
 // Welt-Koordinaten manuell aus terrain.js/structures.js/collectibles.js
 // gespiegelt (siehe dortige Kommentare) — bewusst NICHT importiert, damit
@@ -12,40 +17,31 @@ import { resolveProgress } from './progress.js';
 // werden. `radius`: "moderater Radius" fürs Entdecken (Plan B2) — grob an
 // die jeweilige Zonengröße angelehnt, keine exakte Meterangabe nötig.
 export const LANDMARKS = [
-  { id: 'schloss', name: 'Schloss / Innenhof', x: 4.5, z: 16, radius: 55, alwaysVisible: true },
+  { id: 'schloss', nameKey: 'mm.landmark.schloss', x: 4.5, z: 16, radius: 55, alwaysVisible: true },
   // Liegt nur ~36 Einheiten von 'schloss' entfernt (beide innerhalb der
   // Ringmauer) — labelDy schiebt das Label nach unten, sonst überlappen sich
   // die beiden Beschriftungen auf der kleinen Kartenfläche.
-  { id: 'saal', name: 'Großer Saal', x: -31.5, z: 20, radius: 40, alwaysVisible: true, labelDy: 12 },
-  { id: 'see', name: 'See / Bootshaus', x: -112, z: 158, radius: 60, alwaysVisible: false },
-  { id: 'quidditch', name: 'Quidditch-Feld', x: -195, z: 10, radius: 60, alwaysVisible: false },
-  { id: 'eulenbruecke', name: 'Eulenbrück', x: -70, z: -230, radius: 55, alwaysVisible: false },
-  { id: 'steinkreis', name: 'Steinkreis', x: 150, z: -95, radius: 45, alwaysVisible: false },
-  { id: 'astronomieturm', name: 'Astronomieturm', x: 0, z: -80, radius: 40, alwaysVisible: false },
-  { id: 'nebelmoor', name: 'Nebelmoor', x: 240, z: -175, radius: 65, alwaysVisible: false },
-  { id: 'kate', name: 'Wispernde Kate', x: 230, z: 140, radius: 35, alwaysVisible: false },
+  { id: 'saal', nameKey: 'mm.landmark.saal', x: -31.5, z: 20, radius: 40, alwaysVisible: true, labelDy: 12 },
+  { id: 'see', nameKey: 'mm.landmark.see', x: -112, z: 158, radius: 60, alwaysVisible: false },
+  { id: 'quidditch', nameKey: 'mm.landmark.quidditch', x: -195, z: 10, radius: 60, alwaysVisible: false },
+  { id: 'eulenbruecke', nameKey: 'mm.landmark.eulenbruecke', x: -70, z: -230, radius: 55, alwaysVisible: false },
+  { id: 'steinkreis', nameKey: 'mm.landmark.steinkreis', x: 150, z: -95, radius: 45, alwaysVisible: false },
+  { id: 'astronomieturm', nameKey: 'mm.landmark.astronomieturm', x: 0, z: -80, radius: 40, alwaysVisible: false },
+  { id: 'nebelmoor', nameKey: 'mm.landmark.nebelmoor', x: 240, z: -175, radius: 65, alwaysVisible: false },
+  { id: 'kate', nameKey: 'mm.landmark.kate', x: 230, z: 140, radius: 35, alwaysVisible: false },
   // E11 (Plan-Abschnitt 5): die 4 neuen Boss-Regionen aus E4-E7 — Koordinaten
   // 1:1 aus terrain.js gespiegelt (ASCHENKLAMM/FROSTZINNEN/SILBERHAIN/
   // SCHWARZWASSER), radius = Kernradius + 15 (Muster: atmosphere.registerZone
   // in main.js nutzt exakt denselben Puffer für diese 4 Zonen).
-  { id: 'aschenklamm', name: 'Die Aschenklamm', x: 395, z: 110, radius: 60, alwaysVisible: false },
-  { id: 'frostzinnen', name: 'Die Frostzinnen', x: 0, z: -410, radius: 60, alwaysVisible: false },
-  { id: 'silberhain', name: 'Der Silberhain', x: -90, z: 410, radius: 60, alwaysVisible: false },
-  { id: 'schwarzwasser', name: 'Schwarzwasser', x: -405, z: -40, radius: 55, alwaysVisible: false },
+  { id: 'aschenklamm', nameKey: 'mm.landmark.aschenklamm', x: 395, z: 110, radius: 60, alwaysVisible: false },
+  { id: 'frostzinnen', nameKey: 'mm.landmark.frostzinnen', x: 0, z: -410, radius: 60, alwaysVisible: false },
+  { id: 'silberhain', nameKey: 'mm.landmark.silberhain', x: -90, z: 410, radius: 60, alwaysVisible: false },
+  { id: 'schwarzwasser', nameKey: 'mm.landmark.schwarzwasser', x: -405, z: -40, radius: 55, alwaysVisible: false },
   // V6 (PLAN-DER-DUNKLE-LORD.md): Koordinaten 1:1 aus terrain.js SCHATTENFESTE
   // gespiegelt (x:250, z:-350, r:45), radius = Kernradius + 15 — exakt dasselbe
   // Muster wie die 4 E11-Boss-Regionen direkt darüber.
-  { id: 'schattenfeste', name: 'Die Schattenfeste', x: 250, z: -350, radius: 60, alwaysVisible: false },
+  { id: 'schattenfeste', nameKey: 'mm.landmark.schattenfeste', x: 250, z: -350, radius: 60, alwaysVisible: false },
 ];
-
-// Skalierung fürs CSS-Panel: Weltkoordinaten auf 0..100%. WORLD_BOUND aus
-// terrain.js (die unpassierbare Bergkette) ist die sichere obere Grenze für
-// jede Landmarken-Koordinate — hier als Zahl gespiegelt, nicht importiert
-// (gleicher Grund wie oben). PLAN-EPISCHE-WELT.md E0: mit WORLD_BOUND
-// 430->660 nachgezogen, sonst liefe der Spieler-Punkt außerhalb des Panels,
-// sobald man in den jetzt begehbaren äußeren Ring läuft.
-const MAP_EXTENT = 660;
-function toPercent(v) { return ((v + MAP_EXTENT) / (MAP_EXTENT * 2)) * 100; }
 
 // Titel-Übersicht (Opus-5-Audit-Fix): ursprünglich nur die 6 Titel, die im
 // Code als eigener hud.showToast('… Titel „X" errungen!') formuliert sind
@@ -62,20 +58,20 @@ function toPercent(v) { return ((v + MAP_EXTENT) / (MAP_EXTENT * 2)) * 100; }
 // `earned` liest ausschließlich bereits bestehende save.*-Felder, kein
 // neues Speicherformat nötig.
 const TITLES = [
-  { id: 'hauspokal', icon: '🏆', name: 'Hauspokal-Sieger', desc: 'Den Hauspokal gewinnen (alle Schnätze, Artefakte und Rätsel).', earned: (s) => s.pz?.hauspokal === 1 },
-  { id: 'seelenwaechter', icon: '🏮', name: 'Seelenwächter', desc: 'Die Silberne Seelenlaterne aus dem Nebelmoor bergen.', earned: (s) => s.moor.laterne === 1 },
-  { id: 'meisterDesTodes', icon: '☠️', name: 'Meister des Todes', desc: 'Alle drei Heiligtümer des Todes vereinen.', earned: (s) => s.hallows.stab === 1 && s.hallows.umhang === 1 && s.hallows.stein === 1 },
-  { id: 'drache', icon: '🐲', name: 'Drachenbezwinger', desc: 'Den Drachen der Aschenklamm bezwingen.', earned: (s) => s.siegel.drache === 1 },
-  { id: 'frost', icon: '🧊', name: 'Frostbezwinger', desc: 'Den Frostriesen der Frostzinnen bezwingen.', earned: (s) => s.siegel.frost === 1 },
-  { id: 'hain', icon: '🦄', name: 'Einhornfreund', desc: 'Das Vertrauen des Einhorns im Silberhain gewinnen.', earned: (s) => s.siegel.hain === 1 },
-  { id: 'tiefe', icon: '🔱', name: 'Tiefenbezwinger', desc: 'Den versunkenen Tresor in Schwarzwasser öffnen.', earned: (s) => s.siegel.tiefe === 1 },
-  { id: 'weltensammler', icon: '🌍', name: 'Weltensammler', desc: 'Alle vier seltenen Zutaten bei Fero eintauschen.', earned: (s) => s.quests.feroSammler === 1 },
-  { id: 'vierReiche', icon: '🌟', name: 'Hüter der vier Reiche', desc: 'Das Sternentor durchschreiten.', earned: (s) => s.siegel.finaleWon === 1 },
-  { id: 'animagus', icon: '🐾', name: 'Animagus', desc: 'Die zweite Gestalt erlernen.', earned: (s) => s.animagus.gelernt === 1 },
-  { id: 'grimoire', icon: '📖', name: 'Grimoire-Kenner', desc: 'Das Aschene Grimoire lesen.', earned: (s) => s.dunkel.buch === 1 },
-  { id: 'quidditchAss', icon: '🧹', name: 'Quidditch-Ass', desc: 'Das Ringe-Rennen perfekt meistern.', earned: (s) => s.ace === 1 },
+  { id: 'hauspokal', icon: '🏆', nameKey: 'title.hauspokal.name', descKey: 'title.hauspokal.desc', earned: (s) => s.pz?.hauspokal === 1 },
+  { id: 'seelenwaechter', icon: '🏮', nameKey: 'title.seelenwaechter.name', descKey: 'title.seelenwaechter.desc', earned: (s) => s.moor.laterne === 1 },
+  { id: 'meisterDesTodes', icon: '☠️', nameKey: 'title.meisterDesTodes.name', descKey: 'title.meisterDesTodes.desc', earned: (s) => s.hallows.stab === 1 && s.hallows.umhang === 1 && s.hallows.stein === 1 },
+  { id: 'drache', icon: '🐲', nameKey: 'title.drache.name', descKey: 'title.drache.desc', earned: (s) => s.siegel.drache === 1 },
+  { id: 'frost', icon: '🧊', nameKey: 'title.frost.name', descKey: 'title.frost.desc', earned: (s) => s.siegel.frost === 1 },
+  { id: 'hain', icon: '🦄', nameKey: 'title.hain.name', descKey: 'title.hain.desc', earned: (s) => s.siegel.hain === 1 },
+  { id: 'tiefe', icon: '🔱', nameKey: 'title.tiefe.name', descKey: 'title.tiefe.desc', earned: (s) => s.siegel.tiefe === 1 },
+  { id: 'weltensammler', icon: '🌍', nameKey: 'title.weltensammler.name', descKey: 'title.weltensammler.desc', earned: (s) => s.quests.feroSammler === 1 },
+  { id: 'vierReiche', icon: '🌟', nameKey: 'title.vierReiche.name', descKey: 'title.vierReiche.desc', earned: (s) => s.siegel.finaleWon === 1 },
+  { id: 'animagus', icon: '🐾', nameKey: 'title.animagus.name', descKey: 'title.animagus.desc', earned: (s) => s.animagus.gelernt === 1 },
+  { id: 'grimoire', icon: '📖', nameKey: 'title.grimoire.name', descKey: 'title.grimoire.desc', earned: (s) => s.dunkel.buch === 1 },
+  { id: 'quidditchAss', icon: '🧹', nameKey: 'title.quidditchAss.name', descKey: 'title.quidditchAss.desc', earned: (s) => s.ace === 1 },
   // V6 (PLAN-DER-DUNKLE-LORD.md): 13. Titel, größter Einzelerfolg des Spiels.
-  { id: 'dunklerLord', icon: '⚡', name: 'Der wahre Meister des Todes', desc: 'Den Dunklen Lord in der Schattenfeste besiegen.', earned: (s) => s.lord.besiegt === 1 },
+  { id: 'dunklerLord', icon: '⚡', nameKey: 'title.dunklerLord.name', descKey: 'title.dunklerLord.desc', earned: (s) => s.lord.besiegt === 1 },
 ];
 
 // Almanach (Nutzerwunsch 2026-08-04: "ich weiß nicht, was es noch alles
@@ -88,104 +84,97 @@ const TITLES = [
 // `status(save)` liefert 'offen' (verfügbar, noch nicht erledigt), 'fertig'
 // (abgeschlossen) oder 'gesperrt' (Bedingung noch nicht erfüllt). Kein
 // eigenes Speicherfeld nötig — liest ausschließlich vorhandene save.*-Werte,
-// exakt wie TITLES.
+// exakt wie TITLES. `hint(save)` liefert seit i18n-Etappe 2 {key,vars} statt
+// eines fertigen Strings — render() übersetzt.
 const ALMANAC = [
   {
-    id: 'fliegen', icon: '🧹', name: 'Fliegen lernen',
+    id: 'fliegen', icon: '🧹', nameKey: 'almanac.fliegen.name',
     status: (s) => (s.besen ? 'fertig' : 'offen'),
-    hint: (s) => (s.besen
-      ? 'Der Besen ist dein — Taste B hebt ab, das 12-Ringe-Rennen wartet am Quidditch-Feld.'
-      : 'Im Besenschuppen am Quidditch-Feld im Westen liegt ein Besen bereit.'),
+    hint: (s) => (s.besen ? { key: 'almanac.fliegen.done' } : { key: 'almanac.fliegen.todo' }),
   },
   {
-    id: 'hippogreif', icon: '🦅', name: 'Hippogreif zähmen',
+    id: 'hippogreif', icon: '🦅', nameKey: 'almanac.hippogreif.name',
     status: (s) => (s.mounts.hippo ? 'fertig' : 'offen'),
-    hint: (s) => (s.mounts.hippo
-      ? 'Gezähmt — Taste R ruft ihn, 2× Leertaste hebt im Flug ab.'
-      : 'Wilde Hippogreife streifen über die Wildmark im Osten — anschleichen und zähmen.'),
+    hint: (s) => (s.mounts.hippo ? { key: 'almanac.hippogreif.done' } : { key: 'almanac.hippogreif.todo' }),
   },
   {
-    id: 'thestral', icon: '💀', name: 'Thestral zähmen',
+    id: 'thestral', icon: '💀', nameKey: 'almanac.thestral.name',
     status: (s) => (s.mounts.thestral ? 'fertig' : (s.seenDeath ? 'offen' : 'gesperrt')),
     hint: (s) => (s.mounts.thestral
-      ? 'Gezähmt — nur du (und andere, die den Tod sahen) können ihn sehen.'
-      : s.seenDeath
-        ? 'Er ist jetzt sichtbar — geh einfach hin, kein Zähm-Ritual nötig.'
-        : 'Wird erst sichtbar, nachdem du einmal einen Tod miterlebt hast.'),
+      ? { key: 'almanac.thestral.done' }
+      : s.seenDeath ? { key: 'almanac.thestral.visible' } : { key: 'almanac.thestral.locked' }),
   },
   {
-    id: 'einhorn', icon: '🦄', name: 'Einhorn gewinnen',
+    id: 'einhorn', icon: '🦄', nameKey: 'almanac.einhorn.name',
     status: (s) => (s.mounts.einhorn ? 'fertig' : 'offen'),
-    hint: (s) => (s.mounts.einhorn
-      ? 'Gezähmt und reitbar — auch fliegend.'
-      : 'Ein wildes Einhorn grast im Silberhain im Norden — ruhig nähern und verbeugen.'),
+    hint: (s) => (s.mounts.einhorn ? { key: 'almanac.einhorn.done' } : { key: 'almanac.einhorn.todo' }),
   },
   {
-    id: 'begleiter', icon: '🐾', name: 'Begleiter finden',
+    id: 'begleiter', icon: '🐾', nameKey: 'almanac.begleiter.name',
     status: (s) => (s.begleiter.frei.length >= 3 ? 'fertig' : 'offen'),
-    hint: (s) => `${s.begleiter.frei.length}/3 gefunden — Musch über die Katzenquest, `
-      + 'eine zweite Kreatur nachts, eine dritte irgendwo in der Wildnis. Taste G ruft den aktiven Begleiter.',
+    hint: (s) => ({ key: 'almanac.begleiter.hint', vars: { n: s.begleiter.frei.length } }),
   },
   {
-    id: 'fero', icon: '💰', name: 'Mit Fero handeln',
+    id: 'fero', icon: '💰', nameKey: 'almanac.fero.name',
     status: (s) => (s.quests.feroSammler ? 'fertig' : 'offen'),
-    hint: (s) => (s.quests.feroSammler
-      ? 'Alle vier seltenen Zutaten gegen Fero eingetauscht.'
-      : 'Fero der Wanderhändler erscheint zeitweise am Bahnhof in Eulenbrück — Handel gegen Gold.'),
+    hint: (s) => (s.quests.feroSammler ? { key: 'almanac.fero.done' } : { key: 'almanac.fero.todo' }),
   },
   {
-    id: 'wilderer', icon: '🏕️', name: 'Wilderer-Lager befreien',
+    id: 'wilderer', icon: '🏕️', nameKey: 'almanac.wilderer.name',
     status: () => 'offen',
-    hint: (s) => `${s.wild.befreit || 0} Lager bisher befreit — 6 Spots rotieren übers Wildmark-Gebiet, `
-      + 'gefangene Kreaturen warten in Käfigen.',
+    hint: (s) => ({ key: 'almanac.wilderer.hint', vars: { n: s.wild.befreit || 0 } }),
   },
   {
-    id: 'duell', icon: '⚔️', name: 'Der Duellring',
+    id: 'duell', icon: '⚔️', nameKey: 'almanac.duell.name',
     status: () => 'offen',
-    hint: () => 'Fechtmeisterin Ondra fordert dich am Dorfplatz in Eulenbrück (10-16 Uhr) — Einsatz und Gewinn in Gold.',
+    hint: () => ({ key: 'almanac.duell.hint' }),
   },
   {
-    id: 'regionen', icon: '🌋', name: 'Die vier Elementar-Regionen',
+    id: 'regionen', icon: '🌋', nameKey: 'almanac.regionen.name',
     status: (s) => {
       const n = [s.siegel.drache, s.siegel.frost, s.siegel.hain, s.siegel.tiefe].filter((v) => v === 1).length;
       return n === 4 ? 'fertig' : 'offen';
     },
     hint: (s) => {
       const n = [s.siegel.drache, s.siegel.frost, s.siegel.hain, s.siegel.tiefe].filter((v) => v === 1).length;
-      return `${n}/4 Siegel — Aschenklamm (Osten), Frostzinnen (Süden), Silberhain (Norden), `
-        + 'Schwarzwasser (Westen): jede hat einen eigenen Endgegner und ein eigenes Rätsel.';
+      return { key: 'almanac.regionen.hint', vars: { n } };
     },
   },
   {
-    id: 'heiligtuemer', icon: '☠️', name: 'Die Heiligtümer des Todes',
+    id: 'heiligtuemer', icon: '☠️', nameKey: 'almanac.heiligtuemer.name',
     status: (s) => {
       const n = [s.hallows.stab, s.hallows.umhang, s.hallows.stein].filter((v) => v === 1).length;
       return n === 3 ? 'fertig' : 'offen';
     },
     hint: (s) => {
       const n = [s.hallows.stab, s.hallows.umhang, s.hallows.stein].filter((v) => v === 1).length;
-      return `${n}/3 gefunden — der Elderstab wird im Duell am Hügelgrab errungen, `
-        + 'die anderen beiden Heiligtümer sind über die Welt verstreut.';
+      return { key: 'almanac.heiligtuemer.hint', vars: { n } };
     },
   },
   {
-    id: 'animagus', icon: '🐦', name: 'Animagus werden',
+    id: 'animagus', icon: '🐦', nameKey: 'almanac.animagus.name',
     status: (s) => (s.animagus.gelernt ? 'fertig' : (s.heim.kate ? 'offen' : 'gesperrt')),
     hint: (s) => (s.animagus.gelernt
-      ? `Zweite Gestalt erlernt — Taste V wechselt die Form (aktuell: ${s.animagus.form}).`
-      : s.heim.kate
-        ? 'Den "Trank der zweiten Gestalt" am eigenen Braukessel brauen, dann bei Sturm am Steinkreis das Ritual wagen.'
-        : 'Voraussetzung: die Wispernde Kate im Wildmark-Gebiet kaufen (eigener Braukessel).'),
+      ? { key: 'almanac.animagus.done', vars: { form: t(`form.${s.animagus.form}`) } }
+      : s.heim.kate ? { key: 'almanac.animagus.todo' } : { key: 'almanac.animagus.locked' }),
   },
   {
-    id: 'dunklerPfad', icon: '🌑', name: 'Der dunkle Pfad',
+    id: 'dunklerPfad', icon: '🌑', nameKey: 'almanac.dunklerPfad.name',
     status: (s) => (s.dunkel.buch ? 'fertig' : 'offen'),
     hint: (s) => (s.dunkel.buch
-      ? `Grimoire gelesen — aktueller Pfad: ${s.dunkel.pfad === 'dunkel' ? 'dunkel' : 'hell'} `
-        + '(am Innenhof-Brunnen im Morgengrauen umkehrbar).'
-      : 'Das Aschene Grimoire liegt irgendwo in der Welt — wer es liest, kann die drei verbotenen Sprüche erlernen.'),
+      ? { key: 'almanac.dunklerPfad.done', vars: { pfad: t(s.dunkel.pfad === 'dunkel' ? 'path.dark' : 'path.light') } }
+      : { key: 'almanac.dunklerPfad.todo' }),
   },
 ];
+
+// Skalierung fürs CSS-Panel: Weltkoordinaten auf 0..100%. WORLD_BOUND aus
+// terrain.js (die unpassierbare Bergkette) ist die sichere obere Grenze für
+// jede Landmarken-Koordinate — hier als Zahl gespiegelt, nicht importiert
+// (gleicher Grund wie oben). PLAN-EPISCHE-WELT.md E0: mit WORLD_BOUND
+// 430->660 nachgezogen, sonst liefe der Spieler-Punkt außerhalb des Panels,
+// sobald man in den jetzt begehbaren äußeren Ring läuft.
+const MAP_EXTENT = 660;
+function toPercent(v) { return ((v + MAP_EXTENT) / (MAP_EXTENT * 2)) * 100; }
 
 export function buildMarauderMap(hud, save) {
   const overlay = document.getElementById('marauders-map');
@@ -210,38 +199,48 @@ export function buildMarauderMap(hud, save) {
     return lm.alwaysVisible || save.map.discovered.includes(lm.id);
   }
 
+  // "Noch offen: 9 Schnätze, 3 Artefakte, 2 Rätsel." — die einzelnen
+  // Fragmente kommen aus progress.js bereits als {key,vars}-Liste (siehe
+  // dortiger Kommentar), hier nur noch übersetzen + verbinden.
+  function joinMissing(list) {
+    return list.map((m) => t(m.key, m.vars)).join(', ');
+  }
+
   // Nicht entdeckte Landmarken bekommen KEINEN Punkt (Plan B2: "keine
   // Spoilerkarte") — Punkte werden erst beim ersten Entdecken angelegt und
   // danach nie wieder entfernt (Entdeckung ist dauerhaft).
   function render(progress) {
-    chapterEl.textContent = progress.chapter;
-    primaryTitle.textContent = progress.primary.title;
-    primaryDesc.textContent = progress.primary.description;
+    chapterEl.textContent = t(progress.chapterKey);
+    primaryTitle.textContent = t(progress.primary.titleKey);
+    const descVars = progress.primary.descKey === 'progress.primary.hauspokal.missing'
+      ? { missing: joinMissing(progress.primary.descVars.missing) }
+      : progress.primary.descVars;
+    primaryDesc.textContent = t(progress.primary.descKey, descVars);
 
     secondaryList.replaceChildren();
     for (const s of progress.secondary) {
       const li = document.createElement('li');
-      li.textContent = `${s.title} — ${s.description}`;
+      li.textContent = `${t(s.titleKey)} — ${t(s.descKey, s.descVars)}`;
       secondaryList.appendChild(li);
     }
-    nextHintEl.textContent = progress.nextHint;
+    nextHintEl.textContent = t(progress.nextHintKey);
 
     titlesList.replaceChildren();
-    for (const t of TITLES) {
-      const earned = t.earned(save);
+    for (const ti of TITLES) {
+      const earned = ti.earned(save);
       const badge = document.createElement('div');
       badge.className = earned ? 'mm-title-badge' : 'mm-title-badge mm-title-locked';
       const icon = document.createElement('span');
       icon.className = 'mm-title-icon';
-      icon.textContent = earned ? t.icon : '🔒';
+      icon.textContent = earned ? ti.icon : '🔒';
       const text = document.createElement('div');
       text.className = 'mm-title-text';
       const name = document.createElement('div');
       name.className = 'mm-title-name';
-      name.textContent = t.name;
+      name.textContent = t(ti.nameKey);
       const desc = document.createElement('div');
       desc.className = 'mm-title-desc';
-      desc.textContent = t.desc;
+      desc.textContent = t(ti.descKey);
       text.append(name, desc);
       badge.append(icon, text);
       titlesList.appendChild(badge);
@@ -261,10 +260,11 @@ export function buildMarauderMap(hud, save) {
       text.className = 'mm-title-text';
       const name = document.createElement('div');
       name.className = 'mm-title-name';
-      name.textContent = st === 'fertig' ? `${a.name} ✓` : a.name;
+      name.textContent = st === 'fertig' ? `${t(a.nameKey)} ✓` : t(a.nameKey);
       const desc = document.createElement('div');
       desc.className = 'mm-title-desc';
-      desc.textContent = a.hint(save);
+      const h = a.hint(save);
+      desc.textContent = t(h.key, h.vars);
       text.append(name, desc);
       badge.append(icon, text);
       almanacList.appendChild(badge);
@@ -280,13 +280,19 @@ export function buildMarauderMap(hud, save) {
         dot.style.top = `${toPercent(lm.z)}%`;
         const label = document.createElement('span');
         label.className = 'mm-dot-label';
-        label.textContent = lm.name;
         if (lm.labelDy) label.style.top = `${-6 + lm.labelDy}px`;
         dot.appendChild(label);
         worldEl.appendChild(dot);
-        entry = { dot };
+        entry = { dot, label };
         dotById[lm.id] = entry;
       }
+      // Bugfix (i18n-Etappe 2): label.textContent wurde bisher nur beim
+      // ERSTEN Rendern gesetzt — ein 'alwaysVisible'-Punkt (z.B. Schloss)
+      // entsteht schon vor jedem Sprachwechsel und blieb dann für immer auf
+      // der ursprünglichen Sprache stehen, weil render() ihn nie erneut
+      // anfasste. Jetzt bei jedem Aufruf neu übersetzt, wie alle anderen
+      // Texte hier auch.
+      entry.label.textContent = t(lm.nameKey);
       entry.dot.classList.toggle('mm-dot-target', progress.primary.landmarkId === lm.id);
     }
 
@@ -331,7 +337,7 @@ export function buildMarauderMap(hud, save) {
           const dx = playerPos.x - lm.x, dz = playerPos.z - lm.z;
           if (dx * dx + dz * dz <= lm.radius * lm.radius) {
             save.map.discovered.push(lm.id);
-            hud?.showToast(`🗺️ Entdeckt: ${lm.name}`, 3);
+            hud?.showToast(t('mm.discovered', { name: t(lm.nameKey) }), 3);
           }
         }
       }
