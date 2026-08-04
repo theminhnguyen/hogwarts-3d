@@ -140,9 +140,24 @@ eine lokale Sicherung an, bevor sie den aktuellen Stand ersetzen.
   15 Sekunden sanftem Übergang, 700 Regentropfen, Blitz+Donner im Sturm
   (Licht vor Schall), fallende Blätter im Wind — Gras und Bäume schwanken
   spürbar mit der Windstärke
-- 🎨 Grafik-Modus „Schön"/„Schnell" (Menü-Button): handgerollter
-  Bloom+Farbkorrektur+Kantenglättung-Stack, mit automatischer
-  Qualitätsabsenkung bei niedriger Bildrate
+- 🎨 Drei Grafik-Stufen (Menü-Button schaltet der Reihe nach durch):
+  - **Schnell** — direktes Rendern ohne jede Nachbearbeitung
+  - **Schön** — handgerollter Bloom+Farbkorrektur+Kantenglättung-Stack
+  - **Episch** — zusätzlich echtes PBR statt Lambert (Rauheit, Metallanteil,
+    Glanzkanten), aus den Texturen abgeleitete Normal-Maps für Relief in
+    Mauerwerk/Schiefer/Holz, eine mitlaufende Umgebungs-Map fürs Himmelslicht,
+    Umgebungsverdeckung (SSAO) für Kontaktschatten, Sonnenstrahlen (Godrays),
+    Kino-Grading (Vignette + dezente Farbsäume) und 4096er-Sonnenschatten
+    mit 3.2 cm pro Texel statt 7.3 cm
+
+  Alle Stufen senken bei niedriger Bildrate automatisch ab (zuerst fallen
+  SSAO und Godrays weg, dann der Bloom, zuletzt die gesamte Nachbearbeitung).
+  „Episch" wechselt die Material-Klasse in der ganzen Welt, deshalb lädt das
+  Spiel beim Umschalten von oder zu dieser Stufe einmal neu.
+
+  > Hinweis: „Episch" ist die anspruchsvollste Stufe und für aktuelle Rechner
+  > gedacht. Ruckelt es, einfach zurück auf „Schön" schalten — die ist
+  > unverändert geblieben.
 - 🏘️ Dorf **Eulenbrück** mit Gasthaus „Zum Singenden Kessel" (begehbar,
   Kamin heilt alle 60 Sekunden), Brunnen, Laternen und Marktständen — dazu
   eine Dampfeisenbahn mit echtem Fahrplan (4 Minuten Umlauf, 2 Tunnel

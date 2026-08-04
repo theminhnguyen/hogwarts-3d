@@ -124,7 +124,12 @@ export function getMaterialTier() { return tier; }
 // hier ist ein Schloss aus Stein/Holz/Schiefer, kein Autolack — ein zu
 // niedriger Wert lässt alles nach nassem Plastik aussehen.
 const PBR = {
-  stone:   { roughness: 0.94, metalness: 0.0 },
+  // 0.96 ist der Wert, den das Mauerwerk seit jeher hat. Er steht hier
+  // absichtlich unverändert: 'stone' war schon vor der Episch-Stufe das
+  // einzige Standard-Material, wird also in ALLEN drei Stufen benutzt — jede
+  // Änderung hier würde auch 'Schön' und 'Schnell' verändern, und die sollen
+  // sich nicht anfassen lassen.
+  stone:   { roughness: 0.96, metalness: 0.0 },
   roof:    { roughness: 0.72, metalness: 0.05 }, // Schiefer glänzt leicht
   wood:    { roughness: 0.85, metalness: 0.0 },
   deco:    { roughness: 0.68, metalness: 0.12 }, // Gold/Beschläge fangen Licht

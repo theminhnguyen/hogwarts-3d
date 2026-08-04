@@ -171,6 +171,31 @@ export class SkySystem {
   }
 
   // 3-fach-Mix: Nacht ↔ Dämmerung ↔ Tag
+  // G5 („Episch"): schärfere Sonnenschatten.
+  // Zwei Stellschrauben greifen zusammen:
+  //  1. Auflösung 2048 → 4096 UND ein von 75 m auf 65 m verkleinerter
+  //     Schattenkasten. Zusammen sinkt die Kantenlänge pro Texel von
+  //     150/2048 = 7.3 cm auf 130/4096 = 3.2 cm — Faktor 2.3 feiner.
+  //     Der kleinere Kasten kostet nichts und bringt allein schon 15 %;
+  //     65 m reichen bequem, weil die Sichtweite am Boden ohnehin durch
+  //     den Nebel begrenzt ist.
+  //  2. normalBias von 0.7 auf 0.3. Dieser Wert schiebt den Schattentest
+  //     entlang der Normale nach aussen, um Selbstverschattung („Acne")
+  //     zu unterdrücken — bei grobem Raster braucht man viel davon. Der
+  //     Preis ist „Peter-Panning": der Schatten löst sich sichtbar vom Fuss
+  //     des Objekts, was Dinge schwebend wirken lässt. Genau das würde die
+  //     neuen SSAO-Kontaktschatten wieder zunichtemachen, deshalb geht der
+  //     Wert mit der feineren Auflösung deutlich zurück.
+  setShadowQuality(tier) {
+    if (tier !== 'episch') return;
+    this.sun.shadow.mapSize.set(4096, 4096);
+    const sc = this.sun.shadow.camera;
+    sc.left = -65; sc.right = 65; sc.top = 65; sc.bottom = -65;
+    sc.updateProjectionMatrix();
+    this.sun.shadow.bias = -0.0004;
+    this.sun.shadow.normalBias = 0.3;
+  }
+
   _mix(target, set, daylight, duskAmount) {
     target.copy(set.night).lerp(set.day, daylight);
     target.lerp(set.dusk, duskAmount);

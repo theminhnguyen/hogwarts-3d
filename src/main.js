@@ -205,6 +205,7 @@ const buildSteps = [
     // Hemisphere-Licht wird zurückgenommen, sonst zählt der Himmel doppelt
     // (siehe Kommentar in sky.js update()).
     if (save.grafik === 'episch') sky.hemiMul = 0.45;
+    sky.setShadowQuality(save.grafik);
   }],
   ['Wetter', () => { weather = new WeatherSystem(scene, hud, audio); }],
   ['Gelände', () => { scene.add(buildTerrain()); }],
