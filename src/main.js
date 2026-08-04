@@ -144,7 +144,7 @@ post.setQuality(save.grafik);
 // ohnehin wirkungslos (Lambert kennt keine Umgebungsspiegelung) und würde nur
 // unnötig PMREM-Rechenzeit kosten.
 const envProbe = save.grafik === 'episch' ? new EnvironmentProbe(renderer, scene) : null;
-post.onDegrade = () => hud.showToast('Grafik automatisch reduziert (Bloom aus)', 3.5);
+post.onDegrade = () => hud.showToast(t('main.toast.gfxAutoReduced'), 3.5);
 
 let sky, water, castle, structures, moor, life, collectibles, player;
 let fx, wand, spells, health, creatures, puzzles, dementors, weather, village, train, willow, interact, npc, grove, broom, fahlholz, fauna, economy, wilderer, mount, kate, home, dark, companion, hallows, huegelgrab, animagus, tutorial, marauders, ambient, finale;
@@ -186,7 +186,7 @@ function buildPumpkinGlows() {
         fx.burst(p, 0xffa438, 10, 3, { gravity: -2, life: 0.5 });
         if (!pumpkinFirstFound) {
           pumpkinFirstFound = true;
-          hud.showToast("Jack-o'-Lantern! 🎃", 3);
+          hud.showToast(t('main.toast.pumpkinLit'), 3);
         }
       },
     });
@@ -451,7 +451,10 @@ const buildSteps = [
       // solange er der aktive Begleiter ist.
       const grabbelBonus = save.begleiter.aktiv === 'grabbel' ? 1 : 0;
       save.heim.zutaten.glitzer += 1 + grabbelBonus;
-      hud.showToast(`✨ Glitzerstaub gefunden! +${gold} Gold, +${1 + grabbelBonus} Glitzerstaub${grabbelBonus ? ' (Grabbel schnüffelt mit!)' : ''}`, 2.5);
+      hud.showToast(t('main.toast.glitzerFound', {
+        item: t('item.glitzer'), gold, n: 1 + grabbelBonus,
+        bonus: grabbelBonus ? t('main.toast.grabbelBonus') : '',
+      }), 2.5);
       persist();
     }, health); // health: Fuchs/wilder Hippogreif verteidigen sich mit Konter-Schaden (Nutzer-Feedback)
     // Akromantula-Kopplung (creatures.js, S2): Füchse+Hasen werden für
@@ -593,19 +596,19 @@ const progressStatus = document.getElementById('progress-status');
 function refreshStatusLines() {
   const lines = [];
   if (save.dunkel.buch === 1) {
-    lines.push(save.dunkel.pfad === 'dunkel' ? '🖤 Pfad: dunkel' : '🌗 Pfad: hell');
+    lines.push(t(save.dunkel.pfad === 'dunkel' ? 'main.status.pathDark' : 'main.status.pathLight'));
   }
   const mountNames = [];
-  if (save.mounts.hippo) mountNames.push('Hippogreif');
-  if (save.mounts.thestral) mountNames.push('Thestral');
-  if (save.mounts.einhorn) mountNames.push('Einhorn');
-  if (mountNames.length) lines.push(`🐴 Mounts: ${mountNames.join(', ')}`);
+  if (save.mounts.hippo) mountNames.push(t('mount.hippo'));
+  if (save.mounts.thestral) mountNames.push(t('mount.thestral'));
+  if (save.mounts.einhorn) mountNames.push(t('mount.einhorn'));
+  if (mountNames.length) lines.push(t('main.status.mounts', { names: mountNames.join(', ') }));
   const hallowCount = (save.hallows.stab ? 1 : 0) + (save.hallows.umhang ? 1 : 0) + (save.hallows.stein ? 1 : 0);
-  if (hallowCount > 0) lines.push(`☠️ Heiligtümer: ${hallowCount}/3${hallowCount === 3 ? ' — Meister des Todes' : ''}`);
+  if (hallowCount > 0) lines.push(t('main.status.hallows', { n: hallowCount, extra: hallowCount === 3 ? t('main.status.hallowsComplete') : '' }));
   // E10: Vier-Siegel-Meta-Strang — Zeile erscheint ab dem ersten Siegel,
   // wechselt nach finaleWon auf den Abschluss-Titel (Muster: Heiligtümer-Zeile).
   const siegelCount = (save.siegel.drache ? 1 : 0) + (save.siegel.frost ? 1 : 0) + (save.siegel.hain ? 1 : 0) + (save.siegel.tiefe ? 1 : 0);
-  if (siegelCount > 0) lines.push(`🏅 Siegel: ${siegelCount}/4${save.siegel.finaleWon ? ' — Hüter der vier Reiche' : ''}`);
+  if (siegelCount > 0) lines.push(t('main.status.siegel', { n: siegelCount, extra: save.siegel.finaleWon ? t('main.status.siegelComplete') : '' }));
   progressStatus.innerHTML = lines.join('<br>');
   progressStatus.classList.toggle('hidden', lines.length === 0);
 }
@@ -751,7 +754,7 @@ btnStart.addEventListener('click', () => {
       fallbackMode = true;
       if (player) player.dragLook = true;
       setPlaying(true);
-      hud.showToast('Maus gedrückt halten zum Umsehen · Esc für Menü', 4);
+      hud.showToast(t('main.toast.dragLookHint'), 4);
     }
   }, 350);
 });
@@ -797,7 +800,7 @@ btnGrafik.addEventListener('click', () => {
   relabelGrafik();
   persist();
   if (needsReload) {
-    hud.showToast('✨ Grafik wird umgestellt — die Welt wird neu aufgebaut …', 2.5);
+    hud.showToast(t('main.toast.gfxSwitching'), 2.5);
     setTimeout(() => location.reload(), 350);
   }
 });
@@ -962,7 +965,7 @@ function performReset() {
   schattenfesteRegion.handle?.restore?.();
   refreshStatusLines();
   persist();
-  hud.showToast('Fortschritt zurückgesetzt');
+  hud.showToast(t('main.toast.resetDone'));
 }
 
 // ---------- A3/A4: Bestätigungsdialog, Export, Import, Backup ----------
@@ -989,7 +992,7 @@ confirmYes.addEventListener('click', () => {
 confirmNo.addEventListener('click', closeConfirm);
 
 btnReset.addEventListener('click', () => {
-  askConfirm('Wirklich den GESAMTEN Fortschritt zurücksetzen? Eine Sicherung wird vorher automatisch angelegt.', () => {
+  askConfirm(t('main.confirm.reset'), () => {
     backupCurrentSave();
     btnRestoreBackup.classList.remove('hidden');
     performReset();
@@ -1014,7 +1017,7 @@ btnExport.addEventListener('click', () => {
   a.download = `hogwarts3d-spielstand-${stamp}.json`;
   a.click();
   URL.revokeObjectURL(url);
-  hud.showToast('Spielstand exportiert 💾');
+  hud.showToast(t('main.toast.exportDone'));
 });
 
 btnImport.addEventListener('click', () => {
@@ -1026,20 +1029,20 @@ importFileInput.addEventListener('change', () => {
   const file = importFileInput.files?.[0];
   if (!file) return;
   if (file.size > MAX_IMPORT_BYTES) {
-    hud.showToast(`Datei zu groß (>${Math.round(MAX_IMPORT_BYTES / 1000)} KB) — das ist kein gültiger Spielstand.`, 3.5);
+    hud.showToast(t('main.toast.importTooBig', { kb: Math.round(MAX_IMPORT_BYTES / 1000) }), 3.5);
     return;
   }
   const reader = new FileReader();
   reader.onload = () => {
     const result = parseImport(String(reader.result ?? ''));
     if (!result.ok) {
-      hud.showToast(`Import fehlgeschlagen: ${result.error}`, 3.5);
+      hud.showToast(t('main.toast.importFailed', { error: result.error }), 3.5);
       return;
     }
-    askConfirm('Spielstand importieren? Der aktuelle Fortschritt wird ersetzt (eine Sicherung wird vorher automatisch angelegt).', () => {
+    askConfirm(t('main.confirm.import'), () => {
       backupCurrentSave();
       writeSave(result.data);
-      hud.showToast('Spielstand importiert — wird neu geladen …');
+      hud.showToast(t('main.toast.importDone'));
       setTimeout(() => window.location.reload(), 900);
     });
   };
@@ -1052,12 +1055,12 @@ btnRestoreBackup.addEventListener('click', () => {
   let parsed;
   try { parsed = JSON.parse(raw); } catch { parsed = null; }
   if (!parsed) {
-    hud.showToast('Sicherung ist beschädigt.', 3);
+    hud.showToast(t('main.toast.backupCorrupt'), 3);
     return;
   }
-  askConfirm('Letzte Sicherung wiederherstellen? Der aktuelle Fortschritt wird ersetzt.', () => {
+  askConfirm(t('main.confirm.restoreBackup'), () => {
     writeSave(parsed);
-    hud.showToast('Sicherung wiederhergestellt — wird neu geladen …');
+    hud.showToast(t('main.toast.backupRestored'));
     setTimeout(() => window.location.reload(), 900);
   });
 });
@@ -1068,7 +1071,7 @@ document.addEventListener('pointerlockchange', () => {
 });
 
 document.addEventListener('pointerlockerror', () => {
-  hud.showToast('Maus-Steuerung konnte nicht aktiviert werden — bitte erneut klicken.');
+  hud.showToast(t('main.toast.pointerLockError'));
 });
 
 // Nicht-Bewegungs-Tasten
@@ -1105,18 +1108,18 @@ window.addEventListener('keydown', (e) => {
     marauders.open();
   } else if (e.code === 'KeyT') {
     sky.advance(3);
-    hud.showToast(`Zeit vorgespult → ${sky.clockText}`, 1.6);
+    hud.showToast(t('main.toast.timeAdvanced', { clock: sky.clockText }), 1.6);
   } else if (e.code === 'KeyM') {
     audio.setMuted(!audio.muted);
     relabelSound();
-    hud.showToast(audio.muted ? 'Ton aus' : 'Ton an', 1.2);
+    hud.showToast(t(audio.muted ? 'main.toast.soundOff' : 'main.toast.soundOn'), 1.2);
     persist();
   } else if (e.code === 'KeyF') {
     hud.toggleFps();
   } else if (e.code === 'KeyL') {
     wand.selectSpell('lumos');
     spells.cast(camera);
-    hud.showToast(spells.lumosOn ? '✨ Lumos!' : 'Nox.', 1.4);
+    hud.showToast(t(spells.lumosOn ? 'main.toast.lumosOn' : 'main.toast.lumosOff'), 1.4);
   } else if (DIGIT_SPELLS[e.code]) {
     const id = DIGIT_SPELLS[e.code];
     if (id === 'patronum' && !spells.epUnlocked) { /* noch nicht frei */ }
@@ -1131,7 +1134,7 @@ window.addEventListener('keydown', (e) => {
     if (broom.besenUnlocked && !player.swimming && !mount.riding && !unicornRegion.handle?.riding && !player.animalForm) {
       player.flying = !player.flying;
       player.flightTuning = player.flying ? null : player.flightTuning; // null -> Besen-Default (player.js)
-      hud.showToast(player.flying ? '🧹 Aufgestiegen!' : '🧹 Abgestiegen.', 1.4);
+      hud.showToast(t(player.flying ? 'main.toast.broomUp' : 'main.toast.broomDown'), 1.4);
     }
   } else if (e.code === 'KeyR') {
     // S11: "kein Reiten" als Tier. E6: Einhorn hat Vorrang, sobald es geritten
@@ -1440,7 +1443,7 @@ function frame(dt) {
       else hud.setSoulLights(0, null);
     }
     hud.setFps(fpsEMA, pixelRatio);
-    if (player.swimming) hud.showHint('Du schwimmst im See 🏊 — zurück ans Ufer!');
+    if (player.swimming) hud.showHint(t('main.hint.swimming'));
     else hud.hideHint();
     // S10 Tauchen: Luftanzeige läuft während des gesamten Schwimmens mit,
     // Unterwasser-Vignette/-Audiofilter nur beim tatsächlichen Abtauchen.
@@ -1474,7 +1477,7 @@ buildWorld().then(() => {
   // Zwangsauftrieb (player.js ignoriert Shift automatisch sobald air<=0).
   player.onOutOfAir = () => {
     health.damage(1, null);
-    hud.showToast('😮‍💨 Dir geht die Luft aus!', 2.5);
+    hud.showToast(t('main.toast.outOfAir'), 2.5);
   };
   // Debug-/Test-Zugriff (bewusst öffentlich, hilft bei Fehlersuche)
   window.__game = {
@@ -1515,14 +1518,14 @@ buildWorld().then(() => {
     },
   };
   health.onRespawn = () => {
-    hud.showToast('Du wachst im Innenhof auf … Zeit, sich neu zu sammeln.', 3.5);
+    hud.showToast(t('main.toast.respawned'), 3.5);
     moor.dropCarriedLights(); // getragene Seelenlichter fallen an ihre Ursprungs-Spots zurück
     // K7 (S6): der erste eigene Tod zählt als miterlebter Tod — Thestral-Gate.
     if (!save.seenDeath) { save.seenDeath = 1; persist(); }
   };
-  health.onFountainHeal = () => hud.showToast('Das Brunnenwasser wärmt dich. ♥ voll!', 2.5);
+  health.onFountainHeal = () => hud.showToast(t('main.toast.fountainHeal'), 2.5);
   puzzles.onArtifact = (id, name, n, total) => {
-    hud.showToast(`🏆 Artefakt gefunden: ${name} — ${n} / ${total}`, 4);
+    hud.showToast(t('main.toast.artifactFound', { name, n, total }), 4);
     persist();
   };
   puzzles.onFinale = () => {
@@ -1537,8 +1540,8 @@ buildWorld().then(() => {
     audio.chime(done);
     hud.setCounter(n, total);
     hud.showToast(done
-      ? `⚡ Alle ${total} Schnätze gefunden! Du kennst jetzt jeden Winkel des Schlosses.`
-      : `✦ ${item.name} — ${n} / ${total}`, done ? 6 : 3);
+      ? t('main.toast.allSnitchesFound', { total })
+      : t('main.toast.snitchFound', { name: item.name, n, total }), done ? 6 : 3);
     persist();
   };
   tick();
