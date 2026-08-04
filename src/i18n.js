@@ -15,10 +15,14 @@ const STORAGE_KEY = 'hogwarts3d-lang';
 let lang = localStorage.getItem(STORAGE_KEY) === 'en' ? 'en' : 'de';
 
 // Etappenplan (wird mit jeder weiteren Etappe hier fortgeschrieben):
-//  Etappe 1 (diese): Startmenü, Steuerungs-Grid, Karte des Rumtreibers
+//  Etappe 1: Startmenü, Steuerungs-Grid, Karte des Rumtreibers
 //    (Kopfzeilen/Legende/Almanach-Rahmen), Bestätigungsdialog.
-//  Etappe 2+: HUD-Laufzeittexte (Toasts, Dialoge), dann Inhalt (NPCs,
-//    Quests, Rätsel) — datei- oder systemweise, wie der Rest des Projekts.
+//  Etappe 2: Objective Resolver (progress.js) + Titel-/Almanach-/Landmarken-
+//    Inhalte der Karte des Rumtreibers.
+//  Etappe 3: npc.js — Lena/Barnaby/Fero/Schlossgeist/Musch-Dialoge,
+//    Gerüchte-System, Kauf-Toasts, Interakt-Prompts.
+//  Etappe 4+: main.js-Toasts, dann die übrigen Gameplay-Dateien
+//    (home.js, wilderer.js, silberhain.js, wand.js, ...) einzeln.
 const DICT = {
   de: {
     'menu.subtitle': 'Ein begehbares 3D-Schloss · Fan-Projekt',
