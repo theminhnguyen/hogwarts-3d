@@ -26,11 +26,14 @@ let lang = localStorage.getItem(STORAGE_KEY) === 'en' ? 'en' : 'de';
 //  Etappe 5: home.js — Wispernde Kate (Kauf, Bett, Braukessel-Rezepte,
 //    Meteor-Nächte). Lokale ZUTAT_NAMES-Kopie entfernt, nutzt seither
 //    dieselben item.*-Schlüssel wie npc.js.
-//  Etappe 6+: die übrigen Gameplay-Dateien (wilderer.js, silberhain.js,
-//    schattenfeste.js, wand.js, mount.js, hallows.js, collectibles.js,
-//    companion.js, puzzles.js, dark.js, voldemort.js, animagus.js,
-//    schwarzwasser.js, unicorn.js, aschenklamm.js, frostzinnen.js, ...)
-//    einzeln, absteigend nach String-Anzahl.
+//  Etappe 6: wilderer.js — Lager (Käfig-Befreien/Ernten, Anführer-Truhe),
+//    Duellring (Fechtmeisterin Ondra). Neuer wilderer.creature.*-Namensraum
+//    für die 4 gefangenen Kreaturen-Arten.
+//  Etappe 7+: die übrigen Gameplay-Dateien (silberhain.js, schattenfeste.js,
+//    wand.js, mount.js, hallows.js, collectibles.js, companion.js,
+//    puzzles.js, dark.js, voldemort.js, animagus.js, schwarzwasser.js,
+//    unicorn.js, aschenklamm.js, frostzinnen.js, ...) einzeln, absteigend
+//    nach String-Anzahl.
 const DICT = {
   de: {
     'menu.subtitle': 'Ein begehbares 3D-Schloss · Fan-Projekt',
@@ -434,6 +437,36 @@ const DICT = {
     'home.toastMeteorNight': '🌠 Eine Sternschnuppennacht! Irgendwo landeten Sternsplitter …',
     'home.toastSplitterFound': '✨ Sternsplitter gefunden ({n}× im Vorrat)',
     'home.toastPotionFading': 'Die Wirkung des Trankes lässt nach.',
+    // i18n Etappe 6: wilderer.js — Lager (Käfig-Befreien/Ernten,
+    // Anführer-Truhe), Duellring (Fechtmeisterin Ondra). "Ondra" bleibt als
+    // Eigenname unübersetzt (Muster Lena/Barnaby/Fero), ihr Talk-Prompt nutzt
+    // dasselbe generische npc.promptTalkWith wie dort.
+    'wilderer.creature.hase': 'Der Hase',
+    'wilderer.creature.fuchs': 'Der Fuchs',
+    'wilderer.creature.niffler': 'Der Niffler',
+    'wilderer.creature.bowtruckle': 'Der Bowtruckle',
+    'wilderer.creature.fallback': 'Die Kreatur',
+    'wilderer.toastLeaderRumor': '🏴 Gerüchte erzählen von einem Wilderer-Anführer, der sich in Fahlholz verkrochen hat …',
+    'wilderer.promptSearchChest': 'E — Die Truhe durchsuchen (lautlos!)',
+    'wilderer.toastBusted': '⚠️ Entdeckt! Der Anführer schlägt Alarm — versuch es morgen Nacht wieder.',
+    'wilderer.toastCloakStolen': '🧥 Der Umhang der Unsichtbarkeit! Lautlos erbeutet. (Taste U)',
+    'wilderer.promptHarvest': 'E — Essenz ernten',
+    'wilderer.promptFreeCage': 'E — Käfig öffnen',
+    'wilderer.toastHarvested': '🖤 Essenz geerntet — die Kreatur vergeht zu Schatten. (+3 Dunkle Essenz, −5 Ruf)',
+    'wilderer.toastFreed': '✨ {name} hüpft davon! (+15 Gold, +5 Ruf)',
+    'wilderer.ondra.duelActive': 'Wir sind mitten im Duell — konzentrier dich!',
+    'wilderer.ondra.notInHours': 'Der Ring ruht. Komm zwischen 10 und 16 Uhr wieder, wenn du dich messen willst.',
+    'wilderer.ondra.notEnoughGold': 'Zehn Gold Einsatz, fair und ehrlich. Du hast nicht genug.',
+    'wilderer.ondra.noCloak': 'Ich sehe alles, oder gar nichts — nimm den Umhang ab, dann reden wir.',
+    'wilderer.ondra.again': 'Bereit für eine weitere Runde? Zehn Gold Einsatz.',
+    'wilderer.ondra.intro1': 'Ondra, Fechtmeisterin von Eulenbrück. Zehn Gold Einsatz, ein faires Duell.',
+    'wilderer.ondra.intro2': 'Kein Umhang im Ring — ich sehe alles, oder gar nichts.',
+    'wilderer.toastRingCall3': 'Der Ring ruft — 3…',
+    'wilderer.toastCount2': '2…',
+    'wilderer.toastCount1': '1…',
+    'wilderer.toastFight': 'Kämpft! ⚔️',
+    'wilderer.toastDuelWon': '⚔️ Duell gewonnen! +20 Gold, +3 Ruf (Serie: {n})',
+    'wilderer.toastDuelLost': 'Das Duell ist verloren … Ondra nickt trotzdem anerkennend.',
   },
   en: {
     'menu.subtitle': 'A walkable 3D castle · fan project',
@@ -819,6 +852,32 @@ const DICT = {
     'home.toastMeteorNight': '🌠 A shooting star night! Star shards landed somewhere …',
     'home.toastSplitterFound': '✨ Star shard found ({n}× in stock)',
     'home.toastPotionFading': 'The potion is wearing off.',
+    'wilderer.creature.hase': 'The Hare',
+    'wilderer.creature.fuchs': 'The Fox',
+    'wilderer.creature.niffler': 'The Niffler',
+    'wilderer.creature.bowtruckle': 'The Bowtruckle',
+    'wilderer.creature.fallback': 'The creature',
+    'wilderer.toastLeaderRumor': '🏴 Rumors speak of a poacher leader who has holed up in Fahlholz …',
+    'wilderer.promptSearchChest': 'E — Search the chest (quietly!)',
+    'wilderer.toastBusted': '⚠️ Caught! The leader raises the alarm — try again tomorrow night.',
+    'wilderer.toastCloakStolen': '🧥 The Invisibility Cloak! Stolen without a sound. (Press U)',
+    'wilderer.promptHarvest': 'E — Harvest essence',
+    'wilderer.promptFreeCage': 'E — Open cage',
+    'wilderer.toastHarvested': '🖤 Essence harvested — the creature fades into shadow. (+3 Dark Essence, −5 reputation)',
+    'wilderer.toastFreed': '✨ {name} hops away! (+15 gold, +5 reputation)',
+    'wilderer.ondra.duelActive': "We're in the middle of a duel — focus!",
+    'wilderer.ondra.notInHours': "The ring is resting. Come back between 10am and 4pm if you want to test your skill.",
+    'wilderer.ondra.notEnoughGold': "Ten gold to enter, fair and honest. You don't have enough.",
+    'wilderer.ondra.noCloak': "I see everything, or nothing at all — take off the cloak, then we'll talk.",
+    'wilderer.ondra.again': 'Ready for another round? Ten gold to enter.',
+    'wilderer.ondra.intro1': 'Ondra, Duel Mistress of Owlbridge. Ten gold to enter, a fair duel.',
+    'wilderer.ondra.intro2': 'No cloaks in the ring — I see everything, or nothing at all.',
+    'wilderer.toastRingCall3': 'The ring calls — 3…',
+    'wilderer.toastCount2': '2…',
+    'wilderer.toastCount1': '1…',
+    'wilderer.toastFight': 'Fight! ⚔️',
+    'wilderer.toastDuelWon': '⚔️ Duel won! +20 gold, +3 reputation (streak: {n})',
+    'wilderer.toastDuelLost': 'The duel is lost … Ondra nods approvingly anyway.',
   },
 };
 

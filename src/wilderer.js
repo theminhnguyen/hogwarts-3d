@@ -12,6 +12,7 @@ import { getMaterials } from './materials.js';
 import { buildFigure, animateFigure, setFigureOpacity } from './npc.js';
 import { buildRabbitModel, buildFoxModel, buildNifflerModel, buildBowtruckleModel } from './fauna.js';
 import { IMPERIO_DUR, IMPERIO_DAZE_DUR } from './creatures.js';
+import { t } from './i18n.js';
 
 const IMPERIO_POKE_RANGE = 6;
 const IMPERIO_POKE_INTERVAL = 1;
@@ -74,7 +75,6 @@ const DAWN_LOW = 0.35; // Schwelle "wieder Tag" — dieselbe wie Student/Ghost-F
 
 const CLOAK_COLORS = [0x2e2a24, 0x3a2e28, 0x28302c];
 const CAGED_KINDS = ['hase', 'fuchs', 'niffler', 'bowtruckle'];
-const CAGED_NAMES = { hase: 'Der Hase', fuchs: 'Der Fuchs', niffler: 'Der Niffler', bowtruckle: 'Der Bowtruckle' };
 const CAGED_BUILDERS = { hase: buildRabbitModel, fuchs: buildFoxModel, niffler: buildNifflerModel, bowtruckle: buildBowtruckleModel };
 
 function rand(a, b) { return a + Math.random() * (b - a); }
@@ -593,17 +593,17 @@ export function buildWilderer(scene, glowTex, hud, audio, fx, health, interact, 
     // zählt der Ungeräumt-Timer zwar mit, löst aber noch nichts aus.
     if (!hallowsUnlocked?.()) return;
     leaderSpawned = true;
-    hud.showToast('🏴 Gerüchte erzählen von einem Wilderer-Anführer, der sich in Fahlholz verkrochen hat …', 4.5);
+    hud.showToast(t('wilderer.toastLeaderRumor'), 4.5);
   }
 
   const leaderChestEntry = interact.register({
     x: LEADER_POS.x, z: LEADER_POS.z + 1.8, r: 2, enabled: false,
-    prompt: 'E — Die Truhe durchsuchen (lautlos!)',
+    get prompt() { return t('wilderer.promptSearchChest'); },
     onInteract: () => {
       if (!leaderSpawned || leaderResolved || leaderBusted) return;
       if (leaderGuard.sees(currentPlayer, true)) {
         leaderBusted = true;
-        hud.showToast('⚠️ Entdeckt! Der Anführer schlägt Alarm — versuch es morgen Nacht wieder.', 3.5);
+        hud.showToast(t('wilderer.toastBusted'), 3.5);
         audio.wildererSurrender?.();
         return;
       }
@@ -613,7 +613,7 @@ export function buildWilderer(scene, glowTex, hud, audio, fx, health, interact, 
       leaderGuard.group.visible = false;
       audio.chime?.('fanfare');
       fx.burst({ x: LEADER_POS.x, y: leaderChestY + 0.6, z: LEADER_POS.z + 1.8 }, 0x2e2a24, 22, 3, { gravity: -1, life: 0.9 });
-      hud.showToast('🧥 Der Umhang der Unsichtbarkeit! Lautlos erbeutet. (Taste U)', 4.5);
+      hud.showToast(t('wilderer.toastCloakStolen'), 4.5);
       spells?.unlockHallowsSpell('umhang', false); // eigener Toast oben, kein zweiter nötig
       onWildChange?.();
     },
@@ -668,7 +668,7 @@ export function buildWilderer(scene, glowTex, hud, audio, fx, health, interact, 
     const entry = interact.register({
       x: site.cagePos.x, z: site.cagePos.z, r: 2.2, enabled: false,
       get prompt() {
-        return dunkel.pfad === 'dunkel' ? 'E — Essenz ernten' : 'E — Käfig öffnen';
+        return t(dunkel.pfad === 'dunkel' ? 'wilderer.promptHarvest' : 'wilderer.promptFreeCage');
       },
       onInteract: () => {
         if (i !== activeCampIdx || campResolved) return;
@@ -681,7 +681,7 @@ export function buildWilderer(scene, glowTex, hud, audio, fx, health, interact, 
           wild.geerntet = (wild.geerntet || 0) + 1;
           fx.burst(site.cagePos, 0x5a2a5a, 20, 3, { gravity: -1, life: 0.8 });
           audio.chime?.();
-          hud.showToast('🖤 Essenz geerntet — die Kreatur vergeht zu Schatten. (+3 Dunkle Essenz, −5 Ruf)', 4);
+          hud.showToast(t('wilderer.toastHarvested'), 4);
           if (caged) { scene.remove(caged.model.group); cagedModels[i] = null; }
         } else {
           economy.addGold(15);
@@ -689,7 +689,8 @@ export function buildWilderer(scene, glowTex, hud, audio, fx, health, interact, 
           wild.befreit = (wild.befreit || 0) + 1;
           audio.chime?.('fanfare');
           fx.burst(site.cagePos, 0xffd98c, 24, 4, { gravity: -2, life: 0.9 });
-          hud.showToast(`✨ ${caged ? CAGED_NAMES[caged.kind] : 'Die Kreatur'} hüpft davon! (+15 Gold, +5 Ruf)`, 4);
+          const name = caged ? t(`wilderer.creature.${caged.kind}`) : t('wilderer.creature.fallback');
+          hud.showToast(t('wilderer.toastFreed', { name }), 4);
           if (caged) caged.releaseT = 0;
         }
         onWildChange?.();
@@ -736,35 +737,35 @@ export function buildWilderer(scene, glowTex, hud, audio, fx, health, interact, 
     winStreak++;
     economy.addGold(20);
     economy.addRuf(3);
-    hud.showToast(`⚔️ Duell gewonnen! +20 Gold, +3 Ruf (Serie: ${winStreak})`, 4);
+    hud.showToast(t('wilderer.toastDuelWon', { n: winStreak }), 4);
     duelActive = false;
   };
 
   const ondraEntry = interact.register({
-    x: DUELLRING_POS.x, z: DUELLRING_POS.z - DUELLRING_R - 1.3, r: 2.4, prompt: 'E — Mit Ondra sprechen',
+    x: DUELLRING_POS.x, z: DUELLRING_POS.z - DUELLRING_R - 1.3, r: 2.4,
+    get prompt() { return t('npc.promptTalkWith', { name: 'Ondra' }); },
     onInteract: () => {
-      if (duelActive) { hud.showDialog('Ondra', ['Wir sind mitten im Duell — konzentrier dich!']); return; }
+      if (duelActive) { hud.showDialog('Ondra', [t('wilderer.ondra.duelActive')]); return; }
       if (!inDuelHours(currentTimeOfDay)) {
-        hud.showDialog('Ondra', ['Der Ring ruht. Komm zwischen 10 und 16 Uhr wieder, wenn du dich messen willst.']);
+        hud.showDialog('Ondra', [t('wilderer.ondra.notInHours')]);
         return;
       }
       if (economy.gold < 10) {
-        hud.showDialog('Ondra', ['Zehn Gold Einsatz, fair und ehrlich. Du hast nicht genug.']);
+        hud.showDialog('Ondra', [t('wilderer.ondra.notEnoughGold')]);
         return;
       }
       // K5 (S10): Duellring verbietet den Umhang der Unsichtbarkeit.
       if (currentPlayer?.invisible) {
-        hud.showDialog('Ondra', ['Ich sehe alles, oder gar nichts — nimm den Umhang ab, dann reden wir.']);
+        hud.showDialog('Ondra', [t('wilderer.ondra.noCloak')]);
         return;
       }
       const lines = ondraGreeted
-        ? [`Bereit für eine weitere Runde? Zehn Gold Einsatz.`]
-        : ['Ondra, Fechtmeisterin von Eulenbrück. Zehn Gold Einsatz, ein faires Duell.',
-           'Kein Umhang im Ring — ich sehe alles, oder gar nichts.'];
+        ? [t('wilderer.ondra.again')]
+        : [t('wilderer.ondra.intro1'), t('wilderer.ondra.intro2')];
       ondraGreeted = true;
       hud.showDialog('Ondra', lines, () => {
         economy.spendGold(10);
-        hud.showToast('Der Ring ruft — 3…', 1);
+        hud.showToast(t('wilderer.toastRingCall3'), 1);
         startDuel();
       });
     },
@@ -885,11 +886,11 @@ export function buildWilderer(scene, glowTex, hud, audio, fx, health, interact, 
       // ---------- Duell ----------
       if (duelStartT >= 0) {
         duelStartT += dt;
-        if (duelStartT > 0.9 && duelStartT - dt <= 0.9) hud.showToast('2…', 1);
-        if (duelStartT > 1.8 && duelStartT - dt <= 1.8) hud.showToast('1…', 1);
+        if (duelStartT > 0.9 && duelStartT - dt <= 0.9) hud.showToast(t('wilderer.toastCount2'), 1);
+        if (duelStartT > 1.8 && duelStartT - dt <= 1.8) hud.showToast(t('wilderer.toastCount1'), 1);
         if (duelStartT >= 2.7) {
           duelStartT = -1;
-          hud.showToast('Kämpft! ⚔️', 1.5);
+          hud.showToast(t('wilderer.toastFight'), 1.5);
           duelist.speedMul = 1 + Math.min(0.3, winStreak * 0.04);
           duelist.activate(DUELLRING_POS.x, DUELLRING_POS.z + DUELLRING_R * 0.5, true);
         }
@@ -901,7 +902,7 @@ export function buildWilderer(scene, glowTex, hud, audio, fx, health, interact, 
         if (health.dead) {
           duelActive = false;
           duelist.deactivate();
-          hud.showToast('Das Duell ist verloren … Ondra nickt trotzdem anerkennend.', 3.5);
+          hud.showToast(t('wilderer.toastDuelLost'), 3.5);
         }
       } else if (duelist.state !== 'inactive' && duelist.state !== 'gone' && !duelActive) {
         duelist.update(dt, player); // Flucht-/Knien-Animation zu Ende laufen lassen
