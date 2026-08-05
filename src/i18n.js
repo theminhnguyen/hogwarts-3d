@@ -63,7 +63,13 @@ let lang = localStorage.getItem(STORAGE_KEY) === 'en' ? 'en' : 'de';
 //    Ringe-Rennen-Toasts), spells.js (dunkler-Pfad-Sperr-Toast für
 //    verbotene Sprüche), dementor.js (Kälte-Immunitäts-Hinweis), hud.js
 //    (Kompass-Himmelsrichtungen N/NO/O/SO/S/SW/W/NW → N/NE/E/SE/S/SW/W/NW).
-//  Etappe 20+: verbleibende Gameplay-Dateien einzeln, absteigend nach
+//  Etappe 20: aschenklamm.js (Drache-Sieg/Tor-frei/Ei-stehlen-Prompt+Toast/
+//    Belohnung, Eigenname „Aschenschwinge" bleibt unübersetzt), village.js
+//    (Ortsschild-Zitat, Kamin-Heilung), moor.js (Laterne-Toast, Warnschild-
+//    Zitat), finale.js (Sternentor-Prompt/Toast), creatures.js (Schnatz-
+//    Diebstahl-Warnung, Troll-Sieg-Toast). Alle 5 Belohnungs-/Titel-Strings
+//    reusen bestehende title.*.name-Schlüssel statt sie zu duplizieren.
+//  Etappe 21+: verbleibende Gameplay-Dateien einzeln, absteigend nach
 //    String-Anzahl — vor jeder neuen Etappe die Kandidatendatei per Read
 //    gegenchecken (Lehre aus Etappe 13: grep-Zahlen können Shader-/
 //    Input-Code zählen).
@@ -725,6 +731,23 @@ const DICT = {
     'hud.compass.sw': 'SW',
     'hud.compass.w': 'W',
     'hud.compass.nw': 'NW',
+
+    // i18n Etappe 20: aschenklamm.js/village.js/moor.js/finale.js/creatures.js —
+    // 5 weitere kleine Dateien gebündelt. Belohnungs-Toasts reusen
+    // title.*.name statt den Titel erneut zu duplizieren.
+    'aschenklamm.toastDragonDefeated': '🐉 Aschenschwinge ist bezwungen! Eine Truhe erscheint …',
+    'aschenklamm.toastGateOpen': '🔥 Das Geröll birst — der Weg zum Drachennest ist frei!',
+    'aschenklamm.eggPrompt': 'E — Das Drachenei stehlen',
+    'aschenklamm.toastEggStolen': '🥚 Du stiehlst das Drachenei! Ein ohrenbetäubender Schrei hallt durch die Klamm …',
+    'aschenklamm.toastReward': '❤️ Herz-Upgrade! · 🐲 3× Drachenschuppe · Titel „{title}" errungen!',
+    'village.toastSign': '„Willkommen in {place} — Rast, Reisende, hier gibt es warmen Kessel und ein Bett."',
+    'village.toastKaminHeal': 'Du wärmst dich am Kamin. ♥ voll!',
+    'moor.toastLanterneCollected': '🏮 Die Silberne Seelenlaterne ist dein! Das Moor wird heller.',
+    'moor.toastSign': '„Hier endet der Schutz des Schlosses. Was hier friert, friert von innen.“',
+    'finale.gatePrompt': 'E — Das Sternentor betreten',
+    'finale.toastOpened': '🌟 Das Sternentor öffnet sich! +100 Gold · +25 Ruf · Titel „{title}" errungen!',
+    'creatures.toastSnitchStolen': '⚡ Ein Wichtel hat einen Schnatz geklaut! Hol ihn dir zurück!',
+    'creatures.toastTrollDefeated': 'Der Troll ist besiegt! Eine Truhe erscheint … 🧌',
   },
   en: {
     'menu.subtitle': 'A walkable 3D castle · fan project',
@@ -1318,6 +1341,20 @@ const DICT = {
     'hud.compass.sw': 'SW',
     'hud.compass.w': 'W',
     'hud.compass.nw': 'NW',
+
+    'aschenklamm.toastDragonDefeated': '🐉 Aschenschwinge is defeated! A chest appears …',
+    'aschenklamm.toastGateOpen': '🔥 The rubble bursts open — the way to the dragon nest is clear!',
+    'aschenklamm.eggPrompt': 'E — Steal the dragon egg',
+    'aschenklamm.toastEggStolen': '🥚 You steal the dragon egg! An ear-splitting screech echoes through the gorge …',
+    'aschenklamm.toastReward': '❤️ Heart upgrade! · 🐲 3× dragon scale · title "{title}" earned!',
+    'village.toastSign': '"Welcome to {place} — rest, travelers, there\'s a warm kettle and a bed here."',
+    'village.toastKaminHeal': 'You warm yourself by the fireplace. ♥ full!',
+    'moor.toastLanterneCollected': '🏮 The Silver Soul Lantern is yours! The marsh grows brighter.',
+    'moor.toastSign': '"The castle\'s protection ends here. What freezes here, freezes from within."',
+    'finale.gatePrompt': 'E — Enter the Star Gate',
+    'finale.toastOpened': '🌟 The Star Gate opens! +100 gold · +25 reputation · title "{title}" earned!',
+    'creatures.toastSnitchStolen': '⚡ A pixie stole a snitch! Get it back!',
+    'creatures.toastTrollDefeated': 'The troll is defeated! A chest appears … 🧌',
   },
 };
 

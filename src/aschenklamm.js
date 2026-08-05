@@ -25,6 +25,7 @@ import * as THREE from 'three';
 import { GeoBatch, addBoxBlocker, addCircleBlocker } from './geo.js';
 import { terrainHeight, ASCHENKLAMM } from './terrain.js';
 import { attachRimLight } from './model.js';
+import { t } from './i18n.js';
 
 const C = { x: ASCHENKLAMM.x, z: ASCHENKLAMM.z };
 
@@ -304,7 +305,7 @@ class Dragon {
     this.vulnGlow.material.opacity = 0;
     this.system.fx.burst(this.pos, 0xffb060, 50, 6, { gravity: -1, life: 1.2 });
     this.system.audio.chime?.('fanfare');
-    this.system.hud?.showToast('🐉 Aschenschwinge ist bezwungen! Eine Truhe erscheint …', 4);
+    this.system.hud?.showToast(t('aschenklamm.toastDragonDefeated'), 4);
   }
 
   _breatheFire(player) {
@@ -612,7 +613,7 @@ export function buildAschenklamm(root, deps) {
     gateOpened = true;
     decor.gateBlocker.disabled = true;
     audio.puzzleRumble?.(1.6);
-    hud.showToast('🔥 Das Geröll birst — der Weg zum Drachennest ist frei!', 3);
+    hud.showToast(t('aschenklamm.toastGateOpen'), 3);
   }
 
   decor.runeBraziers.forEach((r, i) => {
@@ -626,12 +627,12 @@ export function buildAschenklamm(root, deps) {
   interact.register({
     x: NEST.x, z: NEST.z, r: 1.9,
     get enabled() { return gateOpened && !aschenklamm.eggStolen; },
-    prompt: 'E — Das Drachenei stehlen',
+    get prompt() { return t('aschenklamm.eggPrompt'); },
     onInteract: () => {
       aschenklamm.eggStolen = 1;
       decor.egg.visible = false;
       decor.eggGlow.visible = false;
-      hud.showToast('🥚 Du stiehlst das Drachenei! Ein ohrenbetäubender Schrei hallt durch die Klamm …', 4.5);
+      hud.showToast(t('aschenklamm.toastEggStolen'), 4.5);
       dragon.wake();
       onChange?.();
     },
@@ -685,7 +686,7 @@ export function buildAschenklamm(root, deps) {
     aschenklamm.dragonDefeated = 1;
     aschenklamm.chestCollected = 1;
     siegel.drache = 1;
-    hud.showToast('❤️ Herz-Upgrade! · 🐲 3× Drachenschuppe · Titel „Drachenbezwinger" errungen!', 5);
+    hud.showToast(t('aschenklamm.toastReward', { title: t('title.drache.name') }), 5);
     onChange?.();
   };
 

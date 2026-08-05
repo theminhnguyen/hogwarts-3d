@@ -9,6 +9,7 @@ import { GeoBatch } from './geo.js';
 import { terrainHeight, GROVE } from './terrain.js';
 import { mulberry32 } from './noise.js';
 import { buildLimbChain, attachRimLight } from './model.js';
+import { t } from './i18n.js';
 
 const TUNING = {
   pixie: {
@@ -492,7 +493,7 @@ class Pixie {
         item.carriedBy = this;
         if (!this.system._theftToastShown) {
           this.system._theftToastShown = true;
-          this.system.hud?.showToast('⚡ Ein Wichtel hat einen Schnatz geklaut! Hol ihn dir zurück!', 4);
+          this.system.hud?.showToast(t('creatures.toastSnitchStolen'), 4);
         }
         break;
       }
@@ -965,7 +966,7 @@ class Troll {
     this.stateT = 0;
     this.system.fx.burst(this.pos, 0x8a9878, 40, 6, { gravity: -2, life: 1.0 });
     this.system.audio.chime?.();
-    this.system.hud?.showToast('Der Troll ist besiegt! Eine Truhe erscheint … 🧌', 3.5);
+    this.system.hud?.showToast(t('creatures.toastTrollDefeated'), 3.5);
   }
 
   update(dt, player) {

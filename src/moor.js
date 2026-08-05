@@ -9,6 +9,7 @@ import { terrainHeight, MOOR } from './terrain.js';
 import { smoothstep, mulberry32, lerp } from './noise.js';
 import { getMaterials } from './materials.js';
 import { makeCloudTexture } from './textures.js';
+import { t } from './i18n.js';
 
 const SIGN_POS = { x: 195, z: -143 }; // am Wegknick, knapp am Moor-Kernrand
 const CRYPT = { x: MOOR.x, z: MOOR.z };
@@ -450,7 +451,7 @@ export function buildMoor(scene, glowTex, hud, audio, fx) {
         this._lantern = null;
         this.laterneCollected = true;
         this.fogOpacityMul = 0.6;
-        hud?.showToast('🏮 Die Silberne Seelenlaterne ist dein! Das Moor wird heller.', 4.5);
+        hud?.showToast(t('moor.toastLanterneCollected'), 4.5);
         return;
       }
       const target = { x: player.pos.x, y: player.pos.y + 1.5, z: player.pos.z };
@@ -470,7 +471,7 @@ export function buildMoor(scene, glowTex, hud, audio, fx) {
         const dx = player.pos.x - SIGN_POS.x, dz = player.pos.z - SIGN_POS.z;
         if (dx * dx + dz * dz < 25) {
           this.signSeen = true;
-          hud?.showToast('„Hier endet der Schutz des Schlosses. Was hier friert, friert von innen.“', 4.5);
+          hud?.showToast(t('moor.toastSign'), 4.5);
         }
       }
       if (player) {

@@ -14,6 +14,7 @@ import { terrainHeight } from './terrain.js';
 import { GeoBatch } from './geo.js';
 import { getMaterials } from './materials.js';
 import { addCircleBlocker } from './geo.js';
+import { t } from './i18n.js';
 
 // (40,-60): offene Wiese knapp außerhalb des dichten Innenhofs (dessen
 // Mauern/Türme laut castle.js grob x∈[-40,40], z∈[-55,46] belegen) — beim
@@ -66,7 +67,7 @@ export function buildFinale(scene, glowTex, hud, audio, fx, economy, interact, d
   const entry = interact.register({
     x: GATE_POS.x, z: GATE_POS.z, r: GATE_R,
     get enabled() { return !claimed && litCount() === 4; },
-    prompt: 'E — Das Sternentor betreten',
+    get prompt() { return t('finale.gatePrompt'); },
     onInteract: () => {
       if (claimed || litCount() !== 4) return;
       claimed = true;
@@ -85,7 +86,7 @@ export function buildFinale(scene, glowTex, hud, audio, fx, economy, interact, d
       }
       fx.burst(new THREE.Vector3(GATE_POS.x, y + 1.4, GATE_POS.z), 0x9a6bff, 60, 8, { gravity: -2, life: 1.2, size: 0.4 });
       audio.chime?.('fanfare');
-      hud.showToast('🌟 Das Sternentor öffnet sich! +100 Gold · +25 Ruf · Titel „Hüter der vier Reiche" errungen!', 5.5);
+      hud.showToast(t('finale.toastOpened', { title: t('title.vierReiche.name') }), 5.5);
       onChange?.();
     },
   });

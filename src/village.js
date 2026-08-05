@@ -7,6 +7,7 @@ import { GeoBatch, addBoxBlocker, addCircleBlocker } from './geo.js';
 import { terrainHeight, DORF } from './terrain.js';
 import { mulberry32 } from './noise.js';
 import { getMaterials } from './materials.js';
+import { t } from './i18n.js';
 
 const PLASTER = 0xe8ddc0;
 const WOOD_FRAME = 0x5c4530;
@@ -282,7 +283,7 @@ export function buildVillage(scene, glowTex, hud, audio, health, fx) {
         const dx = player.pos.x - SIGN_POS.x, dz = player.pos.z - SIGN_POS.z;
         if (dx * dx + dz * dz < 25) {
           this.signSeen = true;
-          hud?.showToast('„Willkommen in Eulenbrück — Rast, Reisende, hier gibt es warmen Kessel und ein Bett."', 4.5);
+          hud?.showToast(t('village.toastSign', { place: t('mm.landmark.eulenbruecke') }), 4.5);
         }
       }
 
@@ -295,7 +296,7 @@ export function buildVillage(scene, glowTex, hud, audio, health, fx) {
           hud?.setHearts(health.hearts, health.maxHearts);
           fx?.burst({ x: player.pos.x, y: player.pos.y + 1, z: player.pos.z }, 0xff9a3c, 20, 3, { gravity: -2, life: 0.9 });
           audio?.chime?.();
-          hud?.showToast('Du wärmst dich am Kamin. ♥ voll!', 2.5);
+          hud?.showToast(t('village.toastKaminHeal'), 2.5);
         }
       }
     },
