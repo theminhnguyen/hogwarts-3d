@@ -41,10 +41,11 @@ let lang = localStorage.getItem(STORAGE_KEY) === 'en' ? 'en' : 'de';
 //    Getter, kanonische Latein-Beschwörungen bleiben unübersetzt.
 //  Etappe 11: mount.js — Hippogreif-Zähm-Choreografie, Thestral-Zähm-
 //    Prompt/Toast, gemeinsamer Aufsteigen/Absteigen/Abheben/Drinnen-Flow.
-//  Etappe 12+: die übrigen Gameplay-Dateien (hallows.js, materials.js,
-//    schwarzwasser.js, player.js, companion.js, voldemort.js,
-//    collectibles.js, animagus.js, dark.js, ...) einzeln, absteigend nach
-//    String-Anzahl.
+//  Etappe 12: hallows.js — Bleicher-König-Toasts, Stein-der-Wiederkehr-
+//    Prompt/Toasts, Podest-An/Ablegen (nutzt wand.spell.*), Umhang-Toasts.
+//  Etappe 13+: die übrigen Gameplay-Dateien (materials.js, schwarzwasser.js,
+//    player.js, companion.js, voldemort.js, collectibles.js, animagus.js,
+//    dark.js, ...) einzeln, absteigend nach String-Anzahl.
 const DICT = {
   de: {
     'menu.subtitle': 'Ein begehbares 3D-Schloss · Fan-Projekt',
@@ -569,6 +570,24 @@ const DICT = {
     'mount.toastDismounted': 'Abgestiegen.',
     'mount.toastTakeoff': '🕊️ Abgehoben!',
     'mount.toastIndoors': 'Hier drinnen hört dich niemand … geh nach draußen.',
+
+    // i18n Etappe 12: hallows.js — Bleicher-König-Toasts, Stein-der-
+    // Wiederkehr-Prompt/Toasts, Podest-An/Ablegen (nutzt wand.spell.stab/
+    // umhang/stein aus Etappe 10 statt eigener Namenstabelle), Umhang-
+    // Unsichtbarkeit-Toasts.
+    'hallows.king.toastDefeated': '🪄 Der Bleiche König verneigt sich — „Endlich einer, der würdig ist." Der Elderstab gehört dir!',
+    'hallows.king.toastSummonGhosts': '👻 Der Bleiche König beschwört Schattengeister!',
+    'hallows.king.toastMidnight': '🪦 Um Mitternacht öffnet sich die Steinplatte am Hügelgrab …',
+    'hallows.stone.prompt': 'E — Den Stein der Wiederkehr bergen',
+    'hallows.stone.toastFound': '💎 Der Stein der Wiederkehr! Bei 0 Herzen holt er dich einmal pro Tag zurück.',
+    'hallows.stone.toastRevive': '💎 Der Stein der Wiederkehr holt dich zurück — an Ort und Stelle, volle Herzen!',
+    'hallows.podium.promptUnequip': 'E — {name} ablegen (Effekt aus)',
+    'hallows.podium.promptEquip': 'E — {name} aufnehmen (Effekt an)',
+    'hallows.podium.toastEquipped': '{name} wieder angelegt.',
+    'hallows.podium.toastUnequipped': '{name} abgelegt — Effekt pausiert.',
+    'hallows.cloak.toastMissing': 'Du besitzt den Umhang der Unsichtbarkeit noch nicht.',
+    'hallows.cloak.toastOn': '🧥 Unsichtbar.',
+    'hallows.cloak.toastOff': '🧥 Wieder sichtbar.',
   },
   en: {
     'menu.subtitle': 'A walkable 3D castle · fan project',
@@ -1055,6 +1074,20 @@ const DICT = {
     'mount.toastDismounted': 'Dismounted.',
     'mount.toastTakeoff': '🕊️ Took off!',
     'mount.toastIndoors': 'No one can hear you in here … go outside.',
+
+    'hallows.king.toastDefeated': '🪄 The Pale King bows — "Finally, one who is worthy." The Elder Wand is yours!',
+    'hallows.king.toastSummonGhosts': '👻 The Pale King summons shadow ghosts!',
+    'hallows.king.toastMidnight': '🪦 At midnight, the stone slab at the Barrow opens …',
+    'hallows.stone.prompt': 'E — Retrieve the Resurrection Stone',
+    'hallows.stone.toastFound': '💎 The Resurrection Stone! At 0 hearts, it brings you back once per day.',
+    'hallows.stone.toastRevive': '💎 The Resurrection Stone brings you back — right where you stood, full hearts!',
+    'hallows.podium.promptUnequip': 'E — Remove {name} (effect off)',
+    'hallows.podium.promptEquip': 'E — Take up {name} (effect on)',
+    'hallows.podium.toastEquipped': '{name} equipped again.',
+    'hallows.podium.toastUnequipped': '{name} put down — effect paused.',
+    'hallows.cloak.toastMissing': "You don't own the Invisibility Cloak yet.",
+    'hallows.cloak.toastOn': '🧥 Invisible.',
+    'hallows.cloak.toastOff': '🧥 Visible again.',
   },
 };
 

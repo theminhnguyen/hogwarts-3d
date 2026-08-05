@@ -11,6 +11,7 @@
 import * as THREE from 'three';
 import { terrainHeight, LAKE, HUEGELGRAB } from './terrain.js';
 import { buildGhostParts, Ghost } from './creatures.js';
+import { t } from './i18n.js';
 
 const KING_ARENA_R = 14;
 const KING_HITS_TO_WIN = 10;
@@ -284,7 +285,7 @@ export function buildHallows(scene, glowTex, hud, audio, fx, health, interact, h
   king.onDefeated = () => {
     hallows.stab = 1;
     active.stab = true;
-    hud.showToast('🪄 Der Bleiche König verneigt sich — „Endlich einer, der würdig ist." Der Elderstab gehört dir!', 5);
+    hud.showToast(t('hallows.king.toastDefeated'), 5);
     audio.chime?.('fanfare');
     fx.burst({ x: king.pos.x, y: king.pos.y + 1, z: king.pos.z }, 0xffe27a, 40, 5, { gravity: -2, life: 1.1 });
     spells?.unlockHallowsSpell('stab', false); // eigener Toast oben, kein zweiter nötig
@@ -297,7 +298,7 @@ export function buildHallows(scene, glowTex, hud, audio, fx, health, interact, h
       g.homePos.z = pos.z + (Math.random() - 0.5) * 4;
       g._activate();
     }
-    hud.showToast('👻 Der Bleiche König beschwört Schattengeister!', 2.5);
+    hud.showToast(t('hallows.king.toastSummonGhosts'), 2.5);
   };
   // 2 echte Ghost-Instanzen (creatures.js-Export) für Phase 2 — reines
   // system-Shim mit den Feldern, die Ghost.update()/applyHit() lesen.
@@ -369,14 +370,14 @@ export function buildHallows(scene, glowTex, hud, audio, fx, health, interact, h
   interact.register({
     x: STONE_POS.x, z: STONE_POS.z, r: STONE_PICKUP_R,
     get enabled() { return hallowsUnlocked() && !hallows.stein && currentPlayer?.diving; },
-    prompt: 'E — Den Stein der Wiederkehr bergen',
+    get prompt() { return t('hallows.stone.prompt'); },
     onInteract: () => {
       hallows.stein = 1;
       active.stein = true;
       stoneMesh.visible = false;
       stoneGlow.visible = false;
       stoneLight.intensity = 0;
-      hud.showToast('💎 Der Stein der Wiederkehr! Bei 0 Herzen holt er dich einmal pro Tag zurück.', 4.5);
+      hud.showToast(t('hallows.stone.toastFound'), 4.5);
       audio.chime?.('fanfare');
       fx.burst(stoneMesh.position, 0x9fc8ff, 24, 3, { gravity: -0.5, life: 1.0 });
       spells?.unlockHallowsSpell('stein', false); // eigener Toast oben, kein zweiter nötig
@@ -394,7 +395,7 @@ export function buildHallows(scene, glowTex, hud, audio, fx, health, interact, h
     health.iFrameT = 1.2;
     audio.chime?.('fanfare');
     fx.burst(currentPlayer.pos, 0x9fc8ff, 40, 4, { gravity: -1, life: 1.2 });
-    hud.showToast('💎 Der Stein der Wiederkehr holt dich zurück — an Ort und Stelle, volle Herzen!', 4);
+    hud.showToast(t('hallows.stone.toastRevive'), 4);
     onSeenDeath?.();
     return true;
   };
@@ -408,7 +409,6 @@ export function buildHallows(scene, glowTex, hud, audio, fx, health, interact, h
   // Default-Zustand).
   const active = { stab: true, umhang: true, stein: true };
   const ICON_COLOR = { stab: 0xd4c060, umhang: 0x3a3226, stein: 0x9fc8ff };
-  const NAMES = { stab: 'Elderstab', umhang: 'Umhang der Unsichtbarkeit', stein: 'Stein der Wiederkehr' };
   const podiumIcons = {};
   for (const p of home.podeste) {
     const mat = new THREE.SpriteMaterial({
@@ -424,11 +424,13 @@ export function buildHallows(scene, glowTex, hud, audio, fx, health, interact, h
       x: p.x, z: p.z, r: 1.2,
       get enabled() { return !!hallows[p.id]; },
       get prompt() {
-        return active[p.id] ? `E — ${NAMES[p.id]} ablegen (Effekt aus)` : `E — ${NAMES[p.id]} aufnehmen (Effekt an)`;
+        const name = t('wand.spell.' + p.id);
+        return active[p.id] ? t('hallows.podium.promptUnequip', { name }) : t('hallows.podium.promptEquip', { name });
       },
       onInteract: () => {
         active[p.id] = !active[p.id];
-        hud.showToast(active[p.id] ? `${NAMES[p.id]} wieder angelegt.` : `${NAMES[p.id]} abgelegt — Effekt pausiert.`, 2.2);
+        const name = t('wand.spell.' + p.id);
+        hud.showToast(active[p.id] ? t('hallows.podium.toastEquipped', { name }) : t('hallows.podium.toastUnequipped', { name }), 2.2);
         audio.chime?.();
       },
     });
@@ -458,11 +460,11 @@ export function buildHallows(scene, glowTex, hud, audio, fx, health, interact, h
 
     toggleInvisibility(player) {
       if (!hallows.umhang || !active.umhang) {
-        hud.showToast('Du besitzt den Umhang der Unsichtbarkeit noch nicht.', 2.2);
+        hud.showToast(t('hallows.cloak.toastMissing'), 2.2);
         return;
       }
       player.invisible = !player.invisible;
-      hud.showToast(player.invisible ? '🧥 Unsichtbar.' : '🧥 Wieder sichtbar.', 1.8);
+      hud.showToast(player.invisible ? t('hallows.cloak.toastOn') : t('hallows.cloak.toastOff'), 1.8);
       audio.chime?.();
     },
 
@@ -483,7 +485,7 @@ export function buildHallows(scene, glowTex, hud, audio, fx, health, interact, h
       if (hallowsUnlocked() && !hallows.stab && atMidnight && !kingEverRoseToday && king.state === 'sealed') {
         kingEverRoseToday = true;
         slabBlocker.disabled = true;
-        hud.showToast('🪦 Um Mitternacht öffnet sich die Steinplatte am Hügelgrab …', 3.5);
+        hud.showToast(t('hallows.king.toastMidnight'), 3.5);
         audio.chime?.();
         king.rise();
       }
