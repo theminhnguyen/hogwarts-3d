@@ -669,7 +669,7 @@ btnMusic.addEventListener('click', () => {
 
 function persist() {
   const pdata = puzzles ? puzzles.save() : { art: save.art, pz: save.pz };
-  writeSave({
+  const data = {
     collected: collectibles ? collectibles.collectedIds : [],
     art: pdata.art,
     pz: {
@@ -711,7 +711,16 @@ function persist() {
     schwarzwasser: save.schwarzwasser,
     siegel: save.siegel,
     lord: save.lord,
-  });
+  };
+  // Bugfix (2026-08-05, Nutzerbericht "J-Karte aktualisiert sich nicht"):
+  // writeSave() schrieb bisher NUR in localStorage — das live `save`-Objekt,
+  // das resolveProgress(save) in marauders-map.js jeden Frame liest, blieb
+  // auf dem Stand des letzten Seitenladens eingefroren. Erst ein Reload
+  // (Neuladen der Seite, das loadSave() erneut aufruft) zeigte den echten
+  // Fortschritt. Object.assign spiegelt den frischen Snapshot zurück ins
+  // live-Objekt, BEVOR er persistiert wird.
+  Object.assign(save, data);
+  writeSave(save);
 }
 
 // Spielzustand zentral schalten (Pointer-Lock ODER Fallback ohne Lock)
