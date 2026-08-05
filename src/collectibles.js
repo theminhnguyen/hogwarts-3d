@@ -4,23 +4,24 @@
 import * as THREE from 'three';
 import { terrainHeight, PLATEAU } from './terrain.js';
 import { platformGround } from './geo.js';
+import { t } from './i18n.js';
 
 const GY = PLATEAU.h;
 
 // y: null → Geländehöhe + 1.5; 'platform' → höchste Plattform + 1.5
 const SPOTS = [
-  { id: 'hof', name: 'Am Brunnen im Innenhof', x: 4.5, z: 16, y: GY + 1.5 },
-  { id: 'saal', name: 'Im Großen Saal', x: -31.5, z: 20, y: GY + 1.8 },
-  { id: 'astro', name: 'Am Astronomieturm', x: 0, z: -80, y: null },
-  { id: 'viadukt', name: 'Auf dem Viadukt', x: 0, z: 94, y: 'platform' },
-  { id: 'schlucht', name: 'Unten in der Schlucht', x: -24, z: 94, y: null },
-  { id: 'steg', name: 'Am Bootssteg', x: -112, z: 158, y: 'platform' },
-  { id: 'see', name: 'Am Seeufer', x: -134, z: 186, y: null },
-  { id: 'huette', name: 'Bei Hagrids Kürbissen', x: 134, z: 208, y: null },
-  { id: 'quidditch', name: 'Im Quidditch-Mittelkreis', x: -195, z: 10, y: null },
-  { id: 'steine', name: 'Im Steinkreis', x: 150, z: -95, y: null },
-  { id: 'wald', name: 'Auf der Waldlichtung', x: 95, z: 105, y: null },
-  { id: 'garten', name: 'Im Nordgarten', x: 0, z: -62, y: GY + 1.5 },
+  { id: 'hof', x: 4.5, z: 16, y: GY + 1.5 },
+  { id: 'saal', x: -31.5, z: 20, y: GY + 1.8 },
+  { id: 'astro', x: 0, z: -80, y: null },
+  { id: 'viadukt', x: 0, z: 94, y: 'platform' },
+  { id: 'schlucht', x: -24, z: 94, y: null },
+  { id: 'steg', x: -112, z: 158, y: 'platform' },
+  { id: 'see', x: -134, z: 186, y: null },
+  { id: 'huette', x: 134, z: 208, y: null },
+  { id: 'quidditch', x: -195, z: 10, y: null },
+  { id: 'steine', x: 150, z: -95, y: null },
+  { id: 'wald', x: 95, z: 105, y: null },
+  { id: 'garten', x: 0, z: -62, y: GY + 1.5 },
 ];
 
 export class Collectibles {
@@ -64,7 +65,7 @@ export class Collectibles {
       group.add(glow);
 
       const item = {
-        id: spot.id, name: spot.name, group, wingL, wingR,
+        id: spot.id, get name() { return t('collectibles.spot.' + spot.id); }, group, wingL, wingR,
         baseY: y, phase: Math.random() * Math.PI * 2,
         collected: collectedIds.includes(spot.id),
         carriedBy: null, // von einem Wichtel geklaut? (siehe creatures.js)

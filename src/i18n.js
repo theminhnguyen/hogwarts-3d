@@ -50,10 +50,12 @@ let lang = localStorage.getItem(STORAGE_KEY) === 'en' ? 'en' : 'de';
 //    Wegschicken-Toasts, Grabbels Wilderer-Entwaffnen-Toast.
 //  Etappe 15: voldemort.js — Dunkler-Lord-Boss-Toasts (Phase 2/3/5-Start,
 //    Stein-verbraucht, Phase-1-Stall) + alle 4 Verbannungs-Dialoge.
-//  Etappe 16+: die übrigen Gameplay-Dateien (collectibles.js, animagus.js,
-//    dark.js, ...) einzeln, absteigend nach String-Anzahl — vor jeder neuen
-//    Etappe die Kandidatendatei per Read gegenchecken (Lehre aus Etappe 13:
-//    grep-Zahlen können Shader-/Input-Code zählen).
+//  Etappe 16: collectibles.js — die 12 Schnatz-Fundort-Namen (als get
+//    name()-Getter, gelesen von main.js' Fund-Toast).
+//  Etappe 17+: die übrigen Gameplay-Dateien (animagus.js, dark.js, ...)
+//    einzeln, absteigend nach String-Anzahl — vor jeder neuen Etappe die
+//    Kandidatendatei per Read gegenchecken (Lehre aus Etappe 13: grep-
+//    Zahlen können Shader-/Input-Code zählen).
 const DICT = {
   de: {
     'menu.subtitle': 'Ein begehbares 3D-Schloss · Fan-Projekt',
@@ -640,6 +642,22 @@ const DICT = {
     'voldemort.banishPhase1': 'Ohne Eisblitz durchdringt kein Zauber diesen Schild — lerne ihn am Eisaltar der Frostzinnen.',
     'voldemort.banishPhase2': 'Ohne Expecto Patronum vertreibst du diese Dementoren nie — gewinne zuerst den Hauspokal.',
     'voldemort.banishPhase3': 'Sein Blick durchbohrt dich, solange er dich sieht — nur der Umhang der Unsichtbarkeit lässt dich unbemerkt hinter ihn treten.',
+
+    // i18n Etappe 16: collectibles.js — die 12 Schnatz-Fundort-Namen (via
+    // get name()-Getter, gelesen von main.js' main.toast.snitchFound aus
+    // Etappe 4). Hagrid bleibt als Eigenname unübersetzt.
+    'collectibles.spot.hof': 'Am Brunnen im Innenhof',
+    'collectibles.spot.saal': 'Im Großen Saal',
+    'collectibles.spot.astro': 'Am Astronomieturm',
+    'collectibles.spot.viadukt': 'Auf dem Viadukt',
+    'collectibles.spot.schlucht': 'Unten in der Schlucht',
+    'collectibles.spot.steg': 'Am Bootssteg',
+    'collectibles.spot.see': 'Am Seeufer',
+    'collectibles.spot.huette': 'Bei Hagrids Kürbissen',
+    'collectibles.spot.quidditch': 'Im Quidditch-Mittelkreis',
+    'collectibles.spot.steine': 'Im Steinkreis',
+    'collectibles.spot.wald': 'Auf der Waldlichtung',
+    'collectibles.spot.garten': 'Im Nordgarten',
   },
   en: {
     'menu.subtitle': 'A walkable 3D castle · fan project',
@@ -1172,6 +1190,19 @@ const DICT = {
     'voldemort.banishPhase1': 'Without Ice Blitz no spell pierces this shield — learn it at the ice altar in the Frostspires.',
     'voldemort.banishPhase2': "Without Expecto Patronum you'll never drive off these Dementors — win the House Cup first.",
     'voldemort.banishPhase3': 'His gaze pierces you as long as he can see you — only the Invisibility Cloak lets you slip behind him unnoticed.',
+
+    'collectibles.spot.hof': 'At the Fountain in the Courtyard',
+    'collectibles.spot.saal': 'In the Great Hall',
+    'collectibles.spot.astro': 'At the Astronomy Tower',
+    'collectibles.spot.viadukt': 'On the Viaduct',
+    'collectibles.spot.schlucht': 'Down in the Ravine',
+    'collectibles.spot.steg': 'At the Boat Dock',
+    'collectibles.spot.see': 'At the Lakeshore',
+    'collectibles.spot.huette': "By Hagrid's Pumpkins",
+    'collectibles.spot.quidditch': 'In the Quidditch Center Circle',
+    'collectibles.spot.steine': 'In the Stone Circle',
+    'collectibles.spot.wald': 'In the Forest Clearing',
+    'collectibles.spot.garten': 'In the North Garden',
   },
 };
 
