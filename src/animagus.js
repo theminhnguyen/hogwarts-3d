@@ -9,9 +9,9 @@ import * as THREE from 'three';
 import { terrainHeight, STONES } from './terrain.js';
 import { RAVEN_FLIGHT } from './flight.js';
 import { EYE } from './player.js';
+import { t } from './i18n.js';
 
 export const FORM_ORDER = ['rabe', 'katze', 'wolf'];
-export const FORM_LABEL = { rabe: 'Rabe', katze: 'Katze', wolf: 'Wolf' };
 const FORM_EMOJI = { rabe: '🐦‍⬛', katze: '🐈', wolf: '🐺' };
 
 const CAT_SPEED = 9;
@@ -50,16 +50,16 @@ export function buildAnimagus(scene, glowTex, hud, audio, fx, interact, player, 
   interact.register({
     x: STONES.x, z: STONES.z, r: 4,
     get enabled() { return !animagus.gelernt && heim.trank.id === 'animagus' && heim.trank.restT > 0; },
-    prompt: 'E — Ritual der zweiten Gestalt beginnen',
+    get prompt() { return t('animagus.promptRitual'); },
     onInteract: () => {
       if (weather.state !== 'sturm') {
-        hud.showToast('⛈️ Nur im tosenden Sturm entfaltet der Trank seine Kraft …', 3);
+        hud.showToast(t('animagus.toastNeedStorm'), 3);
         return;
       }
       heim.trank.id = '';
       heim.trank.restT = 0;
       animagus.gelernt = 1;
-      hud.showToast(`⚡ Verwandelt! Du bist jetzt Animagus — Gestalt: ${FORM_LABEL[animagus.form]} (Taste V, im Menü wählbar).`, 5);
+      hud.showToast(t('animagus.toastTransformed', { form: t('animagus.form.' + animagus.form) }), 5);
       audio.ritualChant?.();
       fx.burst({ x: STONES.x, y: markerY, z: STONES.z }, 0x9a6fe0, 34, 4.5, { gravity: -1.5, life: 1.2 });
       fx.shake?.(0.15);
@@ -91,18 +91,18 @@ export function buildAnimagus(scene, glowTex, hud, audio, fx, interact, player, 
 
   function toggleForm() {
     if (!animagus.gelernt) {
-      hud.showToast('Du hast das Ritual der zweiten Gestalt noch nicht vollzogen.', 2.5);
+      hud.showToast(t('animagus.toastRitualMissing'), 2.5);
       return;
     }
     if (player.animalForm) {
       clearForm();
-      hud.showToast('✨ Zurückverwandelt.', 1.6);
+      hud.showToast(t('animagus.toastBackToHuman'), 1.6);
       audio.chime?.();
     } else {
-      if (player.swimming) { hud.showToast('Nicht im Wasser — erst an Land verwandeln.', 2); return; }
-      if (player.flying || player.riding) { hud.showToast('Erst landen/absteigen.', 2); return; }
+      if (player.swimming) { hud.showToast(t('animagus.toastNoWater'), 2); return; }
+      if (player.flying || player.riding) { hud.showToast(t('animagus.toastMustLand'), 2); return; }
       applyForm(animagus.form);
-      hud.showToast(`${FORM_EMOJI[animagus.form]} ${FORM_LABEL[animagus.form]}-Gestalt!`, 1.8);
+      hud.showToast(t('animagus.toastFormActive', { emoji: FORM_EMOJI[animagus.form], form: t('animagus.form.' + animagus.form) }), 1.8);
       audio.chime?.();
     }
   }

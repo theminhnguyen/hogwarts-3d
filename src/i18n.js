@@ -658,6 +658,21 @@ const DICT = {
     'collectibles.spot.steine': 'Im Steinkreis',
     'collectibles.spot.wald': 'Auf der Waldlichtung',
     'collectibles.spot.garten': 'Im Nordgarten',
+
+    // i18n Etappe 17: animagus.js — die 3 Tierform-Namen (Rabe/Katze/Wolf,
+    // ersetzt lokale FORM_LABEL-Tabelle), Ritual-Prompt/Toasts, Verwandeln-
+    // Fehlermeldungen (Wasser/Flug/Ritual fehlt).
+    'animagus.form.rabe': 'Rabe',
+    'animagus.form.katze': 'Katze',
+    'animagus.form.wolf': 'Wolf',
+    'animagus.promptRitual': 'E — Ritual der zweiten Gestalt beginnen',
+    'animagus.toastNeedStorm': '⛈️ Nur im tosenden Sturm entfaltet der Trank seine Kraft …',
+    'animagus.toastTransformed': '⚡ Verwandelt! Du bist jetzt Animagus — Gestalt: {form} (Taste V, im Menü wählbar).',
+    'animagus.toastRitualMissing': 'Du hast das Ritual der zweiten Gestalt noch nicht vollzogen.',
+    'animagus.toastBackToHuman': '✨ Zurückverwandelt.',
+    'animagus.toastNoWater': 'Nicht im Wasser — erst an Land verwandeln.',
+    'animagus.toastMustLand': 'Erst landen/absteigen.',
+    'animagus.toastFormActive': '{emoji} {form}-Gestalt!',
   },
   en: {
     'menu.subtitle': 'A walkable 3D castle · fan project',
@@ -1203,6 +1218,18 @@ const DICT = {
     'collectibles.spot.steine': 'In the Stone Circle',
     'collectibles.spot.wald': 'In the Forest Clearing',
     'collectibles.spot.garten': 'In the North Garden',
+
+    'animagus.form.rabe': 'Raven',
+    'animagus.form.katze': 'Cat',
+    'animagus.form.wolf': 'Wolf',
+    'animagus.promptRitual': 'E — Begin the ritual of the second form',
+    'animagus.toastNeedStorm': '⛈️ Only in a raging storm does the potion unleash its power …',
+    'animagus.toastTransformed': '⚡ Transformed! You are now an Animagus — form: {form} (press V, selectable in the menu).',
+    'animagus.toastRitualMissing': "You haven't performed the ritual of the second form yet.",
+    'animagus.toastBackToHuman': '✨ Transformed back.',
+    'animagus.toastNoWater': 'Not in the water — transform on land first.',
+    'animagus.toastMustLand': 'Land or dismount first.',
+    'animagus.toastFormActive': '{emoji} {form} form!',
   },
 };
 
