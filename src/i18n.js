@@ -46,9 +46,12 @@ let lang = localStorage.getItem(STORAGE_KEY) === 'en' ? 'en' : 'de';
 //  Etappe 13: schwarzwasser.js — Hebel-Rätsel-Toast, Leuchtturmwärter
 //    Alaric (Dialog + Quest-Toasts), Truhen-Belohnungs-Toast. materials.js
 //    und player.js geprüft & übersprungen (kein echter Spielertext).
-//  Etappe 14+: die übrigen Gameplay-Dateien (companion.js, voldemort.js,
-//    collectibles.js, animagus.js, dark.js, ...) einzeln, absteigend nach
-//    String-Anzahl.
+//  Etappe 14: companion.js — Piniva-/Grabbel-Freischalt-Flow, Rufen/
+//    Wegschicken-Toasts, Grabbels Wilderer-Entwaffnen-Toast.
+//  Etappe 15+: die übrigen Gameplay-Dateien (voldemort.js, collectibles.js,
+//    animagus.js, dark.js, ...) einzeln, absteigend nach String-Anzahl —
+//    vor jeder neuen Etappe die Kandidatendatei per Read gegenchecken
+//    (Lehre aus Etappe 13: grep-Zahlen können Shader-/Input-Code zählen).
 const DICT = {
   de: {
     'menu.subtitle': 'Ein begehbares 3D-Schloss · Fan-Projekt',
@@ -607,6 +610,21 @@ const DICT = {
     'schwarzwasser.alaric.intro2': '„Dort unten liegt ein altes Mechanismus-Werk — und etwas Großes wacht darüber."',
     'schwarzwasser.alaric.intro3': '„Löse die Hebel, wenn du dich traust. Dann kann ich das Feuer wieder anzünden."',
     'schwarzwasser.toastChestReward': '❤️ Herz-Upgrade! · 🔱 3× {item} · Titel „Tiefenbezwinger" errungen!',
+
+    // i18n Etappe 14: companion.js — Piniva-Freischalt-Prompt/Toasts,
+    // Grabbel-Freischalt-Prompt/Toast (nutzt npc.notEnoughGold aus Etappe 3),
+    // gemeinsame Rufen/Wegschicken-Toasts, Grabbels Wilderer-Entwaffnen-
+    // Toast. Musch/Piniva/Grabbel bleiben als Eigennamen unübersetzt.
+    'companion.piniva.promptLure': 'E — Piniva mit Frischfisch locken',
+    'companion.piniva.promptNoFish': 'Piniva braucht Frischfisch (bei Fero am Bahnhof kaufen)',
+    'companion.piniva.toastNoFish': 'Du hast keinen Frischfisch dabei.',
+    'companion.piniva.toastJoined': '🦉 Piniva schließt sich dir an! (Taste G ruft/schickt sie weg)',
+    'companion.grabbel.promptFeed': 'E — 5 Gold in Grabbels Loch legen',
+    'companion.grabbel.toastJoined': '💰 Grabbel schnüffelt an dir — er folgt dir jetzt! (Taste G)',
+    'companion.toastFollowing': '{name} folgt dir jetzt.',
+    'companion.toastDismissed': 'Abgeschickt — döst jetzt.',
+    'companion.toastNoneFound': 'Noch keinen Begleiter gefunden.',
+    'companion.grabbel.toastSteal': '💰 Grabbel klaut dem Wilderer den Stab! (3s wehrlos)',
   },
   en: {
     'menu.subtitle': 'A walkable 3D castle · fan project',
@@ -1118,6 +1136,17 @@ const DICT = {
     'schwarzwasser.alaric.intro2': '"Down there lies an old mechanism — and something huge watches over it."',
     'schwarzwasser.alaric.intro3': '"Solve the levers, if you dare. Then I can light the fire again."',
     'schwarzwasser.toastChestReward': '❤️ Heart upgrade! · 🔱 3× {item} · Title "Depth Conqueror" earned!',
+
+    'companion.piniva.promptLure': 'E — Lure Piniva with fresh fish',
+    'companion.piniva.promptNoFish': 'Piniva needs fresh fish (buy from Fero at the station)',
+    'companion.piniva.toastNoFish': "You don't have any fresh fish with you.",
+    'companion.piniva.toastJoined': '🦉 Piniva joins you! (Press G to call/dismiss her)',
+    'companion.grabbel.promptFeed': 'E — Put 5 gold in Grabbel\'s hole',
+    'companion.grabbel.toastJoined': '💰 Grabbel sniffs you over — he follows you now! (Press G)',
+    'companion.toastFollowing': '{name} follows you now.',
+    'companion.toastDismissed': 'Dismissed — dozing now.',
+    'companion.toastNoneFound': 'No companion found yet.',
+    'companion.grabbel.toastSteal': "💰 Grabbel steals the poacher's wand! (defenseless for 3s)",
   },
 };
 

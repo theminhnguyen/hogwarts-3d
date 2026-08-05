@@ -10,6 +10,7 @@ import * as THREE from 'three';
 import { terrainHeight, SILBERAUEN } from './terrain.js';
 import { buildNifflerModel } from './fauna.js';
 import { LENA_POS } from './npc.js';
+import { t } from './i18n.js';
 
 const FOLLOW_STOP = 1.6;
 const FOLLOW_TELEPORT = 25;
@@ -81,15 +82,15 @@ export function buildCompanion(scene, glowTex, hud, audio, fx, interact, economy
     get enabled() { return !begleiter.frei.includes('piniva') && sky_nightGlow() > 0.5; },
     get prompt() {
       return (feroState?.frischfisch || 0) > 0
-        ? 'E — Piniva mit Frischfisch locken'
-        : 'Piniva braucht Frischfisch (bei Fero am Bahnhof kaufen)';
+        ? t('companion.piniva.promptLure')
+        : t('companion.piniva.promptNoFish');
     },
     onInteract: () => {
-      if (!(feroState?.frischfisch > 0)) { hud.showToast('Du hast keinen Frischfisch dabei.', 2.2); return; }
+      if (!(feroState?.frischfisch > 0)) { hud.showToast(t('companion.piniva.toastNoFish'), 2.2); return; }
       feroState.frischfisch--;
       begleiter.frei.push('piniva');
       begleiter.aktiv = 'piniva';
-      hud.showToast('🦉 Piniva schließt sich dir an! (Taste G ruft/schickt sie weg)', 4.5);
+      hud.showToast(t('companion.piniva.toastJoined'), 4.5);
       audio.chime?.('fanfare');
       fx.burst({ x: piniva.group.position.x, y: piniva.group.position.y + 0.5, z: piniva.group.position.z }, 0xffcf6b, 20, 3, { gravity: -1, life: 0.8 });
       summon('piniva');
@@ -111,12 +112,12 @@ export function buildCompanion(scene, glowTex, hud, audio, fx, interact, economy
   interact.register({
     x: GRABBEL_POS.x, z: GRABBEL_POS.z - 0.5, r: 2,
     get enabled() { return !begleiter.frei.includes('grabbel'); },
-    prompt: 'E — 5 Gold in Grabbels Loch legen',
+    get prompt() { return t('companion.grabbel.promptFeed'); },
     onInteract: () => {
-      if (!economy.spendGold(5)) { hud.showToast('Nicht genug Gold.', 2); return; }
+      if (!economy.spendGold(5)) { hud.showToast(t('npc.notEnoughGold'), 2); return; }
       begleiter.frei.push('grabbel');
       begleiter.aktiv = 'grabbel';
-      hud.showToast('💰 Grabbel schnüffelt an dir — er folgt dir jetzt! (Taste G)', 4.5);
+      hud.showToast(t('companion.grabbel.toastJoined'), 4.5);
       audio.chime?.('fanfare');
       fx.burst({ x: hole.position.x, y: hole.position.y + 0.3, z: hole.position.z }, 0xffd54a, 18, 2.5, { gravity: -1, life: 0.7 });
       summon('grabbel');
@@ -150,7 +151,7 @@ export function buildCompanion(scene, glowTex, hud, audio, fx, interact, economy
     if (id === 'musch') npc.setMuschFollowing(true);
     audio.chime?.();
     const NAMES = { musch: 'Musch', piniva: 'Piniva', grabbel: 'Grabbel' };
-    hud.showToast(`${NAMES[id]} folgt dir jetzt.`, 1.8);
+    hud.showToast(t('companion.toastFollowing', { name: NAMES[id] }), 1.8);
   }
 
   function dismiss() {
@@ -164,13 +165,13 @@ export function buildCompanion(scene, glowTex, hud, audio, fx, interact, economy
       const py = p.y ?? terrainHeight(p.x, p.z);
       g.position.set(p.x, py, p.z);
     }
-    hud.showToast('Abgeschickt — döst jetzt.', 1.6);
+    hud.showToast(t('companion.toastDismissed'), 1.6);
   }
 
   function toggle() {
     if (following) { dismiss(); onChange?.(); return; }
     const id = begleiter.aktiv || begleiter.frei[0];
-    if (!id) { hud.showToast('Noch keinen Begleiter gefunden.', 2); return; }
+    if (!id) { hud.showToast(t('companion.toastNoneFound'), 2); return; }
     summon(id);
     onChange?.();
   }
@@ -250,7 +251,7 @@ export function buildCompanion(scene, glowTex, hud, audio, fx, interact, economy
       protectCd = PROTECT_COOLDOWN;
       target.disarm(DISARM_DUR);
       audio.nifflerSteal?.();
-      hud.showToast('💰 Grabbel klaut dem Wilderer den Stab! (3s wehrlos)', 2.5);
+      hud.showToast(t('companion.grabbel.toastSteal'), 2.5);
       fx.burst({ x: target.pos.x, y: target.pos.y + 1, z: target.pos.z }, 0xffd54a, 14, 2.5, { gravity: -1, life: 0.5 });
     } else {
       protectCd = PROTECT_COOLDOWN;
