@@ -52,10 +52,16 @@ let lang = localStorage.getItem(STORAGE_KEY) === 'en' ? 'en' : 'de';
 //    Stein-verbraucht, Phase-1-Stall) + alle 4 Verbannungs-Dialoge.
 //  Etappe 16: collectibles.js — die 12 Schnatz-Fundort-Namen (als get
 //    name()-Getter, gelesen von main.js' Fund-Toast).
-//  Etappe 17+: die übrigen Gameplay-Dateien (animagus.js, dark.js, ...)
-//    einzeln, absteigend nach String-Anzahl — vor jeder neuen Etappe die
-//    Kandidatendatei per Read gegenchecken (Lehre aus Etappe 13: grep-
-//    Zahlen können Shader-/Input-Code zählen).
+//  Etappe 17: animagus.js — die 3 Tierform-Namen (Rabe/Katze/Wolf, ersetzt
+//    lokale FORM_LABEL-Tabelle), Ritual-Prompt/Toasts, Verwandeln-
+//    Fehlermeldungen (Wasser/Flug/Ritual fehlt).
+//  Etappe 18: dark.js — Aschenes Grimoire (Prompt+Dialog, Eigenname
+//    „Morvane der Fahle" bleibt unübersetzt), Ritual-Prompt/Toast,
+//    Läuterungs-Brunnen-Prompt/Toasts, Dunkles-Mal-Beschwörungs-Toast.
+//  Etappe 19+: die übrigen Gameplay-Dateien einzeln, absteigend nach
+//    String-Anzahl — vor jeder neuen Etappe die Kandidatendatei per Read
+//    gegenchecken (Lehre aus Etappe 13: grep-Zahlen können Shader-/
+//    Input-Code zählen).
 const DICT = {
   de: {
     'menu.subtitle': 'Ein begehbares 3D-Schloss · Fan-Projekt',
@@ -673,6 +679,21 @@ const DICT = {
     'animagus.toastNoWater': 'Nicht im Wasser — erst an Land verwandeln.',
     'animagus.toastMustLand': 'Erst landen/absteigen.',
     'animagus.toastFormActive': '{emoji} {form}-Gestalt!',
+
+    // i18n Etappe 18: dark.js — Aschenes Grimoire (Prompt+Dialog, Eigenname
+    // „Morvane der Fahle" bleibt unübersetzt), Ritual-Prompt/Toast,
+    // Läuterungs-Brunnen-Prompt/Toasts, Dunkles-Mal-Beschwörungs-Toast.
+    'dark.book.title': 'Aschenes Grimoire',
+    'dark.book.prompt': 'E — Das Aschene Grimoire aufheben',
+    'dark.book.dialog1': 'Die Seiten sind mit Asche geschwärzt — Morvane der Fahle hat hier einst gelesen.',
+    'dark.book.dialog2': 'Ein dunkler Altar erhebt sich aus dem Boden, sobald du das Buch schließt.',
+    'dark.book.dialog3': 'Das Wissen bleibt dir — ob du ihm folgst, entscheidest du am Altar.',
+    'dark.ritual.prompt': 'E — Das Ritual sprechen',
+    'dark.ritual.toast': '🖤 Du sprichst das Ritual — der dunkle Pfad hat dich angenommen.',
+    'dark.fountain.prompt': 'E — ins Licht zurückkehren',
+    'dark.fountain.needFullHearts': 'Die Läuterung verlangt volle Herzen.',
+    'dark.fountain.toast': '✨ Das Morgenlicht wäscht den Schatten von dir ab. Willkommen zurück.',
+    'dark.mal.toast': '☠️ Das Dunkle Mal steigt in den Himmel … Dementoren driften herbei. (−3 Ruf, 30s)',
   },
   en: {
     'menu.subtitle': 'A walkable 3D castle · fan project',
@@ -1230,6 +1251,18 @@ const DICT = {
     'animagus.toastNoWater': 'Not in the water — transform on land first.',
     'animagus.toastMustLand': 'Land or dismount first.',
     'animagus.toastFormActive': '{emoji} {form} form!',
+
+    'dark.book.title': 'Ashen Grimoire',
+    'dark.book.prompt': 'E — Pick up the Ashen Grimoire',
+    'dark.book.dialog1': 'The pages are blackened with ash — Morvane der Fahle once read here.',
+    'dark.book.dialog2': 'A dark altar rises from the ground as soon as you close the book.',
+    'dark.book.dialog3': 'The knowledge stays with you — whether you follow it is decided at the altar.',
+    'dark.ritual.prompt': 'E — Speak the ritual',
+    'dark.ritual.toast': '🖤 You speak the ritual — the dark path has claimed you.',
+    'dark.fountain.prompt': 'E — return to the light',
+    'dark.fountain.needFullHearts': 'Purification requires full hearts.',
+    'dark.fountain.toast': '✨ The morning light washes the shadow from you. Welcome back.',
+    'dark.mal.toast': '☠️ The Dark Mark rises into the sky … Dementors drift closer. (−3 reputation, 30s)',
   },
 };
 

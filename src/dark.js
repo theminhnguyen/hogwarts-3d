@@ -9,6 +9,7 @@ import * as THREE from 'three';
 import { terrainHeight, GROVE } from './terrain.js';
 import { addCircleBlocker } from './geo.js';
 import { makeDarkMarkTexture } from './textures.js';
+import { t } from './i18n.js';
 
 // Alkoven jenseits des Baumrings (Radius 11-15, siehe grove.js) UND jenseits
 // der beiden zentrumsnahen Netze (Radius ~9) — Winkel 2.5rad frei von beidem
@@ -124,7 +125,7 @@ export function buildDark(scene, glowTex, hud, audio, fx, interact, economy, dep
   const bookEntry = interact.register({
     x: GRIMOIRE_POS.x, z: GRIMOIRE_POS.z, r: 2.2,
     get enabled() { return !dunkel.buch; },
-    prompt: 'E — Das Aschene Grimoire aufheben',
+    get prompt() { return t('dark.book.prompt'); },
     onInteract: () => {
       dunkel.buch = 1;
       bookGlow.visible = false;
@@ -132,10 +133,10 @@ export function buildDark(scene, glowTex, hud, audio, fx, interact, economy, dep
       altarGroup.visible = true;
       updateAltarGlow();
       spells.unlockDarkSpells();
-      hud.showDialog('Aschenes Grimoire', [
-        'Die Seiten sind mit Asche geschwärzt — Morvane der Fahle hat hier einst gelesen.',
-        'Ein dunkler Altar erhebt sich aus dem Boden, sobald du das Buch schließt.',
-        'Das Wissen bleibt dir — ob du ihm folgst, entscheidest du am Altar.',
+      hud.showDialog(t('dark.book.title'), [
+        t('dark.book.dialog1'),
+        t('dark.book.dialog2'),
+        t('dark.book.dialog3'),
       ]);
       audio.ritualChant?.();
       fx.burst({ x: alkoven.position.x, y: alkoven.position.y + 0.7, z: alkoven.position.z }, 0x5aff8a, 22, 3, { gravity: -1, life: 0.9 });
@@ -147,11 +148,11 @@ export function buildDark(scene, glowTex, hud, audio, fx, interact, economy, dep
   interact.register({
     x: GRIMOIRE_POS.x, z: GRIMOIRE_POS.z, r: 2.2,
     get enabled() { return dunkel.buch === 1 && dunkel.pfad === 'hell'; },
-    prompt: 'E — Das Ritual sprechen',
+    get prompt() { return t('dark.ritual.prompt'); },
     onInteract: () => {
       dunkel.pfad = 'dunkel';
       updateAltarGlow();
-      hud.showToast('🖤 Du sprichst das Ritual — der dunkle Pfad hat dich angenommen.', 4.5);
+      hud.showToast(t('dark.ritual.toast'), 4.5);
       audio.ritualChant?.();
       fx.burst({ x: alkoven.position.x, y: alkoven.position.y + 0.7, z: alkoven.position.z }, 0x7a2fd1, 26, 3.5, { gravity: -1, life: 1.0 });
       onChange?.();
@@ -173,15 +174,15 @@ export function buildDark(scene, glowTex, hud, audio, fx, interact, economy, dep
     get enabled() {
       return dunkel.pfad === 'dunkel' && sky.state.nightGlow > DAWN_MIN && sky.state.nightGlow < DAWN_MAX;
     },
-    prompt: 'E — ins Licht zurückkehren',
+    get prompt() { return t('dark.fountain.prompt'); },
     onInteract: () => {
       if (health.hearts < health.effectiveMaxHearts) {
-        hud.showToast('Die Läuterung verlangt volle Herzen.', 2.5);
+        hud.showToast(t('dark.fountain.needFullHearts'), 2.5);
         return;
       }
       dunkel.pfad = 'hell';
       updateAltarGlow();
-      hud.showToast('✨ Das Morgenlicht wäscht den Schatten von dir ab. Willkommen zurück.', 4.5);
+      hud.showToast(t('dark.fountain.toast'), 4.5);
       audio.purifyChime?.();
       fx.burst({ x: FOUNTAIN_POS.x, y: terrainHeight(FOUNTAIN_POS.x, FOUNTAIN_POS.z) + 1.5, z: FOUNTAIN_POS.z }, 0xfff3c0, 26, 3.5, { gravity: -1.5, life: 1.0 });
       onChange?.();
@@ -240,7 +241,7 @@ export function buildDark(scene, glowTex, hud, audio, fx, interact, economy, dep
       markSprite.position.set(px, terrainHeight(px, pz) + MAL_SKY_HEIGHT, pz);
       markSprite.visible = true;
       malSkyT = MAL_SKY_HOLD + MAL_SKY_FADE;
-      hud.showToast('☠️ Das Dunkle Mal steigt in den Himmel … Dementoren driften herbei. (−3 Ruf, 30s)', 4);
+      hud.showToast(t('dark.mal.toast'), 4);
       return true;
     },
     get malCooldown() { return malCdT; },
