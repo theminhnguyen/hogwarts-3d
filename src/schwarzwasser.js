@@ -12,6 +12,7 @@ import * as THREE from 'three';
 import { GeoBatch } from './geo.js';
 import { terrainHeight, SCHWARZWASSER, buildWater } from './terrain.js';
 import { buildFigure, animateFigure } from './npc.js';
+import { t } from './i18n.js';
 
 const C = { x: SCHWARZWASSER.x, z: SCHWARZWASSER.z };
 const LIGHTHOUSE = { x: C.x - 40, z: C.z - 40 };
@@ -427,41 +428,42 @@ export function buildSchwarzwasser(root, deps) {
   function openVault() {
     chest.group.visible = true;
     audio.puzzleRumble?.(1.4);
-    hud.showToast('🔱 Die Mechanik rastet ein — ein Tresor öffnet sich in der Ruine!', 4);
+    hud.showToast(t('schwarzwasser.toastVaultOpen'), 4);
   }
 
   levers.forEach((l, i) => interact.register({
     x: l.x, z: l.z, r: 1.6,
     get enabled() { return !l.lit; },
-    prompt: 'E — Hebel umlegen',
+    get prompt() { return t('schwarzwasser.promptLever'); },
     onInteract: () => activateLever(i),
   }));
 
   interact.register({
-    x: KEEPER_POS.x, z: KEEPER_POS.z, r: 2.4, prompt: 'E — Mit Alaric sprechen',
+    x: KEEPER_POS.x, z: KEEPER_POS.z, r: 2.4,
+    get prompt() { return t('npc.promptTalkWith', { name: 'Alaric' }); },
     onInteract: () => {
       if (schwarzwasser.puzzleSolved && !schwarzwasser.keeperQuestDone) {
         hud.showDialog('Alaric', [
-          'Alaric starrt auf die ruhige Wasseroberfläche — zum ersten Mal seit Jahren.',
-          '„Die Tiefe schweigt … du hast es geschafft." Er zündet mit zitternden Händen das Leuchtfeuer an.',
+          t('schwarzwasser.alaric.questDoneLine1'),
+          t('schwarzwasser.alaric.questDoneLine2'),
         ], () => {
           schwarzwasser.keeperQuestDone = 1;
           lighthouse.beaconLight.intensity = 14;
           lighthouse.beacon.material.opacity = 0.85;
           economy.addRuf(3);
-          hud.showToast('🗼 Das Leuchtfeuer brennt wieder! +3 Ruf', 3);
+          hud.showToast(t('schwarzwasser.toastBeaconLit'), 3);
           onChange?.();
         });
         return;
       }
       if (schwarzwasser.keeperQuestDone) {
-        hud.showDialog('Alaric', ['„Solange das Feuer brennt, fürchte ich die Tiefe nicht mehr. Danke, Fremder."']);
+        hud.showDialog('Alaric', [t('schwarzwasser.alaric.afterQuest')]);
         return;
       }
       hud.showDialog('Alaric', [
-        'Alaric, der Leuchtturmwärter, deutet auf eine versunkene Ruine im Schwarzwasser.',
-        '„Dort unten liegt ein altes Mechanismus-Werk — und etwas Großes wacht darüber."',
-        '„Löse die Hebel, wenn du dich traust. Dann kann ich das Feuer wieder anzünden."',
+        t('schwarzwasser.alaric.intro1'),
+        t('schwarzwasser.alaric.intro2'),
+        t('schwarzwasser.alaric.intro3'),
       ]);
     },
   });
@@ -495,7 +497,7 @@ export function buildSchwarzwasser(root, deps) {
         schwarzwasser.puzzleSolved = 1;
         schwarzwasser.chestCollected = 1;
         siegel.tiefe = 1;
-        hud.showToast('❤️ Herz-Upgrade! · 🔱 3× Tiefenperle · Titel „Tiefenbezwinger" errungen!', 5);
+        hud.showToast(t('schwarzwasser.toastChestReward', { item: t('item.tiefenperle') }), 5);
         onChange?.();
       }
     }

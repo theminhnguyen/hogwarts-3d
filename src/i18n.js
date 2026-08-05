@@ -43,9 +43,12 @@ let lang = localStorage.getItem(STORAGE_KEY) === 'en' ? 'en' : 'de';
 //    Prompt/Toast, gemeinsamer Aufsteigen/Absteigen/Abheben/Drinnen-Flow.
 //  Etappe 12: hallows.js — Bleicher-König-Toasts, Stein-der-Wiederkehr-
 //    Prompt/Toasts, Podest-An/Ablegen (nutzt wand.spell.*), Umhang-Toasts.
-//  Etappe 13+: die übrigen Gameplay-Dateien (materials.js, schwarzwasser.js,
-//    player.js, companion.js, voldemort.js, collectibles.js, animagus.js,
-//    dark.js, ...) einzeln, absteigend nach String-Anzahl.
+//  Etappe 13: schwarzwasser.js — Hebel-Rätsel-Toast, Leuchtturmwärter
+//    Alaric (Dialog + Quest-Toasts), Truhen-Belohnungs-Toast. materials.js
+//    und player.js geprüft & übersprungen (kein echter Spielertext).
+//  Etappe 14+: die übrigen Gameplay-Dateien (companion.js, voldemort.js,
+//    collectibles.js, animagus.js, dark.js, ...) einzeln, absteigend nach
+//    String-Anzahl.
 const DICT = {
   de: {
     'menu.subtitle': 'Ein begehbares 3D-Schloss · Fan-Projekt',
@@ -588,6 +591,22 @@ const DICT = {
     'hallows.cloak.toastMissing': 'Du besitzt den Umhang der Unsichtbarkeit noch nicht.',
     'hallows.cloak.toastOn': '🧥 Unsichtbar.',
     'hallows.cloak.toastOff': '🧥 Wieder sichtbar.',
+
+    // i18n Etappe 13: schwarzwasser.js — Hebel-Rätsel-Toast, Leuchtturmwärter
+    // Alaric (nutzt npc.promptTalkWith aus Etappe 3), Truhen-Belohnungs-
+    // Toast (nutzt item.tiefenperle aus Etappe 3/5). materials.js und
+    // player.js geprüft und übersprungen — enthalten ausschliesslich
+    // Shader-Code bzw. Tastatur-Codes, keine echten Spielertexte.
+    'schwarzwasser.toastVaultOpen': '🔱 Die Mechanik rastet ein — ein Tresor öffnet sich in der Ruine!',
+    'schwarzwasser.promptLever': 'E — Hebel umlegen',
+    'schwarzwasser.alaric.questDoneLine1': 'Alaric starrt auf die ruhige Wasseroberfläche — zum ersten Mal seit Jahren.',
+    'schwarzwasser.alaric.questDoneLine2': '„Die Tiefe schweigt … du hast es geschafft." Er zündet mit zitternden Händen das Leuchtfeuer an.',
+    'schwarzwasser.toastBeaconLit': '🗼 Das Leuchtfeuer brennt wieder! +3 Ruf',
+    'schwarzwasser.alaric.afterQuest': '„Solange das Feuer brennt, fürchte ich die Tiefe nicht mehr. Danke, Fremder."',
+    'schwarzwasser.alaric.intro1': 'Alaric, der Leuchtturmwärter, deutet auf eine versunkene Ruine im Schwarzwasser.',
+    'schwarzwasser.alaric.intro2': '„Dort unten liegt ein altes Mechanismus-Werk — und etwas Großes wacht darüber."',
+    'schwarzwasser.alaric.intro3': '„Löse die Hebel, wenn du dich traust. Dann kann ich das Feuer wieder anzünden."',
+    'schwarzwasser.toastChestReward': '❤️ Herz-Upgrade! · 🔱 3× {item} · Titel „Tiefenbezwinger" errungen!',
   },
   en: {
     'menu.subtitle': 'A walkable 3D castle · fan project',
@@ -1088,6 +1107,17 @@ const DICT = {
     'hallows.cloak.toastMissing': "You don't own the Invisibility Cloak yet.",
     'hallows.cloak.toastOn': '🧥 Invisible.',
     'hallows.cloak.toastOff': '🧥 Visible again.',
+
+    'schwarzwasser.toastVaultOpen': '🔱 The mechanism clicks into place — a vault opens in the ruin!',
+    'schwarzwasser.promptLever': 'E — Flip the lever',
+    'schwarzwasser.alaric.questDoneLine1': "Alaric stares at the calm water's surface — for the first time in years.",
+    'schwarzwasser.alaric.questDoneLine2': '"The depths are silent … you did it." With trembling hands, he lights the beacon.',
+    'schwarzwasser.toastBeaconLit': '🗼 The beacon burns again! +3 reputation',
+    'schwarzwasser.alaric.afterQuest': '"As long as the fire burns, I no longer fear the depths. Thank you, stranger."',
+    'schwarzwasser.alaric.intro1': 'Alaric, the lighthouse keeper, points to a sunken ruin in the Blackwater.',
+    'schwarzwasser.alaric.intro2': '"Down there lies an old mechanism — and something huge watches over it."',
+    'schwarzwasser.alaric.intro3': '"Solve the levers, if you dare. Then I can light the fire again."',
+    'schwarzwasser.toastChestReward': '❤️ Heart upgrade! · 🔱 3× {item} · Title "Depth Conqueror" earned!',
   },
 };
 
