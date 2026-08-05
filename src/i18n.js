@@ -69,7 +69,15 @@ let lang = localStorage.getItem(STORAGE_KEY) === 'en' ? 'en' : 'de';
 //    Zitat), finale.js (Sternentor-Prompt/Toast), creatures.js (Schnatz-
 //    Diebstahl-Warnung, Troll-Sieg-Toast). Alle 5 Belohnungs-/Titel-Strings
 //    reusen bestehende title.*.name-Schlüssel statt sie zu duplizieren.
-//  Etappe 21+: verbleibende Gameplay-Dateien einzeln, absteigend nach
+//  Etappe 21: Nachzügler-Strings in bereits teilweise übersetzten Dateien,
+//    gefunden per Gesamt-Grep über showToast('/showDialog(' in allen
+//    src/*.js (nicht nur Dateien ohne i18n-Import!) — frostzinnen.js
+//    (Frostriese-Sieg/Eis-Tor-frei/Belohnung, Eigenname „Rimefell" bleibt
+//    unübersetzt, spiegelt aschenklamm.js), spells.js (5 Spruch-Freischalt-
+//    Toasts: Patronus/Eisblitz/verbotene-Sprüche sowie 2 Elderstab-/Stein-
+//    Erinnerungstoasts — reusen wand.spell.stab/stein statt Duplizierung),
+//    tutorial.js (Niedriges-Leben-Hinweis, reused mm.landmark.eulenbruecke).
+//  Etappe 22+: verbleibende Gameplay-Dateien einzeln, absteigend nach
 //    String-Anzahl — vor jeder neuen Etappe die Kandidatendatei per Read
 //    gegenchecken (Lehre aus Etappe 13: grep-Zahlen können Shader-/
 //    Input-Code zählen).
@@ -748,6 +756,18 @@ const DICT = {
     'finale.toastOpened': '🌟 Das Sternentor öffnet sich! +100 Gold · +25 Ruf · Titel „{title}" errungen!',
     'creatures.toastSnitchStolen': '⚡ Ein Wichtel hat einen Schnatz geklaut! Hol ihn dir zurück!',
     'creatures.toastTrollDefeated': 'Der Troll ist besiegt! Eine Truhe erscheint … 🧌',
+
+    // i18n Etappe 21: frostzinnen.js/spells.js/tutorial.js — Nachzügler in
+    // bereits teilweise übersetzten Dateien.
+    'frostzinnen.toastGiantDefeated': '🧊 Rimefell ist bezwungen! Eine Truhe erscheint …',
+    'frostzinnen.toastGateOpen': '🧊 Das Eis birst — der Weg zur Höhle ist frei!',
+    'frostzinnen.toastReward': '❤️ Herz-Upgrade! · 🧊 3× Frostkristall · Titel „{title}" errungen!',
+    'spells.toastPatronumUnlocked': '🦌 Du spürst eine neue Kraft … EXPECTO PATRONUM! (Taste 5)',
+    'spells.toastEisblitzUnlocked': '❄️ Der Eisaltar lehrt dich einen neuen Spruch … EISBLITZ! (Taste I)',
+    'spells.toastDarkSpellsUnlocked': '🖤 Das Aschene Grimoire flüstert dir verbotenes Wissen zu … (Tasten 6-9, danach Linksklick zum Wirken)',
+    'spells.toastElderstabReminder': '👑 Der {name} verstärkt bereits jeden deiner Sprüche (Schaden ×2, Cooldown ×0.6).',
+    'spells.toastSteinReminder': '💎 Der {name} wacht bereits über dich — 1× pro Tag, bei 0 Herzen.',
+    'tutorial.toastLowHealth': 'Niedriges Leben! Der Brunnen im Innenhof oder das Gasthaus in {place} heilen dich.',
   },
   en: {
     'menu.subtitle': 'A walkable 3D castle · fan project',
@@ -1355,6 +1375,16 @@ const DICT = {
     'finale.toastOpened': '🌟 The Star Gate opens! +100 gold · +25 reputation · title "{title}" earned!',
     'creatures.toastSnitchStolen': '⚡ A pixie stole a snitch! Get it back!',
     'creatures.toastTrollDefeated': 'The troll is defeated! A chest appears … 🧌',
+
+    'frostzinnen.toastGiantDefeated': '🧊 Rimefell is defeated! A chest appears …',
+    'frostzinnen.toastGateOpen': '🧊 The ice bursts open — the way to the cave is clear!',
+    'frostzinnen.toastReward': '❤️ Heart upgrade! · 🧊 3× frost crystal · title "{title}" earned!',
+    'spells.toastPatronumUnlocked': '🦌 You feel a new power … EXPECTO PATRONUM! (press 5)',
+    'spells.toastEisblitzUnlocked': '❄️ The ice altar teaches you a new spell … ICE BLITZ! (press I)',
+    'spells.toastDarkSpellsUnlocked': '🖤 The Ashen Grimoire whispers forbidden knowledge to you … (keys 6-9, then left-click to cast)',
+    'spells.toastElderstabReminder': '👑 The {name} already strengthens every one of your spells (damage ×2, cooldown ×0.6).',
+    'spells.toastSteinReminder': '💎 The {name} already watches over you — once per day, at 0 hearts.',
+    'tutorial.toastLowHealth': 'Low health! The fountain in the courtyard or the inn in {place} will heal you.',
   },
 };
 

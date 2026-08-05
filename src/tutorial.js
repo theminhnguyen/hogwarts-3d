@@ -86,7 +86,7 @@ export function buildTutorial(hud, save, deps) {
       // Gasthaus-Kamin sind von Anfang an nutzbar (kein Freischalt-Gate).
       lowHealthCooldown = Math.max(0, lowHealthCooldown - dt);
       if (health && health.hearts <= 1 && lowHealthCooldown <= 0) {
-        hud.showToast('Niedriges Leben! Der Brunnen im Innenhof oder das Gasthaus in Eulenbrück heilen dich.', 4, 0);
+        hud.showToast(t('tutorial.toastLowHealth', { place: t('mm.landmark.eulenbruecke') }), 4, 0);
         lowHealthCooldown = LOW_HEALTH_COOLDOWN_SECONDS;
         return;
       }

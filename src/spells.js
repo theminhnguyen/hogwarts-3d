@@ -154,7 +154,7 @@ export class SpellSystem {
     if (!SPELL_ORDER.includes('patronum')) SPELL_ORDER.push('patronum');
     this.hud?.buildSpellbar(SPELL_ORDER.map(id => ({ id, ...SPELLS[id] })));
     if (showToast) {
-      this.hud?.showToast('🦌 Du spürst eine neue Kraft … EXPECTO PATRONUM! (Taste 5)', 6);
+      this.hud?.showToast(t('spells.toastPatronumUnlocked'), 6);
     }
   }
 
@@ -166,7 +166,7 @@ export class SpellSystem {
     if (!SPELL_ORDER.includes('eisblitz')) SPELL_ORDER.push('eisblitz');
     this.hud?.buildSpellbar(SPELL_ORDER.map(id => ({ id, ...SPELLS[id] })));
     if (showToast) {
-      this.hud?.showToast('❄️ Der Eisaltar lehrt dich einen neuen Spruch … EISBLITZ! (Taste I)', 6);
+      this.hud?.showToast(t('spells.toastEisblitzUnlocked'), 6);
     }
   }
 
@@ -183,7 +183,7 @@ export class SpellSystem {
     }
     this.hud?.buildSpellbar(SPELL_ORDER.map(id => ({ id, ...SPELLS[id] })));
     if (showToast) {
-      this.hud?.showToast('🖤 Das Aschene Grimoire flüstert dir verbotenes Wissen zu … (Tasten 6-9, danach Linksklick zum Wirken)', 6);
+      this.hud?.showToast(t('spells.toastDarkSpellsUnlocked'), 6);
     }
   }
 
@@ -399,9 +399,9 @@ export class SpellSystem {
     } else if (id === 'umhang') {
       this._hallows?.toggleInvisibility(this._player);
     } else if (id === 'stab') {
-      this.hud?.showToast('👑 Der Elderstab verstärkt bereits jeden deiner Sprüche (Schaden ×2, Cooldown ×0.6).', 3);
+      this.hud?.showToast(t('spells.toastElderstabReminder', { name: t('wand.spell.stab') }), 3);
     } else if (id === 'stein') {
-      this.hud?.showToast('💎 Der Stein der Wiederkehr wacht bereits über dich — 1× pro Tag, bei 0 Herzen.', 3);
+      this.hud?.showToast(t('spells.toastSteinReminder', { name: t('wand.spell.stein') }), 3);
     }
   }
 

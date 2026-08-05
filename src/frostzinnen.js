@@ -21,6 +21,7 @@ import * as THREE from 'three';
 import { GeoBatch, addBoxBlocker, addCircleBlocker } from './geo.js';
 import { terrainHeight, FROSTZINNEN } from './terrain.js';
 import { attachRimLight, buildLimbChain } from './model.js';
+import { t } from './i18n.js';
 
 const C = { x: FROSTZINNEN.x, z: FROSTZINNEN.z };
 
@@ -233,7 +234,7 @@ class Rimefell {
     this.mist.material.opacity = 0;
     this.system.fx.burst(this.pos.clone().setY(this.pos.y + 2), 0xbfe8ff, 50, 6, { gravity: -1, life: 1.2 });
     this.system.audio.chime?.('fanfare');
-    this.system.hud?.showToast('🧊 Rimefell ist bezwungen! Eine Truhe erscheint …', 4);
+    this.system.hud?.showToast(t('frostzinnen.toastGiantDefeated'), 4);
   }
 
   _steerXZ(tx, tz, speed, dt) {
@@ -534,7 +535,7 @@ export function buildFrostzinnen(root, deps) {
     gateOpened = true;
     decor.gateBlocker.disabled = true;
     audio.puzzleRumble?.(1.6);
-    hud.showToast('🧊 Das Eis birst — der Weg zur Höhle ist frei!', 3);
+    hud.showToast(t('frostzinnen.toastGateOpen'), 3);
   }
 
   decor.runeBraziers.forEach((r, i) => {
@@ -604,7 +605,7 @@ export function buildFrostzinnen(root, deps) {
     frostzinnen.giantDefeated = 1;
     frostzinnen.chestCollected = 1;
     siegel.frost = 1;
-    hud.showToast('❤️ Herz-Upgrade! · 🧊 3× Frostkristall · Titel „Frostbezwinger" errungen!', 5);
+    hud.showToast(t('frostzinnen.toastReward', { title: t('title.frost.name') }), 5);
     onChange?.();
   };
 
