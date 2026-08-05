@@ -1,8 +1,10 @@
 // HUD: Zähler, Uhr, Kompass, FPS, Hinweise und Toast-Meldungen.
 
+import { t } from './i18n.js';
+
 const el = (id) => document.getElementById(id);
 
-const SECTORS = ['N', 'NO', 'O', 'SO', 'S', 'SW', 'W', 'NW'];
+const SECTOR_KEYS = ['n', 'no', 'o', 'so', 's', 'sw', 'w', 'nw'];
 
 export class Hud {
   constructor() {
@@ -218,7 +220,7 @@ export class Hud {
 
   setHeading(rad) {
     const idx = Math.round(rad / (Math.PI / 4)) % 8;
-    this.compass.textContent = SECTORS[idx];
+    this.compass.textContent = t('hud.compass.' + SECTOR_KEYS[idx]);
   }
 
   toggleFps() {

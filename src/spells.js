@@ -9,6 +9,7 @@ import { pointBlocked, addCircleBlocker, platformGround } from './geo.js';
 import { terrainHeight, WATER_LEVEL, LAKE } from './terrain.js';
 import { SPELLS, SPELL_ORDER, SPELL_ORDER_BASE } from './wand.js';
 import { buildPatronusModel } from './patronus.js';
+import { t } from './i18n.js';
 
 const POOL_SIZE = 24;
 const LIGHT_POOL_SIZE = 3;
@@ -354,7 +355,7 @@ export class SpellSystem {
     if ((id === 'avada' || id === 'crucio' || id === 'imperio' || id === 'mal') && this._dunkel?.pfad !== 'dunkel') {
       if (!this._darkGateToastShown) {
         this._darkGateToastShown = true;
-        this.hud?.showToast('Diese Magie gehorcht dir nur auf dem dunklen Pfad.', 3);
+        this.hud?.showToast(t('spells.toastDarkGateOnly'), 3);
       }
       return;
     }

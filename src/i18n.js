@@ -58,7 +58,12 @@ let lang = localStorage.getItem(STORAGE_KEY) === 'en' ? 'en' : 'de';
 //  Etappe 18: dark.js — Aschenes Grimoire (Prompt+Dialog, Eigenname
 //    „Morvane der Fahle" bleibt unübersetzt), Ritual-Prompt/Toast,
 //    Läuterungs-Brunnen-Prompt/Toasts, Dunkles-Mal-Beschwörungs-Toast.
-//  Etappe 19+: die übrigen Gameplay-Dateien einzeln, absteigend nach
+//  Etappe 19: die letzten kleinen Reststücke gebündelt — unicorn.js
+//    (Zähm-Choreografie + Rufen/Reiten-Toasts), broom.js (Besen-Pickup +
+//    Ringe-Rennen-Toasts), spells.js (dunkler-Pfad-Sperr-Toast für
+//    verbotene Sprüche), dementor.js (Kälte-Immunitäts-Hinweis), hud.js
+//    (Kompass-Himmelsrichtungen N/NO/O/SO/S/SW/W/NW → N/NE/E/SE/S/SW/W/NW).
+//  Etappe 20+: verbleibende Gameplay-Dateien einzeln, absteigend nach
 //    String-Anzahl — vor jeder neuen Etappe die Kandidatendatei per Read
 //    gegenchecken (Lehre aus Etappe 13: grep-Zahlen können Shader-/
 //    Input-Code zählen).
@@ -694,6 +699,32 @@ const DICT = {
     'dark.fountain.needFullHearts': 'Die Läuterung verlangt volle Herzen.',
     'dark.fountain.toast': '✨ Das Morgenlicht wäscht den Schatten von dir ab. Willkommen zurück.',
     'dark.mal.toast': '☠️ Das Dunkle Mal steigt in den Himmel … Dementoren driften herbei. (−3 Ruf, 30s)',
+
+    // i18n Etappe 19: unicorn.js/broom.js/spells.js/dementor.js/hud.js —
+    // die letzten kleinen Reststücke gebündelt.
+    'unicorn.tamePrompt': 'E — Verbeugen und stillhalten',
+    'unicorn.toastBowing': 'Verbeuge dich und halte still …',
+    'unicorn.toastSpooked': 'Es ist gescheut! Nähere dich langsamer und ruhiger.',
+    'unicorn.toastMoved': 'Du hast dich bewegt — es ist wieder auf der Hut.',
+    'unicorn.toastTamed': '🦄 Das Einhorn vertraut dir … Titel „Einhornfreund" errungen! Taste R ruft es fortan zu dir.',
+    'unicorn.toastMounted': '🦄 Aufgestiegen! (R zum Absteigen)',
+    'unicorn.toastDismounted': 'Abgestiegen.',
+    'broom.pickupPrompt': 'E — Besen nehmen',
+    'broom.toastUnlocked': '🧹 Ein Rennbesen! (B zum Auf-/Absteigen)',
+    'broom.startPrompt': 'E — Ringe-Rennen starten',
+    'broom.toastAborted': 'Parcours abgebrochen.',
+    'broom.toastFinished': '🏁 Parcours geschafft in {time}s! Bestzeit: {best}s',
+    'broom.toastAce': ' — 🧹 Quidditch-Ass!',
+    'spells.toastDarkGateOnly': 'Diese Magie gehorcht dir nur auf dem dunklen Pfad.',
+    'dementor.toastSpellsFizzle': 'Deine Zauber verpuffen an der Kälte … es braucht etwas Helleres.',
+    'hud.compass.n': 'N',
+    'hud.compass.no': 'NO',
+    'hud.compass.o': 'O',
+    'hud.compass.so': 'SO',
+    'hud.compass.s': 'S',
+    'hud.compass.sw': 'SW',
+    'hud.compass.w': 'W',
+    'hud.compass.nw': 'NW',
   },
   en: {
     'menu.subtitle': 'A walkable 3D castle · fan project',
@@ -1263,6 +1294,30 @@ const DICT = {
     'dark.fountain.needFullHearts': 'Purification requires full hearts.',
     'dark.fountain.toast': '✨ The morning light washes the shadow from you. Welcome back.',
     'dark.mal.toast': '☠️ The Dark Mark rises into the sky … Dementors drift closer. (−3 reputation, 30s)',
+
+    'unicorn.tamePrompt': 'E — Bow and hold still',
+    'unicorn.toastBowing': 'Bow and hold still …',
+    'unicorn.toastSpooked': 'It got spooked! Approach slower and calmer.',
+    'unicorn.toastMoved': 'You moved — it is wary again.',
+    'unicorn.toastTamed': '🦄 The unicorn trusts you … title "Unicorn Friend" earned! Press R to call it from now on.',
+    'unicorn.toastMounted': '🦄 Mounted! (R to dismount)',
+    'unicorn.toastDismounted': 'Dismounted.',
+    'broom.pickupPrompt': 'E — Pick up the broom',
+    'broom.toastUnlocked': '🧹 A racing broom! (B to mount/dismount)',
+    'broom.startPrompt': 'E — Start the ring race',
+    'broom.toastAborted': 'Course aborted.',
+    'broom.toastFinished': '🏁 Course finished in {time}s! Best time: {best}s',
+    'broom.toastAce': ' — 🧹 Quidditch Ace!',
+    'spells.toastDarkGateOnly': 'This magic obeys you only on the dark path.',
+    'dementor.toastSpellsFizzle': 'Your spells fizzle out in the cold … it needs something brighter.',
+    'hud.compass.n': 'N',
+    'hud.compass.no': 'NE',
+    'hud.compass.o': 'E',
+    'hud.compass.so': 'SE',
+    'hud.compass.s': 'S',
+    'hud.compass.sw': 'SW',
+    'hud.compass.w': 'W',
+    'hud.compass.nw': 'NW',
   },
 };
 

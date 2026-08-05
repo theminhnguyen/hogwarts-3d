@@ -7,6 +7,7 @@ import { terrainHeight, QUIDDITCH } from './terrain.js';
 import { addBoxBlocker } from './geo.js';
 import { getMaterials } from './materials.js';
 import { mulberry32 } from './noise.js';
+import { t } from './i18n.js';
 
 const SHED_POS = { x: -155, z: 10 };
 const FIELD = QUIDDITCH; // { x:-195, z:10, r:52, h:4 }
@@ -110,13 +111,13 @@ export function buildBroom(scene, camera, glowTex, hud, audio, fx, interact, wan
   let trailTimer = 0;
 
   const pickupEntry = interact.register({
-    x: shed.x, z: shed.z - 0.5, r: 2.2, prompt: 'E — Besen nehmen', enabled: true,
+    x: shed.x, z: shed.z - 0.5, r: 2.2, get prompt() { return t('broom.pickupPrompt'); }, enabled: true,
     onInteract: () => {
       if (besenUnlocked) return;
       besenUnlocked = true;
       pickupBroom.visible = false;
       pickupEntry.enabled = false;
-      hud.showToast('🧹 Ein Rennbesen! (B zum Auf-/Absteigen)', 4);
+      hud.showToast(t('broom.toastUnlocked'), 4);
       onUnlock?.();
     },
   });
@@ -162,20 +163,20 @@ export function buildBroom(scene, camera, glowTex, hud, audio, fx, interact, wan
     race.state = 'idle';
     for (const r of rings) { r.mesh.visible = false; r.glow.visible = false; }
     hud.setPuzzleStatus(null);
-    if (!finished) { hud.showToast('Parcours abgebrochen.', 2.5); return; }
-    const t = race.t;
-    if (bestzeit === 0 || t < bestzeit) bestzeit = t;
-    let msg = `🏁 Parcours geschafft in ${t.toFixed(1)}s! Bestzeit: ${bestzeit.toFixed(1)}s`;
-    if (t < ACE_TIME && !ace) {
+    if (!finished) { hud.showToast(t('broom.toastAborted'), 2.5); return; }
+    const elapsed = race.t;
+    if (bestzeit === 0 || elapsed < bestzeit) bestzeit = elapsed;
+    let msg = t('broom.toastFinished', { time: elapsed.toFixed(1), best: bestzeit.toFixed(1) });
+    if (elapsed < ACE_TIME && !ace) {
       ace = true;
-      msg += ' — 🧹 Quidditch-Ass!';
+      msg += t('broom.toastAce');
     }
     hud.showToast(msg, 5.5);
     onFinish?.();
   }
 
   const startEntry = interact.register({
-    x: FIELD.x, z: FIELD.z, r: 4, prompt: 'E — Ringe-Rennen starten', enabled: false,
+    x: FIELD.x, z: FIELD.z, r: 4, get prompt() { return t('broom.startPrompt'); }, enabled: false,
     onInteract: () => { if (race.state === 'idle') startRace(); },
   });
 

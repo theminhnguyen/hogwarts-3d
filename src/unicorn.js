@@ -18,6 +18,7 @@
 // hebt die Flucht vor dem dunklen Pfad zeitweise auf ("calmPotion").
 import * as THREE from 'three';
 import { terrainHeight, SILBERHAIN } from './terrain.js';
+import { t } from './i18n.js';
 
 const C = { x: SILBERHAIN.x, z: SILBERHAIN.z };
 const HOME = { x: C.x + 8, z: C.z + 18 };
@@ -212,7 +213,7 @@ export function buildUnicorn(root, deps) {
     // Tiefenbezwinger) — Silberhain hatte bisher als einzige Region keinen
     // eigenen kosmetischen Titel, obwohl die Zähmung ihre gleichwertige
     // Abschluss-Belohnung ist.
-    hud.showToast('🦄 Das Einhorn vertraut dir … Titel „Einhornfreund" errungen! Taste R ruft es fortan zu dir.', 4.5);
+    hud.showToast(t('unicorn.toastTamed'), 4.5);
     audio.unicornWhinny?.();
     audio.chime?.('fanfare');
     fx.burst({ x: wild.pos.x, y: wild.pos.y + 1.2, z: wild.pos.z }, 0xf0d8ff, 26, 4, { gravity: -2, life: 0.9 });
@@ -228,14 +229,14 @@ export function buildUnicorn(root, deps) {
       if (tame.phase === 'bowing') return true; // läuft automatisch, kein E-Spam nötig
       return tame.phase === 'idle' && wild.state === 'graze' && !darkPath();
     },
-    prompt: 'E — Verbeugen und stillhalten',
+    get prompt() { return t('unicorn.tamePrompt'); },
     onInteract: () => {
       if (tame.phase === 'idle') {
         tame.phase = 'bowing';
         tame.t = 0;
         tame.anchorX = currentPlayer.pos.x;
         tame.anchorZ = currentPlayer.pos.z;
-        hud.showToast('Verbeuge dich und halte still …', 2);
+        hud.showToast(t('unicorn.toastBowing'), 2);
       }
     },
   });
@@ -245,11 +246,11 @@ export function buildUnicorn(root, deps) {
     const moved = Math.hypot(currentPlayer.pos.x - tame.anchorX, currentPlayer.pos.z - tame.anchorZ);
     const dHorn = Math.hypot(wild.pos.x - currentPlayer.pos.x, wild.pos.z - currentPlayer.pos.z);
     if (wild.state !== 'graze' || dHorn > TAME_RANGE + 1 || darkPath()) {
-      cancelTame('Es ist gescheut! Nähere dich langsamer und ruhiger.');
+      cancelTame(t('unicorn.toastSpooked'));
       return;
     }
     if (moved > TAME_MOVE_CANCEL) {
-      cancelTame('Du hast dich bewegt — es ist wieder auf der Hut.');
+      cancelTame(t('unicorn.toastMoved'));
       return;
     }
     tame.t += dt;
@@ -300,7 +301,7 @@ export function buildUnicorn(root, deps) {
     pet.group.visible = false;
     riderView.visible = true;
     audio.chime?.();
-    hud.showToast('🦄 Aufgestiegen! (R zum Absteigen)', 2.4);
+    hud.showToast(t('unicorn.toastMounted'), 2.4);
   }
 
   function dismount() {
@@ -314,7 +315,7 @@ export function buildUnicorn(root, deps) {
     petFadeT = CALL_FADE_DUR;
     petSpawned = true;
     petState = 'here';
-    hud.showToast('Abgestiegen.', 1.4);
+    hud.showToast(t('unicorn.toastDismounted'), 1.4);
   }
 
   // Verkettet statt überschrieben: mount.js setzt player.onDismount schon

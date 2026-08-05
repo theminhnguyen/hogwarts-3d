@@ -6,6 +6,7 @@
 import * as THREE from 'three';
 import { terrainHeight, MOOR } from './terrain.js';
 import { mulberry32 } from './noise.js';
+import { t } from './i18n.js';
 
 const TUNING = {
   driftSpeed: 1.0, chaseSpeed: 5.0,
@@ -176,7 +177,7 @@ class Dementor {
     if (!this.system._immuneToastShown) {
       this.system._immuneToastShown = true;
       this.system.hud?.showToast(
-        'Deine Zauber verpuffen an der Kälte … es braucht etwas Helleres.', 4,
+        t('dementor.toastSpellsFizzle'), 4,
       );
     }
     return true;
