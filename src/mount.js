@@ -13,6 +13,7 @@ import * as THREE from 'three';
 import { terrainHeight, FAHLHOLZ } from './terrain.js';
 import { buildWildHippoModel } from './fauna.js';
 import { HIPPO_FLIGHT, THESTRAL_FLIGHT } from './flight.js';
+import { t } from './i18n.js';
 
 const TAME_BOW_RANGE = 5;
 const TAME_BOW_DUR = 3;
@@ -194,18 +195,18 @@ export function buildMount(scene, camera, glowTex, hud, audio, fx, health, inter
     },
     get prompt() {
       if (tame.targetIdx === i && tame.phase === 'offering') {
-        return feroFish() > 0 ? 'E — Frischfisch anbieten' : 'Kein Frischfisch (bei Fero am Bahnhof kaufen)';
+        return feroFish() > 0 ? t('mount.hippo.promptOffer') : t('mount.hippo.promptNoFish');
       }
-      return 'E — Verbeugen';
+      return t('mount.hippo.promptBow');
     },
     onInteract: () => {
       if (tame.targetIdx === i && tame.phase === 'offering') {
-        if (feroFish() <= 0) { hud.showToast('Du hast keinen Frischfisch dabei.', 2.2); return; }
+        if (feroFish() <= 0) { hud.showToast(t('mount.hippo.toastNoFish'), 2.2); return; }
         feroState.frischfisch--;
         h.tame();
         mounts.hippo = 1;
         cancelTame(null);
-        hud.showToast('🦅 Gezähmt! Du hast das Pfeifen gelernt — Taste R ruft deinen Hippogreif.', 4.5);
+        hud.showToast(t('mount.hippo.toastTamed', { name: t('mount.hippo') }), 4.5);
         audio.chime?.('fanfare');
         fx.burst({ x: h.pos.x, y: h.pos.y + 1.2, z: h.pos.z }, 0xffd98c, 26, 4, { gravity: -2, life: 0.9 });
         onMountChange?.();
@@ -217,7 +218,7 @@ export function buildMount(scene, camera, glowTex, hud, audio, fx, health, inter
         tame.t = 0;
         tame.anchorX = currentPlayer.pos.x;
         tame.anchorZ = currentPlayer.pos.z;
-        hud.showToast('Verbeuge dich und halte still …', 2);
+        hud.showToast(t('mount.hippo.toastBowStart'), 2);
       }
     },
   }));
@@ -229,11 +230,11 @@ export function buildMount(scene, camera, glowTex, hud, audio, fx, health, inter
       const moved = Math.hypot(currentPlayer.pos.x - tame.anchorX, currentPlayer.pos.z - tame.anchorZ);
       const dHippo = Math.hypot(h.pos.x - currentPlayer.pos.x, h.pos.z - currentPlayer.pos.z);
       if (h.state !== 'graze' || dHippo > TAME_BOW_RANGE + 1) {
-        cancelTame('Er ist geflohen! Nähere dich langsamer.');
+        cancelTame(t('mount.hippo.toastFled'));
         return;
       }
       if (moved > TAME_MOVE_CANCEL) {
-        cancelTame('Du hast dich bewegt — er ist wieder auf der Hut.');
+        cancelTame(t('mount.hippo.toastMoved'));
         return;
       }
       tame.t += dt;
@@ -241,7 +242,7 @@ export function buildMount(scene, camera, glowTex, hud, audio, fx, health, inter
       if (tame.t >= TAME_BOW_DUR) {
         tame.phase = 'offering';
         hud.setTameRing(null);
-        hud.showToast('Er vertraut dir. Biete ihm etwas an!', 2.5);
+        hud.showToast(t('mount.hippo.toastTrusts'), 2.5);
       }
     }
     // 'offering': keine Zeitbegrenzung — der Spieler kann in Ruhe zu Fero
@@ -249,7 +250,7 @@ export function buildMount(scene, camera, glowTex, hud, audio, fx, health, inter
     else if (tame.phase === 'offering') {
       const dHippo = Math.hypot(h.pos.x - currentPlayer.pos.x, h.pos.z - currentPlayer.pos.z);
       if (h.state !== 'graze' || dHippo > TAME_BOW_RANGE + 3) {
-        cancelTame('Er ist weitergezogen. Versuch es erneut.');
+        cancelTame(t('mount.hippo.toastWandered'));
       }
     }
   }
@@ -271,24 +272,24 @@ export function buildMount(scene, camera, glowTex, hud, audio, fx, health, inter
   let masterOfDeathOverride = false;
   function seenDeath() { return !!save.seenDeath || masterOfDeathOverride; }
 
-  thestrals.forEach((t, i) => interact.register({
-    get x() { return t.group.position.x; },
-    get z() { return t.group.position.z; },
+  thestrals.forEach((th, i) => interact.register({
+    get x() { return th.group.position.x; },
+    get z() { return th.group.position.z; },
     r: THESTRAL_TAME_RANGE,
-    get enabled() { return seenDeath() && !t.tamed && !mounts.thestral; },
-    prompt: 'E — Thestral zähmen (er kennt dich)',
+    get enabled() { return seenDeath() && !th.tamed && !mounts.thestral; },
+    get prompt() { return t('mount.thestral.prompt'); },
     onInteract: () => {
-      t.tamed = true;
+      th.tamed = true;
       mounts.thestral = 1;
-      hud.showToast('🦇 Er mag dich einfach … Taste R ruft deinen Thestral.', 4.5);
+      hud.showToast(t('mount.thestral.toastTamed', { name: t('mount.thestral') }), 4.5);
       audio.chime?.('fanfare');
-      fx.burst({ x: t.group.position.x, y: t.group.position.y + 1.2, z: t.group.position.z }, 0x8a7ad0, 22, 4, { gravity: -2, life: 0.9 });
+      fx.burst({ x: th.group.position.x, y: th.group.position.y + 1.2, z: th.group.position.z }, 0x8a7ad0, 22, 4, { gravity: -2, life: 0.9 });
       onMountChange?.();
       // "E → sofort geritten" (Plan): kein Ritual, keine Anreise nötig.
       activeKind = 'thestral';
       petSpawned = true;
       petState = 'here';
-      const gx = t.group.position.x, gz = t.group.position.z;
+      const gx = th.group.position.x, gz = th.group.position.z;
       thestralPet.group.position.set(gx, terrainHeight(gx, gz), gz);
       setActivePetOpacity(1);
       mountUp();
@@ -392,7 +393,7 @@ export function buildMount(scene, camera, glowTex, hud, audio, fx, health, inter
     activePet().group.visible = false;
     activeRiderView().visible = true;
     audio.chime?.();
-    hud.showToast('🦅 Aufgestiegen! (R zum Absteigen, 2× Leertaste zum Abheben)', 2.4);
+    hud.showToast(t('mount.toastMounted'), 2.4);
   }
 
   function dismount() {
@@ -407,7 +408,7 @@ export function buildMount(scene, camera, glowTex, hud, audio, fx, health, inter
     petFadeT = CALL_FADE_DUR;
     petSpawned = true;
     petState = 'here';
-    hud.showToast('Abgestiegen.', 1.4);
+    hud.showToast(t('mount.toastDismounted'), 1.4);
   }
   currentPlayer.onDismount = () => { if (riding) dismount(); };
 
@@ -424,7 +425,7 @@ export function buildMount(scene, camera, glowTex, hud, audio, fx, health, inter
     currentPlayer.flightTuning = activeFlightTuning();
     currentPlayer.onLandFlight = landFromFlight;
     flapT = 0;
-    hud.showToast('🕊️ Abgehoben!', 1.6);
+    hud.showToast(t('mount.toastTakeoff'), 1.6);
     audio.chime?.();
   }
 
@@ -454,7 +455,7 @@ export function buildMount(scene, camera, glowTex, hud, audio, fx, health, inter
       if (d < MOUNT_RANGE) { mountUp(); return; }
     }
     if (isIndoors(currentPlayer.pos.x, currentPlayer.pos.z)) {
-      hud.showToast('Hier drinnen hört dich niemand … geh nach draußen.', 2.5);
+      hud.showToast(t('mount.toastIndoors'), 2.5);
       return;
     }
     callPet();

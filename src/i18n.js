@@ -39,8 +39,10 @@ let lang = localStorage.getItem(STORAGE_KEY) === 'en' ? 'en' : 'de';
 //  Etappe 10: wand.js — Spruchnamen der 5 nicht-kanonischen Sprüche
 //    (Eisblitz/Dunkles Mal/Umhang/Elderstab/Stein der Wiederkehr) als
 //    Getter, kanonische Latein-Beschwörungen bleiben unübersetzt.
-//  Etappe 11+: die übrigen Gameplay-Dateien (mount.js, hallows.js,
-//    materials.js, schwarzwasser.js, player.js, companion.js, voldemort.js,
+//  Etappe 11: mount.js — Hippogreif-Zähm-Choreografie, Thestral-Zähm-
+//    Prompt/Toast, gemeinsamer Aufsteigen/Absteigen/Abheben/Drinnen-Flow.
+//  Etappe 12+: die übrigen Gameplay-Dateien (hallows.js, materials.js,
+//    schwarzwasser.js, player.js, companion.js, voldemort.js,
 //    collectibles.js, animagus.js, dark.js, ...) einzeln, absteigend nach
 //    String-Anzahl.
 const DICT = {
@@ -547,6 +549,26 @@ const DICT = {
     'wand.spell.umhang': 'Umhang der Unsichtbarkeit',
     'wand.spell.stab': 'Elderstab',
     'wand.spell.stein': 'Stein der Wiederkehr',
+
+    // i18n Etappe 11: mount.js — Hippogreif-Zähm-Choreografie (Prompts/
+    // Toasts), Thestral-Zähm-Prompt/Toast, gemeinsamer Aufsteigen/
+    // Absteigen/Abheben/Drinnen-Flow.
+    'mount.hippo.promptOffer': 'E — Frischfisch anbieten',
+    'mount.hippo.promptNoFish': 'Kein Frischfisch (bei Fero am Bahnhof kaufen)',
+    'mount.hippo.promptBow': 'E — Verbeugen',
+    'mount.hippo.toastNoFish': 'Du hast keinen Frischfisch dabei.',
+    'mount.hippo.toastTamed': '🦅 Gezähmt! Du hast das Pfeifen gelernt — Taste R ruft deinen {name}.',
+    'mount.hippo.toastBowStart': 'Verbeuge dich und halte still …',
+    'mount.hippo.toastFled': 'Er ist geflohen! Nähere dich langsamer.',
+    'mount.hippo.toastMoved': 'Du hast dich bewegt — er ist wieder auf der Hut.',
+    'mount.hippo.toastTrusts': 'Er vertraut dir. Biete ihm etwas an!',
+    'mount.hippo.toastWandered': 'Er ist weitergezogen. Versuch es erneut.',
+    'mount.thestral.prompt': 'E — Thestral zähmen (er kennt dich)',
+    'mount.thestral.toastTamed': '🦇 Er mag dich einfach … Taste R ruft deinen {name}.',
+    'mount.toastMounted': '🦅 Aufgestiegen! (R zum Absteigen, 2× Leertaste zum Abheben)',
+    'mount.toastDismounted': 'Abgestiegen.',
+    'mount.toastTakeoff': '🕊️ Abgehoben!',
+    'mount.toastIndoors': 'Hier drinnen hört dich niemand … geh nach draußen.',
   },
   en: {
     'menu.subtitle': 'A walkable 3D castle · fan project',
@@ -1016,6 +1038,23 @@ const DICT = {
     'wand.spell.umhang': 'Invisibility Cloak',
     'wand.spell.stab': 'Elder Wand',
     'wand.spell.stein': 'Resurrection Stone',
+
+    'mount.hippo.promptOffer': 'E — Offer fresh fish',
+    'mount.hippo.promptNoFish': 'No fresh fish (buy from Fero at the station)',
+    'mount.hippo.promptBow': 'E — Bow',
+    'mount.hippo.toastNoFish': "You don't have any fresh fish with you.",
+    'mount.hippo.toastTamed': "🦅 Tamed! You've learned the whistle — press R to call your {name}.",
+    'mount.hippo.toastBowStart': 'Bow and hold still …',
+    'mount.hippo.toastFled': 'It fled! Approach more slowly.',
+    'mount.hippo.toastMoved': "You moved — it's on guard again.",
+    'mount.hippo.toastTrusts': 'It trusts you. Offer it something!',
+    'mount.hippo.toastWandered': 'It wandered off. Try again.',
+    'mount.thestral.prompt': 'E — Tame the Thestral (it knows you)',
+    'mount.thestral.toastTamed': '🦇 It just likes you … press R to call your {name}.',
+    'mount.toastMounted': '🦅 Mounted! (R to dismount, double-tap Space to take off)',
+    'mount.toastDismounted': 'Dismounted.',
+    'mount.toastTakeoff': '🕊️ Took off!',
+    'mount.toastIndoors': 'No one can hear you in here … go outside.',
   },
 };
 
