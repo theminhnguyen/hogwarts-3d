@@ -34,10 +34,12 @@ let lang = localStorage.getItem(STORAGE_KEY) === 'en' ? 'en' : 'de';
 //    Kyrian-Bogenduell, Sela.
 //  Etappe 8: schattenfeste.js — Prüfstein-Checkliste (Eisblitz/EP/Umhang/
 //    Stein/Elderstab/Herzen), Ward-Barriere-Toast, Dunkler-Lord-Sieg-Toast.
-//  Etappe 9+: die übrigen Gameplay-Dateien (puzzles.js, wand.js, mount.js,
-//    hallows.js, materials.js, schwarzwasser.js, player.js, companion.js,
-//    voldemort.js, collectibles.js, animagus.js, dark.js, ...) einzeln,
-//    absteigend nach String-Anzahl.
+//  Etappe 9: puzzles.js — Artefakt-Namen, R1-R4 Rätsel-Hinweisschilder/
+//    Lösungs-Toasts, Lied-der-Steine-Statuszeilen, Hauspokal-Finale-Toast.
+//  Etappe 10+: die übrigen Gameplay-Dateien (wand.js, mount.js, hallows.js,
+//    materials.js, schwarzwasser.js, player.js, companion.js, voldemort.js,
+//    collectibles.js, animagus.js, dark.js, ...) einzeln, absteigend nach
+//    String-Anzahl.
 const DICT = {
   de: {
     'menu.subtitle': 'Ein begehbares 3D-Schloss · Fan-Projekt',
@@ -511,6 +513,25 @@ const DICT = {
     'schattenfeste.stoneCold': 'Der Stein bleibt kalt und stumm.',
     'schattenfeste.stoneRequirement': 'Erst wenn Hauspokal, Seelenlaterne, alle drei Heiligtümer und das Sternentor dein sind, öffnet sich der Weg.',
     'schattenfeste.toastWardFalls': '🖤 Die Ward-Barriere vor der Schattenfeste zerfällt — der Weg zum Dunklen Lord ist frei.',
+
+    // i18n Etappe 9: puzzles.js — Artefakt-Namen, R1-R4 Rätsel-Toasts/
+    // Hinweisschilder, Hauspokal-Finale-Toast.
+    'puzzles.artifact.flamme': 'Ewige Flamme',
+    'puzzles.artifact.krone': 'Krone der Gründer',
+    'puzzles.artifact.stein': 'Singender Stein',
+    'puzzles.artifact.karte': 'Sternenkarte',
+    'puzzles.r1.sign': '„Drei Wächterinnen aus Stein frieren. Wärme sie schnell — sie sind ungeduldig."',
+    'puzzles.r1.toastSolved': 'Die drei Wächterinnen erwärmen sich … ein Weg öffnet sich! 🔥',
+    'puzzles.r2.sign': '„Was der Erde zu schwer, hebt der Wille empor. Zwei Wächter, zwei Betten."',
+    'puzzles.r2.toastSolved': 'Die Erde weicht zurück … 🪨',
+    'puzzles.r3.sign': '„Wir sprechen in Licht. Antworte in Blitzen — Ton für Ton."',
+    'puzzles.r3.statusShow': '🎵 Runde {n}/3 — zuschauen',
+    'puzzles.r3.statusPlay': '🎵 Runde {n}/3 — nachspielen',
+    'puzzles.r3.toastFail': '🎵 Falsche Folge — noch einmal!',
+    'puzzles.r3.toastSolved': 'Die Steine verstummen zufrieden — der Altar erwacht. 🎵',
+    'puzzles.r4.toastActive': 'Der Himmel wartet. Verbinde die fünf hellsten Sterne.',
+    'puzzles.r4.toastSolved': '✨ Das Sternbild leuchtet auf — der Hirsch ist vollständig! ✨',
+    'puzzles.finale.toastWon': '⚡ DER HAUSPOKAL GEHÖRT DIR! ⚡',
   },
   en: {
     'menu.subtitle': 'A walkable 3D castle · fan project',
@@ -957,6 +978,23 @@ const DICT = {
     'schattenfeste.stoneCold': 'The stone stays cold and silent.',
     'schattenfeste.stoneRequirement': 'Only once the House Cup, Soul Lantern, all three Deathly Hallows, and the Star Gate are yours will the way open.',
     'schattenfeste.toastWardFalls': '🖤 The ward barrier before the Shadowkeep crumbles — the path to the Dark Lord is clear.',
+
+    'puzzles.artifact.flamme': 'Eternal Flame',
+    'puzzles.artifact.krone': "Founders' Crown",
+    'puzzles.artifact.stein': 'Singing Stone',
+    'puzzles.artifact.karte': 'Star Chart',
+    'puzzles.r1.sign': '"Three guardians of stone are freezing. Warm them quickly — they are impatient."',
+    'puzzles.r1.toastSolved': 'The three guardians warm up … a path opens! 🔥',
+    'puzzles.r2.sign': '"What is too heavy for the earth, the will lifts up. Two guardians, two beds."',
+    'puzzles.r2.toastSolved': 'The earth pulls back … 🪨',
+    'puzzles.r3.sign': '"We speak in light. Answer in flashes — tone for tone."',
+    'puzzles.r3.statusShow': '🎵 Round {n}/3 — watch',
+    'puzzles.r3.statusPlay': '🎵 Round {n}/3 — repeat',
+    'puzzles.r3.toastFail': '🎵 Wrong sequence — try again!',
+    'puzzles.r3.toastSolved': 'The stones fall silent, content — the altar awakens. 🎵',
+    'puzzles.r4.toastActive': 'The sky is waiting. Connect the five brightest stars.',
+    'puzzles.r4.toastSolved': '✨ The constellation lights up — the stag is complete! ✨',
+    'puzzles.finale.toastWon': '⚡ THE HOUSE CUP IS YOURS! ⚡',
   },
 };
 

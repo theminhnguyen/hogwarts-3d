@@ -12,12 +12,9 @@ import { GeoBatch, addBoxBlocker, platformGround } from './geo.js';
 import { terrainHeight, STONES } from './terrain.js';
 import { getMaterials } from './materials.js';
 import { buildPatronusModel } from './patronus.js';
+import { t } from './i18n.js';
 
 export const ARTIFACT_ORDER = ['flamme', 'krone', 'stein', 'karte'];
-const ARTIFACT_NAMES = {
-  flamme: 'Ewige Flamme', krone: 'Krone der Gründer',
-  stein: 'Singender Stein', karte: 'Sternenkarte',
-};
 
 const GOLD = 0xd8b02f;
 const HEDGE_GREEN = 0x3c5a2e;
@@ -218,7 +215,7 @@ export class PuzzleSystem {
     this.fireActive = false;
     this.fireDone = true;
     this.hud.setPuzzleStatus(null);
-    this.hud.showToast('Die drei Wächterinnen erwärmen sich … ein Weg öffnet sich! 🔥', 2.5);
+    this.hud.showToast(t('puzzles.r1.toastSolved'), 2.5);
     this.slabAnimT = 0;
     this.audio.puzzleRumble(2);
     this.grottoTorch.visible = true;
@@ -391,7 +388,7 @@ export class PuzzleSystem {
 
   _solveGarden() {
     this.gardenDone = true;
-    this.hud.showToast('Die Erde weicht zurück … 🪨', 2.5);
+    this.hud.showToast(t('puzzles.r2.toastSolved'), 2.5);
     this.hedgeAnimT = 0;
     this.audio.puzzleRumble(1.5);
   }
@@ -471,7 +468,7 @@ export class PuzzleSystem {
     this.songShowIdx = 0;
     this.songTimer = 0.9;
     this.songState = 'showing';
-    this.hud.setPuzzleStatus(`🎵 Runde ${n}/3 — zuschauen`);
+    this.hud.setPuzzleStatus(t('puzzles.r3.statusShow', { n }));
   }
 
   _runeHit(idx) {
@@ -486,11 +483,11 @@ export class PuzzleSystem {
       }
     } else {
       this.audio.simonFail();
-      this.hud.showToast('🎵 Falsche Folge — noch einmal!', 1.8);
+      this.hud.showToast(t('puzzles.r3.toastFail'), 1.8);
       this.songShowIdx = 0;
       this.songTimer = 0.9;
       this.songState = 'showing';
-      this.hud.setPuzzleStatus(`🎵 Runde ${this.songRound}/3 — zuschauen`);
+      this.hud.setPuzzleStatus(t('puzzles.r3.statusShow', { n: this.songRound }));
     }
   }
 
@@ -498,7 +495,7 @@ export class PuzzleSystem {
     this.songDone = true;
     this.songState = 'won';
     this.hud.setPuzzleStatus(null);
-    this.hud.showToast('Die Steine verstummen zufrieden — der Altar erwacht. 🎵', 2.5);
+    this.hud.showToast(t('puzzles.r3.toastSolved'), 2.5);
     this.audio.puzzleRumble(1.8);
     this.altarAnimT = 0;
   }
@@ -531,7 +528,7 @@ export class PuzzleSystem {
           } else {
             this.songState = 'waiting';
             this.songInputIdx = 0;
-            this.hud.setPuzzleStatus(`🎵 Runde ${this.songRound}/3 — nachspielen`);
+            this.hud.setPuzzleStatus(t('puzzles.r3.statusPlay', { n: this.songRound }));
           }
         }
       }
@@ -616,7 +613,7 @@ export class PuzzleSystem {
 
   _solveStars() {
     this.starDone = true;
-    this.hud.showToast("✨ Das Sternbild leuchtet auf — der Hirsch ist vollständig! ✨", 4);
+    this.hud.showToast(t('puzzles.r4.toastSolved'), 4);
     this.fx.burst(this.starChest.group.position, 0xbcd4ff, 40, 6, { gravity: -1, life: 1.3 });
     this.starChest.group.visible = true;
     this._starChestBody.visible = true;
@@ -628,7 +625,7 @@ export class PuzzleSystem {
       const dx = player.pos.x - ASTRO_TRIGGER.x, dz = player.pos.z - ASTRO_TRIGGER.z;
       if (dx * dx + dz * dz < ASTRO_TRIGGER.r * ASTRO_TRIGGER.r && skyState.nightGlow > 0.5) {
         this.starActive = true;
-        this.hud.showToast('Der Himmel wartet. Verbinde die fünf hellsten Sterne.', 3.5);
+        this.hud.showToast(t('puzzles.r4.toastActive'), 3.5);
       }
     }
     if (this.starDone) return;
@@ -704,7 +701,7 @@ export class PuzzleSystem {
 
   _triggerFinale() {
     this.finaleWon = true;
-    this.hud.showToast('⚡ DER HAUSPOKAL GEHÖRT DIR! ⚡', 8);
+    this.hud.showToast(t('puzzles.finale.toastWon'), 8);
     this.audio.hauspokalFanfare();
     this.finaleT = 0;
     this.fireworkTimer = 0;
@@ -793,7 +790,7 @@ export class PuzzleSystem {
         this.scene.remove(f.sprite);
         this.artifacts.add(f.id);
         this.hud.setArtifacts(this.artifacts.size, ARTIFACT_ORDER.length);
-        this.onArtifact?.(f.id, ARTIFACT_NAMES[f.id] || f.id, this.artifacts.size, ARTIFACT_ORDER.length);
+        this.onArtifact?.(f.id, t('puzzles.artifact.' + f.id), this.artifacts.size, ARTIFACT_ORDER.length);
         this.flying.splice(i, 1);
         continue;
       }
@@ -835,21 +832,21 @@ export class PuzzleSystem {
       const dx = player.pos.x - SIGN_R1.x, dz = player.pos.z - SIGN_R1.z;
       if (dx * dx + dz * dz < 25) {
         this._signSeen.r1 = true;
-        this.hud.showToast('„Drei Wächterinnen aus Stein frieren. Wärme sie schnell — sie sind ungeduldig.“', 4.5);
+        this.hud.showToast(t('puzzles.r1.sign'), 4.5);
       }
     }
     if (!this._signSeen.r2) {
       const dx = player.pos.x - SIGN_R2.x, dz = player.pos.z - SIGN_R2.z;
       if (dx * dx + dz * dz < 25) {
         this._signSeen.r2 = true;
-        this.hud.showToast('„Was der Erde zu schwer, hebt der Wille empor. Zwei Wächter, zwei Betten.“', 4.5);
+        this.hud.showToast(t('puzzles.r2.sign'), 4.5);
       }
     }
     if (!this._signSeen.r3) {
       const dx = player.pos.x - STONES.x, dz = player.pos.z - (STONES.z + SONG_CIRCLE_R + 2);
       if (dx * dx + dz * dz < 25) {
         this._signSeen.r3 = true;
-        this.hud.showToast('„Wir sprechen in Licht. Antworte in Blitzen — Ton für Ton.“', 4.5);
+        this.hud.showToast(t('puzzles.r3.sign'), 4.5);
       }
     }
   }
