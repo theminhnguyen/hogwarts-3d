@@ -10,6 +10,7 @@ import * as THREE from 'three';
 import { GeoBatch } from './geo.js';
 import { terrainHeight, SILBERHAIN } from './terrain.js';
 import { buildFigure, animateFigure } from './npc.js';
+import { t } from './i18n.js';
 
 const C = { x: SILBERHAIN.x, z: SILBERHAIN.z };
 const TREE = { x: C.x, z: C.z - 10 };
@@ -199,7 +200,7 @@ export function buildSilberhain(root, deps) {
       silberhain.puzzleSolved = 1;
       chest.group.visible = true;
       audio.chime?.('fanfare');
-      hud.showToast('🍄 Der Pilzring erwacht — ein Feenlicht führt zu einer Truhe!', 4);
+      hud.showToast(t('silberhain.toastRingSolved'), 4);
       onChange?.();
     }
   }
@@ -240,7 +241,7 @@ export function buildSilberhain(root, deps) {
         chest.openT = -1;
         heim.zutaten.mondsilber += 3;
         silberhain.chestCollected = 1;
-        hud.showToast('🌙 3× Mondsilber gefunden!', 4);
+        hud.showToast(t('silberhain.toastMondsilberFound'), 4);
         onChange?.();
       }
     }
@@ -253,12 +254,12 @@ export function buildSilberhain(root, deps) {
   root.add(filyra.group);
   let filyraGreeted = false;
   interact.register({
-    x: FILYRA_POS.x, z: FILYRA_POS.z, r: 2.4, prompt: 'E — Mit Filyra sprechen',
+    x: FILYRA_POS.x, z: FILYRA_POS.z, r: 2.4,
+    get prompt() { return t('npc.promptTalkWith', { name: 'Filyra' }); },
     onInteract: () => {
       const lines = filyraGreeted
-        ? ['Der Hain gibt selten seine Schätze her — komm wieder, wenn du mehr brauchst.']
-        : ['Filyra, Hüterin dieses Hains, grüßt dich.',
-           'Wir Zentauren handeln nicht leichtfertig — aber für Gold gebe ich, was der Wald entbehren kann.'];
+        ? [t('silberhain.filyra.again')]
+        : [t('silberhain.filyra.intro1'), t('silberhain.filyra.intro2')];
       filyraGreeted = true;
       hud.showDialog('Filyra', lines);
     },
@@ -266,23 +267,23 @@ export function buildSilberhain(root, deps) {
   const filyraStallPos = { x: FILYRA_POS.x + 1.4, z: FILYRA_POS.z + 0.6 };
   interact.register({
     x: filyraStallPos.x, z: filyraStallPos.z, r: 1.6,
-    get prompt() { return `E — Sternsplitter kaufen (${Math.round(14 * economy.priceMul)} Gold)`; },
+    get prompt() { return t('npc.fero.buyZutatPrompt', { item: t('item.stern'), price: Math.round(14 * economy.priceMul) }); },
     onInteract: () => {
-      if (!economy.spendGold(14)) { hud.showToast('Nicht genug Gold.', 2); return; }
+      if (!economy.spendGold(14)) { hud.showToast(t('npc.notEnoughGold'), 2); return; }
       heim.zutaten.stern++;
       audio.chime();
-      hud.showToast(`✦ Sternsplitter gekauft (${heim.zutaten.stern}×)`, 2.5);
+      hud.showToast(t('npc.fero.zutatBought', { item: t('item.stern'), n: heim.zutaten.stern }), 2.5);
       onChange?.();
     },
   });
   interact.register({
     x: FILYRA_POS.x - 1.4, z: FILYRA_POS.z + 0.6, r: 1.6,
-    get prompt() { return `E — Leuchtkraut kaufen (${Math.round(9 * economy.priceMul)} Gold)`; },
+    get prompt() { return t('npc.fero.buyZutatPrompt', { item: t('item.leuchtkraut'), price: Math.round(9 * economy.priceMul) }); },
     onInteract: () => {
-      if (!economy.spendGold(9)) { hud.showToast('Nicht genug Gold.', 2); return; }
+      if (!economy.spendGold(9)) { hud.showToast(t('npc.notEnoughGold'), 2); return; }
       heim.zutaten.leuchtkraut++;
       audio.chime();
-      hud.showToast(`✦ Leuchtkraut gekauft (${heim.zutaten.leuchtkraut}×)`, 2.5);
+      hud.showToast(t('npc.fero.zutatBought', { item: t('item.leuchtkraut'), n: heim.zutaten.leuchtkraut }), 2.5);
       onChange?.();
     },
   });
@@ -314,7 +315,7 @@ export function buildSilberhain(root, deps) {
     orbs[0].active = true;
     orbs[0].sprite.material.opacity = 0.95;
     audio.centaurBowRelease?.();
-    hud.showToast('🏹 Duell! Stupor auf die aufleuchtenden Ziele — Taste 1.', 3);
+    hud.showToast(t('silberhain.toastDuelStart'), 3);
   }
 
   function finishDuel() {
@@ -322,13 +323,13 @@ export function buildSilberhain(root, deps) {
     for (const o of orbs) o.sprite.material.opacity = 0.15;
     if (duelScore >= orbs.length) {
       economy.addGold(15); economy.addRuf(2);
-      hud.showToast(`🏆 Perfekter Treffer (${duelScore}/${orbs.length})! Kyrian verbeugt sich beeindruckt. +15 Gold`, 4);
+      hud.showToast(t('silberhain.toastDuelPerfect', { n: duelScore, total: orbs.length }), 4);
     } else if (duelScore >= ORB_BENCHMARK) {
       economy.addGold(8);
-      hud.showToast(`🤝 Ehrenvolles Unentschieden (${duelScore}/${orbs.length}). +8 Gold`, 4);
+      hud.showToast(t('silberhain.toastDuelDraw', { n: duelScore, total: orbs.length }), 4);
     } else {
       economy.addGold(3);
-      hud.showToast(`Kyrian lächelt nachsichtig (${duelScore}/${orbs.length}) — übe weiter. +3 Gold`, 4);
+      hud.showToast(t('silberhain.toastDuelLose', { n: duelScore, total: orbs.length }), 4);
     }
     onChange?.();
   }
@@ -364,7 +365,7 @@ export function buildSilberhain(root, deps) {
   interact.register({
     x: KYRIAN_POS.x, z: KYRIAN_POS.z, r: 2.6,
     get enabled() { return !duelActive; },
-    prompt: 'E — Kyrian zum Bogen-Duell herausfordern',
+    get prompt() { return t('silberhain.promptChallengeKyrian'); },
     onInteract: () => startDuel(),
   });
 
@@ -374,25 +375,26 @@ export function buildSilberhain(root, deps) {
   sela.group.position.set(SELA_POS.x, terrainHeight(SELA_POS.x, SELA_POS.z), SELA_POS.z);
   root.add(sela.group);
   interact.register({
-    x: SELA_POS.x, z: SELA_POS.z, r: 2.4, prompt: 'E — Zu Sela treten',
+    x: SELA_POS.x, z: SELA_POS.z, r: 2.4,
+    get prompt() { return t('silberhain.promptApproachSela'); },
     onInteract: () => {
       if (mounts.einhorn && !silberhain.zentaurinQuestDone) {
         hud.showDialog('Sela', [
-          'Sela lächelt zum ersten Mal. Sie neigt den Kopf — eine stille Anerkennung.',
-          'Ein reines Herz braucht keine Worte, um verstanden zu werden.',
+          t('silberhain.sela.questComplete1'),
+          t('silberhain.sela.questComplete2'),
         ], () => {
           silberhain.zentaurinQuestDone = 1;
           economy.addRuf(3);
-          hud.showToast('☾ Sela erkennt dich an. +3 Ruf', 3);
+          hud.showToast(t('silberhain.toastSelaRecognizes'), 3);
           onChange?.();
         });
         return;
       }
       if (silberhain.zentaurinQuestDone) {
-        hud.showDialog('Sela', ['Sela nickt dir freundlich zu.']);
+        hud.showDialog('Sela', [t('silberhain.sela.nod')]);
         return;
       }
-      hud.showDialog('Sela', ['Sela deutet stumm nach Norden, tief in den Hain hinein — als wolle sie sagen: „Dort, aber nur für ein reines Herz."']);
+      hud.showDialog('Sela', [t('silberhain.sela.hint')]);
     },
   });
 

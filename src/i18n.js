@@ -29,11 +29,13 @@ let lang = localStorage.getItem(STORAGE_KEY) === 'en' ? 'en' : 'de';
 //  Etappe 6: wilderer.js — Lager (Käfig-Befreien/Ernten, Anführer-Truhe),
 //    Duellring (Fechtmeisterin Ondra). Neuer wilderer.creature.*-Namensraum
 //    für die 4 gefangenen Kreaturen-Arten.
-//  Etappe 7+: die übrigen Gameplay-Dateien (silberhain.js, schattenfeste.js,
-//    wand.js, mount.js, hallows.js, collectibles.js, companion.js,
-//    puzzles.js, dark.js, voldemort.js, animagus.js, schwarzwasser.js,
-//    unicorn.js, aschenklamm.js, frostzinnen.js, ...) einzeln, absteigend
-//    nach String-Anzahl.
+//  Etappe 7: silberhain.js — Feenlicht-Pilzring, Filyra (Handel — nutzt
+//    dieselben npc.fero.buyZutatPrompt/zutatBought-Schlüssel wie Fero),
+//    Kyrian-Bogenduell, Sela.
+//  Etappe 8+: die übrigen Gameplay-Dateien (schattenfeste.js, puzzles.js,
+//    wand.js, mount.js, hallows.js, materials.js, schwarzwasser.js,
+//    player.js, companion.js, voldemort.js, collectibles.js, animagus.js,
+//    dark.js, ...) einzeln, absteigend nach String-Anzahl.
 const DICT = {
   de: {
     'menu.subtitle': 'Ein begehbares 3D-Schloss · Fan-Projekt',
@@ -467,6 +469,25 @@ const DICT = {
     'wilderer.toastFight': 'Kämpft! ⚔️',
     'wilderer.toastDuelWon': '⚔️ Duell gewonnen! +20 Gold, +3 Ruf (Serie: {n})',
     'wilderer.toastDuelLost': 'Das Duell ist verloren … Ondra nickt trotzdem anerkennend.',
+    // i18n Etappe 7: silberhain.js — Feenlicht-Pilzring, Filyra (Handel,
+    // nutzt dieselben generischen npc.fero.buyZutatPrompt/zutatBought-
+    // Schlüssel wie Fero statt eigener Kopien), Kyrian-Bogenduell, Sela.
+    'silberhain.toastRingSolved': '🍄 Der Pilzring erwacht — ein Feenlicht führt zu einer Truhe!',
+    'silberhain.toastMondsilberFound': '🌙 3× Mondsilber gefunden!',
+    'silberhain.filyra.again': 'Der Hain gibt selten seine Schätze her — komm wieder, wenn du mehr brauchst.',
+    'silberhain.filyra.intro1': 'Filyra, Hüterin dieses Hains, grüßt dich.',
+    'silberhain.filyra.intro2': 'Wir Zentauren handeln nicht leichtfertig — aber für Gold gebe ich, was der Wald entbehren kann.',
+    'silberhain.promptChallengeKyrian': 'E — Kyrian zum Bogen-Duell herausfordern',
+    'silberhain.toastDuelStart': '🏹 Duell! Stupor auf die aufleuchtenden Ziele — Taste 1.',
+    'silberhain.toastDuelPerfect': '🏆 Perfekter Treffer ({n}/{total})! Kyrian verbeugt sich beeindruckt. +15 Gold',
+    'silberhain.toastDuelDraw': '🤝 Ehrenvolles Unentschieden ({n}/{total}). +8 Gold',
+    'silberhain.toastDuelLose': 'Kyrian lächelt nachsichtig ({n}/{total}) — übe weiter. +3 Gold',
+    'silberhain.promptApproachSela': 'E — Zu Sela treten',
+    'silberhain.sela.questComplete1': 'Sela lächelt zum ersten Mal. Sie neigt den Kopf — eine stille Anerkennung.',
+    'silberhain.sela.questComplete2': 'Ein reines Herz braucht keine Worte, um verstanden zu werden.',
+    'silberhain.toastSelaRecognizes': '☾ Sela erkennt dich an. +3 Ruf',
+    'silberhain.sela.nod': 'Sela nickt dir freundlich zu.',
+    'silberhain.sela.hint': 'Sela deutet stumm nach Norden, tief in den Hain hinein — als wolle sie sagen: „Dort, aber nur für ein reines Herz."',
   },
   en: {
     'menu.subtitle': 'A walkable 3D castle · fan project',
@@ -878,6 +899,22 @@ const DICT = {
     'wilderer.toastFight': 'Fight! ⚔️',
     'wilderer.toastDuelWon': '⚔️ Duel won! +20 gold, +3 reputation (streak: {n})',
     'wilderer.toastDuelLost': 'The duel is lost … Ondra nods approvingly anyway.',
+    'silberhain.toastRingSolved': '🍄 The mushroom ring awakens — a fairy light leads to a chest!',
+    'silberhain.toastMondsilberFound': '🌙 3× Moonsilver found!',
+    'silberhain.filyra.again': 'The grove rarely gives up its treasures — come back when you need more.',
+    'silberhain.filyra.intro1': 'Filyra, Keeper of this grove, greets you.',
+    'silberhain.filyra.intro2': 'We centaurs do not trade lightly — but for gold, I give what the forest can spare.',
+    'silberhain.promptChallengeKyrian': 'E — Challenge Kyrian to an archery duel',
+    'silberhain.toastDuelStart': '🏹 Duel! Cast Stupor at the lighting targets — key 1.',
+    'silberhain.toastDuelPerfect': '🏆 Perfect hit ({n}/{total})! Kyrian bows, impressed. +15 gold',
+    'silberhain.toastDuelDraw': '🤝 An honorable draw ({n}/{total}). +8 gold',
+    'silberhain.toastDuelLose': 'Kyrian smiles indulgently ({n}/{total}) — keep practicing. +3 gold',
+    'silberhain.promptApproachSela': 'E — Approach Sela',
+    'silberhain.sela.questComplete1': 'Sela smiles for the first time. She tilts her head — a silent acknowledgment.',
+    'silberhain.sela.questComplete2': 'A pure heart needs no words to be understood.',
+    'silberhain.toastSelaRecognizes': '☾ Sela recognizes you. +3 reputation',
+    'silberhain.sela.nod': 'Sela nods at you warmly.',
+    'silberhain.sela.hint': 'Sela silently points north, deep into the grove — as if to say: "There, but only for a pure heart."',
   },
 };
 
