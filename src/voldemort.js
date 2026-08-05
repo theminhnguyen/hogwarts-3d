@@ -34,6 +34,7 @@ import * as THREE from 'three';
 import { terrainHeight } from './terrain.js';
 import { buildFigure } from './npc.js';
 import { buildDementorParts } from './dementor.js';
+import { t } from './i18n.js';
 
 const RISE_DUR = 2.0;
 const PHASE1_HITS_NEEDED = 3;
@@ -407,7 +408,7 @@ export class DunklerLord {
     this.phase2StallT = 0;
     this._p2LastRemaining = PHASE2_COUNT;
     this.system.audio?.lordSummon?.();
-    this.system.hud?.showToast('👻 Der Dunkle Lord beschwört eine Woge aus Dementoren!', 3.5);
+    this.system.hud?.showToast(t('voldemort.toastPhase2Summon'), 3.5);
     this.onPhaseReached?.(2);
   }
 
@@ -419,7 +420,7 @@ export class DunklerLord {
     this.phase3Hits = 0;
     this.phase3StallT = 0;
     this.frostFactor = 0;
-    this.system.hud?.showToast('🖤 „Beeindruckend … aber das war erst der Anfang." Der Dunkle Lord lässt kurz von dir ab.', 4);
+    this.system.hud?.showToast(t('voldemort.toastPhase3Start'), 4);
     this.onPhaseReached?.(3);
   }
 
@@ -431,7 +432,7 @@ export class DunklerLord {
     this._p4Judged = false; // s. p4_resolve: verhindert Mehrfachauswertung von health.dead
     const steinOnCooldown = this.system.hallowsSys?.steinActive && (this.system.hallowsSave?.steinCd || 0) > 0;
     if (steinOnCooldown) {
-      this.system.hud?.showToast('💎 Der Stein ist heute schon verbraucht — kein Netz diesmal.', 4.5);
+      this.system.hud?.showToast(t('voldemort.toastStoneUsed'), 4.5);
     }
     this.system.audio?.lordLaugh?.();
     this.system.audio?.lordAvadaCharge?.();
@@ -456,7 +457,7 @@ export class DunklerLord {
     this.alive = true;
     this.hp = PHASE5_HP;
     this.maxHp = PHASE5_HP;
-    this.system.hud?.showToast('😨 „Das … das hätte nicht geschehen dürfen." Der Dunkle Lord ist einen Moment fassungslos.', 4.5);
+    this.system.hud?.showToast(t('voldemort.toastPhase5Start'), 4.5);
     this.system.audio?.lordShieldBreak?.();
     this.onPhaseReached?.(5);
   }
@@ -479,8 +480,8 @@ export class DunklerLord {
     this.system.hud?.setWhiteout(1);
     player.teleport(BANISH_TELEPORT.x, BANISH_TELEPORT.z, BANISH_TELEPORT.yaw);
     this.system.audio?.lordBanish?.();
-    this.system.hud?.showDialog('Der Dunkle Lord', [
-      'Er lässt dich mit einer Handbewegung verschwinden — noch bist du ihm nicht gewachsen.',
+    this.system.hud?.showDialog(t('progress.chapter.dunklerLord'), [
+      t('voldemort.banishLine1'),
       msg,
     ]);
     this.state = 'banished';
@@ -522,10 +523,10 @@ export class DunklerLord {
         this.group.rotation.y += 0.15 * dt;
         if (!this.phase1ToastShown && this.phase1StallT >= PHASE1_STALL_TOAST_AFTER) {
           this.phase1ToastShown = true;
-          this.system.hud?.showToast('❄️ Eis frisst dieses Feuer — anderswo hast du das gelernt, oder eben nicht.', 4.5);
+          this.system.hud?.showToast(t('voldemort.toastPhase1Stall'), 4.5);
         }
         if (this.phase1StallT >= STALL_BANISH_AFTER) {
-          this._banish(player, 'Ohne Eisblitz durchdringt kein Zauber diesen Schild — lerne ihn am Eisaltar der Frostzinnen.');
+          this._banish(player, t('voldemort.banishPhase1'));
           return;
         }
         break;
@@ -562,7 +563,7 @@ export class DunklerLord {
         this._p2LastRemaining = remaining;
         this.phase2StallT += dt;
         if (this.phase2StallT >= STALL_BANISH_AFTER) {
-          this._banish(player, 'Ohne Expecto Patronum vertreibst du diese Dementoren nie — gewinne zuerst den Hauspokal.');
+          this._banish(player, t('voldemort.banishPhase2'));
           return;
         }
         const inAura = nearestDist < DEMENTOR_AURA_R;
@@ -584,7 +585,7 @@ export class DunklerLord {
       case 'p3': {
         this.phase3StallT += dt;
         if (this.phase3StallT >= STALL_BANISH_AFTER) {
-          this._banish(player, 'Sein Blick durchbohrt dich, solange er dich sieht — nur der Umhang der Unsichtbarkeit lässt dich unbemerkt hinter ihn treten.');
+          this._banish(player, t('voldemort.banishPhase3'));
           return;
         }
         if (!player.invisible) {

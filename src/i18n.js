@@ -48,10 +48,12 @@ let lang = localStorage.getItem(STORAGE_KEY) === 'en' ? 'en' : 'de';
 //    und player.js geprüft & übersprungen (kein echter Spielertext).
 //  Etappe 14: companion.js — Piniva-/Grabbel-Freischalt-Flow, Rufen/
 //    Wegschicken-Toasts, Grabbels Wilderer-Entwaffnen-Toast.
-//  Etappe 15+: die übrigen Gameplay-Dateien (voldemort.js, collectibles.js,
-//    animagus.js, dark.js, ...) einzeln, absteigend nach String-Anzahl —
-//    vor jeder neuen Etappe die Kandidatendatei per Read gegenchecken
-//    (Lehre aus Etappe 13: grep-Zahlen können Shader-/Input-Code zählen).
+//  Etappe 15: voldemort.js — Dunkler-Lord-Boss-Toasts (Phase 2/3/5-Start,
+//    Stein-verbraucht, Phase-1-Stall) + alle 4 Verbannungs-Dialoge.
+//  Etappe 16+: die übrigen Gameplay-Dateien (collectibles.js, animagus.js,
+//    dark.js, ...) einzeln, absteigend nach String-Anzahl — vor jeder neuen
+//    Etappe die Kandidatendatei per Read gegenchecken (Lehre aus Etappe 13:
+//    grep-Zahlen können Shader-/Input-Code zählen).
 const DICT = {
   de: {
     'menu.subtitle': 'Ein begehbares 3D-Schloss · Fan-Projekt',
@@ -625,6 +627,19 @@ const DICT = {
     'companion.toastDismissed': 'Abgeschickt — döst jetzt.',
     'companion.toastNoneFound': 'Noch keinen Begleiter gefunden.',
     'companion.grabbel.toastSteal': '💰 Grabbel klaut dem Wilderer den Stab! (3s wehrlos)',
+
+    // i18n Etappe 15: voldemort.js — Dunkler-Lord-Boss-Toasts (Phase 2/3/5-
+    // Start, Stein-verbraucht, Phase-1-Stall) und alle 4 Verbannungs-Dialoge.
+    // Nutzt progress.chapter.dunklerLord (Etappe 4) als Sprecher-Name.
+    'voldemort.toastPhase2Summon': '👻 Der Dunkle Lord beschwört eine Woge aus Dementoren!',
+    'voldemort.toastPhase3Start': '🖤 „Beeindruckend … aber das war erst der Anfang." Der Dunkle Lord lässt kurz von dir ab.',
+    'voldemort.toastStoneUsed': '💎 Der Stein ist heute schon verbraucht — kein Netz diesmal.',
+    'voldemort.toastPhase5Start': '😨 „Das … das hätte nicht geschehen dürfen." Der Dunkle Lord ist einen Moment fassungslos.',
+    'voldemort.banishLine1': 'Er lässt dich mit einer Handbewegung verschwinden — noch bist du ihm nicht gewachsen.',
+    'voldemort.toastPhase1Stall': '❄️ Eis frisst dieses Feuer — anderswo hast du das gelernt, oder eben nicht.',
+    'voldemort.banishPhase1': 'Ohne Eisblitz durchdringt kein Zauber diesen Schild — lerne ihn am Eisaltar der Frostzinnen.',
+    'voldemort.banishPhase2': 'Ohne Expecto Patronum vertreibst du diese Dementoren nie — gewinne zuerst den Hauspokal.',
+    'voldemort.banishPhase3': 'Sein Blick durchbohrt dich, solange er dich sieht — nur der Umhang der Unsichtbarkeit lässt dich unbemerkt hinter ihn treten.',
   },
   en: {
     'menu.subtitle': 'A walkable 3D castle · fan project',
@@ -1147,6 +1162,16 @@ const DICT = {
     'companion.toastDismissed': 'Dismissed — dozing now.',
     'companion.toastNoneFound': 'No companion found yet.',
     'companion.grabbel.toastSteal': "💰 Grabbel steals the poacher's wand! (defenseless for 3s)",
+
+    'voldemort.toastPhase2Summon': '👻 The Dark Lord summons a wave of Dementors!',
+    'voldemort.toastPhase3Start': '🖤 "Impressive … but that was only the beginning." The Dark Lord briefly lets up on you.',
+    'voldemort.toastStoneUsed': '💎 The Stone has already been used up today — no safety net this time.',
+    'voldemort.toastPhase5Start': '😨 "This … this should not have happened." The Dark Lord is stunned for a moment.',
+    'voldemort.banishLine1': 'With a wave of his hand, he makes you vanish — you are not yet a match for him.',
+    'voldemort.toastPhase1Stall': "❄️ Ice devours this fire — you learned that elsewhere, or you didn't.",
+    'voldemort.banishPhase1': 'Without Ice Blitz no spell pierces this shield — learn it at the ice altar in the Frostspires.',
+    'voldemort.banishPhase2': "Without Expecto Patronum you'll never drive off these Dementors — win the House Cup first.",
+    'voldemort.banishPhase3': 'His gaze pierces you as long as he can see you — only the Invisibility Cloak lets you slip behind him unnoticed.',
   },
 };
 
