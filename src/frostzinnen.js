@@ -549,7 +549,7 @@ export function buildFrostzinnen(root, deps) {
   interact.register({
     x: ALTAR.x, z: ALTAR.z, r: 2.0,
     get enabled() { return !frostzinnen.eisblitzLearned; },
-    prompt: 'E — Den Eisaltar berühren',
+    get prompt() { return t('frostzinnen.altarPrompt'); },
     onInteract: () => {
       frostzinnen.eisblitzLearned = 1;
       decor.altarGlow.material.opacity = 0;

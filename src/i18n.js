@@ -77,7 +77,18 @@ let lang = localStorage.getItem(STORAGE_KEY) === 'en' ? 'en' : 'de';
 //    Toasts: Patronus/Eisblitz/verbotene-Sprüche sowie 2 Elderstab-/Stein-
 //    Erinnerungstoasts — reusen wand.spell.stab/stein statt Duplizierung),
 //    tutorial.js (Niedriges-Leben-Hinweis, reused mm.landmark.eulenbruecke).
-//  Etappe 22+: verbleibende Gameplay-Dateien einzeln, absteigend nach
+//  Etappe 22: letzte Lücken aus Etappe 21 geschlossen — Template-Literal-
+//    Toasts (vom showToast('...')-Regex nicht erfasst) + 1 übersehener
+//    statischer prompt: in frostzinnen.js. main.toastHeartUpgrade (geteilt
+//    von creatures.js Troll-Truhe UND grove.js Spinnennest-Truhe),
+//    creatures.js Spinnenseide-Beute (reused item.seide), spells.js
+//    Elderstab/Umhang/Stein-generische-Freischalt-Toast (reused
+//    SPELLS[id].name-Getter aus wand.js), frostzinnen.js Eisaltar-Prompt.
+//    index.html gegengecheckt: die 6 Menü-Buttons (Ton/Musik/Kreaturen/
+//    Grafik/Tierform/Sprache) sind bereits seit Etappe 1 vollständig über
+//    JS-relabel*()-Funktionen übersetzt (kein data-i18n nötig, da
+//    Laufzeit-Zustand) — kein Nachtrag nötig.
+//  Etappe 23+: verbleibende Gameplay-Dateien einzeln, absteigend nach
 //    String-Anzahl — vor jeder neuen Etappe die Kandidatendatei per Read
 //    gegenchecken (Lehre aus Etappe 13: grep-Zahlen können Shader-/
 //    Input-Code zählen).
@@ -768,6 +779,13 @@ const DICT = {
     'spells.toastElderstabReminder': '👑 Der {name} verstärkt bereits jeden deiner Sprüche (Schaden ×2, Cooldown ×0.6).',
     'spells.toastSteinReminder': '💎 Der {name} wacht bereits über dich — 1× pro Tag, bei 0 Herzen.',
     'tutorial.toastLowHealth': 'Niedriges Leben! Der Brunnen im Innenhof oder das Gasthaus in {place} heilen dich.',
+
+    // i18n Etappe 22: Template-Literal-Toasts (vom showToast('...')-Regex
+    // nicht erfasst) + 1 übersehener prompt: in frostzinnen.js.
+    'main.toastHeartUpgrade': '❤️ Herz-Upgrade! Maximale Herzen: {n}',
+    'creatures.toastSilkLooted': '🕸️ {item} erbeutet ({n}×)',
+    'spells.toastHallowSpellUnlocked': '✨ {name} ist jetzt im Spruchrad verfügbar.',
+    'frostzinnen.altarPrompt': 'E — Den Eisaltar berühren',
   },
   en: {
     'menu.subtitle': 'A walkable 3D castle · fan project',
@@ -1385,6 +1403,11 @@ const DICT = {
     'spells.toastElderstabReminder': '👑 The {name} already strengthens every one of your spells (damage ×2, cooldown ×0.6).',
     'spells.toastSteinReminder': '💎 The {name} already watches over you — once per day, at 0 hearts.',
     'tutorial.toastLowHealth': 'Low health! The fountain in the courtyard or the inn in {place} will heal you.',
+
+    'main.toastHeartUpgrade': '❤️ Heart upgrade! Maximum hearts: {n}',
+    'creatures.toastSilkLooted': '🕸️ {item} collected ({n}×)',
+    'spells.toastHallowSpellUnlocked': '✨ {name} is now available on the spell wheel.',
+    'frostzinnen.altarPrompt': 'E — Touch the ice altar',
   },
 };
 

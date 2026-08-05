@@ -421,7 +421,7 @@ export class SpellSystem {
     SPELL_ORDER.push(id);
     this.hud?.buildSpellbar(SPELL_ORDER.map(sid => ({ id: sid, ...SPELLS[sid] })));
     if (showToast) {
-      this.hud?.showToast(`✨ ${SPELLS[id].name} ist jetzt im Spruchrad verfügbar.`, 3.5);
+      this.hud?.showToast(t('spells.toastHallowSpellUnlocked', { name: SPELLS[id].name }), 3.5);
     }
   }
 

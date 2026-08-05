@@ -8,6 +8,7 @@ import { mulberry32 } from './noise.js';
 import { addBoxBlocker, GeoBatch } from './geo.js';
 import { makeWebTexture } from './textures.js';
 import { getMaterials } from './materials.js';
+import { t } from './i18n.js';
 
 const TREE_DARK = 0x0d1a0f;
 const TREE_TRUNK = 0x2a1f18;
@@ -157,7 +158,7 @@ export function buildGrove(scene, glowTex, hud, audio, fx, health) {
           // still, sobald der Spieler dort schon mehr Herzen gesammelt hat.
           health.upgradeMaxHearts(health.maxHearts + 1);
           hud.setHearts(health.hearts, health.maxHearts);
-          hud.showToast(`❤️ Herz-Upgrade! Maximale Herzen: ${health.maxHearts}`, 4);
+          hud.showToast(t('main.toastHeartUpgrade', { n: health.maxHearts }), 4);
           this.onChestOpen?.();
         }
       }

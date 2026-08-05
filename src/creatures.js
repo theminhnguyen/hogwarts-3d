@@ -1131,7 +1131,7 @@ class Troll {
         // angekommen.
         this.system.health.upgradeMaxHearts(this.system.health.maxHearts + 1);
         this.system.hud?.setHearts(this.system.health.hearts, this.system.health.maxHearts);
-        this.system.hud?.showToast(`❤️ Herz-Upgrade! Maximale Herzen: ${this.system.health.maxHearts}`, 4);
+        this.system.hud?.showToast(t('main.toastHeartUpgrade', { n: this.system.health.maxHearts }), 4);
         this.system.onTrollChest?.();
       }
     }
@@ -1302,7 +1302,7 @@ class GiantSpider {
     // separatem Boden-Pickup, wie Nifflers Glitzerstaub-Fund.
     if (this.system.heim) {
       this.system.heim.zutaten.seide += 1;
-      this.system.hud?.showToast(`🕸️ Spinnenseide erbeutet (${this.system.heim.zutaten.seide}×)`, 2.2);
+      this.system.hud?.showToast(t('creatures.toastSilkLooted', { item: t('item.seide'), n: this.system.heim.zutaten.seide }), 2.2);
       this.system.onZutatChange?.();
     }
   }
