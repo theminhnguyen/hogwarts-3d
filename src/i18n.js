@@ -32,10 +32,12 @@ let lang = localStorage.getItem(STORAGE_KEY) === 'en' ? 'en' : 'de';
 //  Etappe 7: silberhain.js — Feenlicht-Pilzring, Filyra (Handel — nutzt
 //    dieselben npc.fero.buyZutatPrompt/zutatBought-Schlüssel wie Fero),
 //    Kyrian-Bogenduell, Sela.
-//  Etappe 8+: die übrigen Gameplay-Dateien (schattenfeste.js, puzzles.js,
-//    wand.js, mount.js, hallows.js, materials.js, schwarzwasser.js,
-//    player.js, companion.js, voldemort.js, collectibles.js, animagus.js,
-//    dark.js, ...) einzeln, absteigend nach String-Anzahl.
+//  Etappe 8: schattenfeste.js — Prüfstein-Checkliste (Eisblitz/EP/Umhang/
+//    Stein/Elderstab/Herzen), Ward-Barriere-Toast, Dunkler-Lord-Sieg-Toast.
+//  Etappe 9+: die übrigen Gameplay-Dateien (puzzles.js, wand.js, mount.js,
+//    hallows.js, materials.js, schwarzwasser.js, player.js, companion.js,
+//    voldemort.js, collectibles.js, animagus.js, dark.js, ...) einzeln,
+//    absteigend nach String-Anzahl.
 const DICT = {
   de: {
     'menu.subtitle': 'Ein begehbares 3D-Schloss · Fan-Projekt',
@@ -488,6 +490,27 @@ const DICT = {
     'silberhain.toastSelaRecognizes': '☾ Sela erkennt dich an. +3 Ruf',
     'silberhain.sela.nod': 'Sela nickt dir freundlich zu.',
     'silberhain.sela.hint': 'Sela deutet stumm nach Norden, tief in den Hain hinein — als wolle sie sagen: „Dort, aber nur für ein reines Herz."',
+    // i18n Etappe 8: schattenfeste.js — Prüfstein-Checkliste (Boss-Vorbereitung),
+    // Ward-Barriere-Toast, Sieg-Toast über den Dunklen Lord.
+    'schattenfeste.toastDefeated': '🖤 Der Dunkle Lord ist besiegt. +200 Gold, +40 Ruf.',
+    'schattenfeste.stoneName': 'Der Prüfstein',
+    'schattenfeste.checklistHeader': 'Der Stein prüft dich:',
+    'schattenfeste.check.eisblitz': 'Eisblitz',
+    'schattenfeste.check.eisblitzHint': 'der Schild fürchtet ihn',
+    'schattenfeste.check.ep': 'Expecto Patronum',
+    'schattenfeste.check.epHint': 'gegen das, was er ruft',
+    'schattenfeste.check.umhang': 'Umhang angelegt',
+    'schattenfeste.check.umhangHint': 'sein Blick durchbohrt dich sonst',
+    'schattenfeste.check.stein': 'Stein angelegt',
+    'schattenfeste.check.steinHint': 'er schlägt einmal tödlich zu',
+    'schattenfeste.check.elderstab': 'Elderstab angelegt',
+    'schattenfeste.check.elderstabHint': 'sonst heilt er schneller, als du schlägst',
+    'schattenfeste.check.hearts': '{n} von {total} Herzen',
+    'schattenfeste.check.heartsHint': 'volle Herzen rein zur Sicherheit',
+    'schattenfeste.promptQueryStone': 'E — Den Prüfstein befragen',
+    'schattenfeste.stoneCold': 'Der Stein bleibt kalt und stumm.',
+    'schattenfeste.stoneRequirement': 'Erst wenn Hauspokal, Seelenlaterne, alle drei Heiligtümer und das Sternentor dein sind, öffnet sich der Weg.',
+    'schattenfeste.toastWardFalls': '🖤 Die Ward-Barriere vor der Schattenfeste zerfällt — der Weg zum Dunklen Lord ist frei.',
   },
   en: {
     'menu.subtitle': 'A walkable 3D castle · fan project',
@@ -915,6 +938,25 @@ const DICT = {
     'silberhain.toastSelaRecognizes': '☾ Sela recognizes you. +3 reputation',
     'silberhain.sela.nod': 'Sela nods at you warmly.',
     'silberhain.sela.hint': 'Sela silently points north, deep into the grove — as if to say: "There, but only for a pure heart."',
+    'schattenfeste.toastDefeated': '🖤 The Dark Lord is defeated. +200 gold, +40 reputation.',
+    'schattenfeste.stoneName': 'The Testing Stone',
+    'schattenfeste.checklistHeader': 'The stone tests you:',
+    'schattenfeste.check.eisblitz': 'Ice Blitz',
+    'schattenfeste.check.eisblitzHint': 'the shield fears it',
+    'schattenfeste.check.ep': 'Expecto Patronum',
+    'schattenfeste.check.epHint': 'against what he summons',
+    'schattenfeste.check.umhang': 'Cloak worn',
+    'schattenfeste.check.umhangHint': 'his gaze pierces you otherwise',
+    'schattenfeste.check.stein': 'Stone worn',
+    'schattenfeste.check.steinHint': 'he strikes once, fatally',
+    'schattenfeste.check.elderstab': 'Elder Wand worn',
+    'schattenfeste.check.elderstabHint': 'otherwise he heals faster than you can strike',
+    'schattenfeste.check.hearts': '{n} of {total} hearts',
+    'schattenfeste.check.heartsHint': 'full hearts, just to be safe',
+    'schattenfeste.promptQueryStone': 'E — Question the Testing Stone',
+    'schattenfeste.stoneCold': 'The stone stays cold and silent.',
+    'schattenfeste.stoneRequirement': 'Only once the House Cup, Soul Lantern, all three Deathly Hallows, and the Star Gate are yours will the way open.',
+    'schattenfeste.toastWardFalls': '🖤 The ward barrier before the Shadowkeep crumbles — the path to the Dark Lord is clear.',
   },
 };
 

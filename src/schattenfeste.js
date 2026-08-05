@@ -16,6 +16,7 @@ import { terrainHeight, SCHATTENFESTE } from './terrain.js';
 import { GeoBatch, addBoxBlocker } from './geo.js';
 import { getMaterials } from './materials.js';
 import { DunklerLord } from './voldemort.js';
+import { t } from './i18n.js';
 
 const C = { x: SCHATTENFESTE.x, z: SCHATTENFESTE.z };
 const ARENA_R = 16;
@@ -157,7 +158,7 @@ export function buildSchattenfeste(root, deps) {
       economy.addGold(200);
       economy.addRuf(40);
       onChange?.();
-      hud.showToast('🖤 Der Dunkle Lord ist besiegt. +200 Gold, +40 Ruf.', 5);
+      hud.showToast(t('schattenfeste.toastDefeated'), 5);
     }
   };
 
@@ -199,29 +200,29 @@ export function buildSchattenfeste(root, deps) {
   applySavedState();
 
   function checklistLines() {
-    const lines = ['Der Stein prüft dich:'];
+    const lines = [t('schattenfeste.checklistHeader')];
     const item = (ok, label, hint) => `${ok ? '✓' : '✗'} ${label}${ok ? '' : ` — ${hint}`}`;
-    lines.push(item(!!spells.eisblitzUnlocked, 'Eisblitz', 'der Schild fürchtet ihn'));
-    lines.push(item(!!spells.epUnlocked, 'Expecto Patronum', 'gegen das, was er ruft'));
-    lines.push(item(hallowsSys.umhangActive, 'Umhang angelegt', 'sein Blick durchbohrt dich sonst'));
-    lines.push(item(hallowsSys.steinActive, 'Stein angelegt', 'er schlägt einmal tödlich zu'));
-    lines.push(item(hallowsSys.elderstabActive, 'Elderstab angelegt', 'sonst heilt er schneller, als du schlägst'));
-    lines.push(item(health.hearts >= health.maxHearts, `${health.hearts} von ${health.maxHearts} Herzen`, 'volle Herzen rein zur Sicherheit'));
+    lines.push(item(!!spells.eisblitzUnlocked, t('schattenfeste.check.eisblitz'), t('schattenfeste.check.eisblitzHint')));
+    lines.push(item(!!spells.epUnlocked, t('schattenfeste.check.ep'), t('schattenfeste.check.epHint')));
+    lines.push(item(hallowsSys.umhangActive, t('schattenfeste.check.umhang'), t('schattenfeste.check.umhangHint')));
+    lines.push(item(hallowsSys.steinActive, t('schattenfeste.check.stein'), t('schattenfeste.check.steinHint')));
+    lines.push(item(hallowsSys.elderstabActive, t('schattenfeste.check.elderstab'), t('schattenfeste.check.elderstabHint')));
+    lines.push(item(health.hearts >= health.maxHearts, t('schattenfeste.check.hearts', { n: health.hearts, total: health.maxHearts }), t('schattenfeste.check.heartsHint')));
     return lines;
   }
 
   interact.register({
     x: PRUEFSTEIN_POS.x, z: PRUEFSTEIN_POS.z, r: 2.4,
-    prompt: 'E — Den Prüfstein befragen',
+    get prompt() { return t('schattenfeste.promptQueryStone'); },
     onInteract: () => {
       if (!hardGateMet(pz, moor, hallowsSave, siegel)) {
-        hud.showDialog('Der Prüfstein', [
-          'Der Stein bleibt kalt und stumm.',
-          'Erst wenn Hauspokal, Seelenlaterne, alle drei Heiligtümer und das Sternentor dein sind, öffnet sich der Weg.',
+        hud.showDialog(t('schattenfeste.stoneName'), [
+          t('schattenfeste.stoneCold'),
+          t('schattenfeste.stoneRequirement'),
         ]);
         return;
       }
-      hud.showDialog('Der Prüfstein', checklistLines());
+      hud.showDialog(t('schattenfeste.stoneName'), checklistLines());
       audio.chime?.();
     },
   });
@@ -236,7 +237,7 @@ export function buildSchattenfeste(root, deps) {
         if (hardGateMet(pz, moor, hallowsSave, siegel)) {
           lord.torOffen = 1;
           setWardOpen(true);
-          hud.showToast('🖤 Die Ward-Barriere vor der Schattenfeste zerfällt — der Weg zum Dunklen Lord ist frei.', 5);
+          hud.showToast(t('schattenfeste.toastWardFalls'), 5);
           audio.ritualChant?.();
           fx.burst({ x: GATE_POS.x, y: ward.sprite.position.y, z: GATE_POS.z }, 0x8a2fd1, 30, 4, { gravity: -1, life: 1.1 });
           onChange?.();
