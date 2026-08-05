@@ -5,6 +5,7 @@
 
 import * as THREE from 'three';
 import { GeoBatch } from './geo.js';
+import { t } from './i18n.js';
 
 export const SPELLS = {
   stupor:   { name: 'Stupor',   emoji: '⚡', color: 0xff4a4a, cooldown: 0.45 },
@@ -16,7 +17,7 @@ export const SPELLS = {
   // den Frostzinnen (spells.unlockEisblitz(), Muster wie unlockPatronum()).
   // Eigene Taste 'I' statt einer weiteren Ziffer — alle Digits 1-9 sind
   // bereits an stupor..mal vergeben (siehe main.js DIGIT_SPELLS).
-  eisblitz: { name: 'Eisblitz', emoji: '❄️', color: 0x9fe0ff, cooldown: 1.1, key: 'I' },
+  eisblitz: { get name() { return t('wand.spell.eisblitz'); }, emoji: '❄️', color: 0x9fe0ff, cooldown: 1.1, key: 'I' },
   // Verbotene Sprüche (S8): eigene dunkelgrüne/violette Chips, feste Taste
   // 6/7/8 (siehe Plan Abschnitt 3) — der `key` überschreibt die sonst aus
   // der SPELL_ORDER-Position abgeleitete Chip-Nummer (hud.js buildSpellbar),
@@ -24,15 +25,15 @@ export const SPELLS = {
   avada:    { name: 'Avada Kedavra', emoji: '💀', color: 0x2ecc55, cooldown: 8, key: 6 },
   crucio:   { name: 'Crucio',        emoji: '⛓️', color: 0x9a1030, cooldown: 6, key: 7 },
   imperio:  { name: 'Imperio',       emoji: '🌀', color: 0x8a3fd1, cooldown: 12, key: 8 },
-  mal:      { name: 'Dunkles Mal',   emoji: '☠️', color: 0x1a5a2a, cooldown: 60, key: 9 },
+  mal:      { get name() { return t('wand.spell.mal'); },   emoji: '☠️', color: 0x1a5a2a, cooldown: 60, key: 9 },
   // S10 Heiligtümer des Todes: wie Patronum/die verbotenen Sprüche erst per
   // SPELL_ORDER.push() sichtbar, sobald besessen (spells.unlockHallowsSpell()).
   // Elderstab/Stein haben keinen eigenen Cast-Effekt (reine Dauer-Boni) —
   // ihr "key" ist deshalb bewusst KEINE echte Taste (nur Mausrad/Klick),
   // ein Mittelpunkt statt einer Ziffer verhindert die falsche Erwartung.
-  umhang:   { name: 'Umhang der Unsichtbarkeit', emoji: '🧥', color: 0x4a4030, cooldown: 0, key: 'U' },
-  stab:     { name: 'Elderstab',                 emoji: '👑', color: 0xd4c060, cooldown: 2, key: '·' },
-  stein:    { name: 'Stein der Wiederkehr',       emoji: '💎', color: 0x5ab0e0, cooldown: 2, key: '·' },
+  umhang:   { get name() { return t('wand.spell.umhang'); }, emoji: '🧥', color: 0x4a4030, cooldown: 0, key: 'U' },
+  stab:     { get name() { return t('wand.spell.stab'); },   emoji: '👑', color: 0xd4c060, cooldown: 2, key: '·' },
+  stein:    { get name() { return t('wand.spell.stein'); },  emoji: '💎', color: 0x5ab0e0, cooldown: 2, key: '·' },
 };
 // 'patronum' ist bewusst NICHT von Anfang an dabei — der Chip existiert erst
 // nach dem Hauspokal (spells.unlockPatronum() erweitert dieses Array live,

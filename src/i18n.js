@@ -36,7 +36,10 @@ let lang = localStorage.getItem(STORAGE_KEY) === 'en' ? 'en' : 'de';
 //    Stein/Elderstab/Herzen), Ward-Barriere-Toast, Dunkler-Lord-Sieg-Toast.
 //  Etappe 9: puzzles.js — Artefakt-Namen, R1-R4 Rätsel-Hinweisschilder/
 //    Lösungs-Toasts, Lied-der-Steine-Statuszeilen, Hauspokal-Finale-Toast.
-//  Etappe 10+: die übrigen Gameplay-Dateien (wand.js, mount.js, hallows.js,
+//  Etappe 10: wand.js — Spruchnamen der 5 nicht-kanonischen Sprüche
+//    (Eisblitz/Dunkles Mal/Umhang/Elderstab/Stein der Wiederkehr) als
+//    Getter, kanonische Latein-Beschwörungen bleiben unübersetzt.
+//  Etappe 11+: die übrigen Gameplay-Dateien (mount.js, hallows.js,
 //    materials.js, schwarzwasser.js, player.js, companion.js, voldemort.js,
 //    collectibles.js, animagus.js, dark.js, ...) einzeln, absteigend nach
 //    String-Anzahl.
@@ -532,6 +535,18 @@ const DICT = {
     'puzzles.r4.toastActive': 'Der Himmel wartet. Verbinde die fünf hellsten Sterne.',
     'puzzles.r4.toastSolved': '✨ Das Sternbild leuchtet auf — der Hirsch ist vollständig! ✨',
     'puzzles.finale.toastWon': '⚡ DER HAUSPOKAL GEHÖRT DIR! ⚡',
+
+    // i18n Etappe 10: wand.js — Spruchnamen der 5 nicht-kanonischen Sprüche
+    // (Eisblitz/Dunkles Mal/Umhang der Unsichtbarkeit/Elderstab/Stein der
+    // Wiederkehr). Kanonische Latein-Beschwörungen (Stupor, Incendio,
+    // Leviosa, Lumos, Expecto Patronum, Avada Kedavra, Crucio, Imperio)
+    // bleiben unübersetzt — sie sind in beiden Sprachen identisch, wie
+    // Eigennamen.
+    'wand.spell.eisblitz': 'Eisblitz',
+    'wand.spell.mal': 'Dunkles Mal',
+    'wand.spell.umhang': 'Umhang der Unsichtbarkeit',
+    'wand.spell.stab': 'Elderstab',
+    'wand.spell.stein': 'Stein der Wiederkehr',
   },
   en: {
     'menu.subtitle': 'A walkable 3D castle · fan project',
@@ -995,6 +1010,12 @@ const DICT = {
     'puzzles.r4.toastActive': 'The sky is waiting. Connect the five brightest stars.',
     'puzzles.r4.toastSolved': '✨ The constellation lights up — the stag is complete! ✨',
     'puzzles.finale.toastWon': '⚡ THE HOUSE CUP IS YOURS! ⚡',
+
+    'wand.spell.eisblitz': 'Ice Blitz',
+    'wand.spell.mal': 'Dark Mark',
+    'wand.spell.umhang': 'Invisibility Cloak',
+    'wand.spell.stab': 'Elder Wand',
+    'wand.spell.stein': 'Resurrection Stone',
   },
 };
 
