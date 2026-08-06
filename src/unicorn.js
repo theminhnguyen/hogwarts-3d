@@ -230,6 +230,11 @@ export function buildUnicorn(root, deps) {
       return tame.phase === 'idle' && wild.state === 'graze' && !darkPath();
     },
     get prompt() { return t('unicorn.tamePrompt'); },
+    get lockedPrompt() {
+      if (mounts.einhorn || tame.phase !== 'idle') return null;
+      if (darkPath()) return t('unicorn.lockedPromptDark');
+      return null;
+    },
     onInteract: () => {
       if (tame.phase === 'idle') {
         tame.phase = 'bowing';

@@ -68,6 +68,10 @@ export function buildFinale(scene, glowTex, hud, audio, fx, economy, interact, d
     x: GATE_POS.x, z: GATE_POS.z, r: GATE_R,
     get enabled() { return !claimed && litCount() === 4; },
     get prompt() { return t('finale.gatePrompt'); },
+    get lockedPrompt() {
+      if (claimed) return null;
+      return t('finale.gateLockedPrompt', { n: litCount() });
+    },
     onInteract: () => {
       if (claimed || litCount() !== 4) return;
       claimed = true;

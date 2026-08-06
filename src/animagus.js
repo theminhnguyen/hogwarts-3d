@@ -51,6 +51,11 @@ export function buildAnimagus(scene, glowTex, hud, audio, fx, interact, player, 
     x: STONES.x, z: STONES.z, r: 4,
     get enabled() { return !animagus.gelernt && heim.trank.id === 'animagus' && heim.trank.restT > 0; },
     get prompt() { return t('animagus.promptRitual'); },
+    get lockedPrompt() {
+      if (animagus.gelernt) return null;
+      if (heim.trank.id === 'animagus' && heim.trank.restT > 0) return null;
+      return t('animagus.lockedPrompt');
+    },
     onInteract: () => {
       if (weather.state !== 'sturm') {
         hud.showToast(t('animagus.toastNeedStorm'), 3);

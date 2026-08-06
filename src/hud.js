@@ -242,8 +242,9 @@ export class Hud {
 
   hideHint() { this.hint.classList.remove('visible'); }
 
-  showInteractPrompt(text) {
+  showInteractPrompt(text, locked = false) {
     this.interactPrompt.textContent = text;
+    this.interactPrompt.classList.toggle('locked', locked);
     this.interactPrompt.classList.add('visible');
   }
 

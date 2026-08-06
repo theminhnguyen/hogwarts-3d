@@ -628,6 +628,10 @@ export function buildAschenklamm(root, deps) {
     x: NEST.x, z: NEST.z, r: 1.9,
     get enabled() { return gateOpened && !aschenklamm.eggStolen; },
     get prompt() { return t('aschenklamm.eggPrompt'); },
+    get lockedPrompt() {
+      if (aschenklamm.eggStolen || gateOpened) return null;
+      return t('aschenklamm.eggLockedPrompt');
+    },
     onInteract: () => {
       aschenklamm.eggStolen = 1;
       decor.egg.visible = false;

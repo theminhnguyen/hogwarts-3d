@@ -371,6 +371,13 @@ export function buildHallows(scene, glowTex, hud, audio, fx, health, interact, h
     x: STONE_POS.x, z: STONE_POS.z, r: STONE_PICKUP_R,
     get enabled() { return hallowsUnlocked() && !hallows.stein && currentPlayer?.diving; },
     get prompt() { return t('hallows.stone.prompt'); },
+    // Nutzerwunsch (2026-08-06): warum reagiert der sichtbare Stein nicht?
+    get lockedPrompt() {
+      if (hallows.stein) return null;
+      if (!hallowsUnlocked()) return t('hallows.stone.lockedPromptNeedProgress');
+      if (!currentPlayer?.diving) return t('hallows.stone.lockedPromptNeedDive');
+      return null;
+    },
     onInteract: () => {
       hallows.stein = 1;
       active.stein = true;

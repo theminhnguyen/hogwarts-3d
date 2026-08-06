@@ -85,6 +85,10 @@ export function buildCompanion(scene, glowTex, hud, audio, fx, interact, economy
         ? t('companion.piniva.promptLure')
         : t('companion.piniva.promptNoFish');
     },
+    get lockedPrompt() {
+      if (begleiter.frei.includes('piniva') || sky_nightGlow() > 0.5) return null;
+      return t('companion.piniva.lockedPromptDay');
+    },
     onInteract: () => {
       if (!(feroState?.frischfisch > 0)) { hud.showToast(t('companion.piniva.toastNoFish'), 2.2); return; }
       feroState.frischfisch--;

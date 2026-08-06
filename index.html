@@ -229,6 +229,14 @@
     opacity: 0; transition: opacity 0.2s; pointer-events: none;
   }
   #interact-prompt.visible { opacity: 1; }
+  /* Nutzerwunsch (2026-08-06): gesperrte Ziele zeigen einen Hinweis statt
+     stumm zu bleiben — gedimmt + Schloss-Symbol, damit klar ist, dass Taste E
+     hier (noch) nichts auslöst. */
+  #interact-prompt.locked {
+    color: rgba(232,223,200,0.75); background: rgba(10,14,26,0.5);
+    border: 1px solid rgba(232,223,200,0.18);
+  }
+  #interact-prompt.locked::before { content: '🔒 '; }
   #dialog {
     position: absolute; bottom: 14%; left: 50%; transform: translateX(-50%);
     width: min(560px, 80vw); background: rgba(10,14,26,0.82);

@@ -175,6 +175,10 @@ export function buildDark(scene, glowTex, hud, audio, fx, interact, economy, dep
       return dunkel.pfad === 'dunkel' && sky.state.nightGlow > DAWN_MIN && sky.state.nightGlow < DAWN_MAX;
     },
     get prompt() { return t('dark.fountain.prompt'); },
+    get lockedPrompt() {
+      if (dunkel.pfad !== 'dunkel') return null;
+      return t('dark.fountain.lockedPrompt');
+    },
     onInteract: () => {
       if (health.hearts < health.effectiveMaxHearts) {
         hud.showToast(t('dark.fountain.needFullHearts'), 2.5);
