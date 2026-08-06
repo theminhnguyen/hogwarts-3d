@@ -687,7 +687,16 @@ function buildFero(scene, hud, audio, interact, deps, quests) {
   fig.group.visible = false;
   scene.add(fig.group);
 
-  const cartX = st.feroX - perpX * 1.5, cartZ = st.feroZ - perpZ * 1.5;
+  // Bugfix (2026-08-06, Nutzerbericht "finde die Sachen zum Handeln nicht"):
+  // stand hier bei -perpX*1.5 direkt am Bahnsteigrand (Plattform-Halbbreite
+  // nur 1.6m, Fero selbst schon 1.1m davon zur Gleisseite versetzt) UND
+  // hinter Feros Rücken (er blickt laut Kommentar oben WEG vom Karren, zum
+  // Gleis hin) — dort standen Spieler zwischen Wand des Stationshauses und
+  // Feros eigenem Modell so eng, dass der Karren kaum als eigener,
+  // ansteuerbarer Handelsstand zu erkennen war. Jetzt entlang des
+  // Bahnsteigs versetzt (viel Platz, alongX/alongZ) statt weiter zum Gleis
+  // hin — offener Stand neben statt hinter Fero.
+  const cartX = st.feroX + alongX * 2.2 - perpX * 0.3, cartZ = st.feroZ + alongZ * 2.2 - perpZ * 0.3;
   const cart = buildFeroCart();
   cart.rotation.y = st.ang;
   cart.position.set(cartX, terrainHeight(cartX, cartZ), cartZ);

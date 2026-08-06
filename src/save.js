@@ -30,7 +30,7 @@ export const DEFAULT_SAVE = {
   gold: 0,
   ruf: 0,
   seenDeath: 0,
-  wild: { aktivCamp: -1, befreit: 0, geerntet: 0 },
+  wild: { aktivCamp: -1, befreit: 0, geerntet: 0, duellSiege: 0 },
   mounts: { hippo: 0, thestral: 0, einhorn: 0, sattel: 0 },
   dunkel: { buch: 0, pfad: 'hell', male: 0 },
   heim: {
@@ -140,6 +140,7 @@ export function normalizeSave(value) {
       aktivCamp: num(obj(raw.wild).aktivCamp, -1),
       befreit: num(obj(raw.wild).befreit, 0),
       geerntet: num(obj(raw.wild).geerntet, 0),
+      duellSiege: num(obj(raw.wild).duellSiege, 0),
     },
     mounts: {
       hippo: num(obj(raw.mounts).hippo, 0),

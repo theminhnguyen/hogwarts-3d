@@ -735,10 +735,16 @@ export function buildWilderer(scene, glowTex, hud, audio, fx, health, interact, 
   system.onDuelistDefeated = () => {
     if (!duelActive) return;
     winStreak++;
+    // Bugfix (2026-08-06, Nutzerbericht "Duell wird im Almanach nie
+    // erledigt angezeigt"): Siege liefen bisher nur in winStreak (Session-
+    // Zähler, nie gespeichert) — der Almanach-Eintrag hatte dadurch NIE
+    // etwas zum Anzeigen. Gleiches Muster wie wild.befreit/wild.geerntet.
+    wild.duellSiege = (wild.duellSiege || 0) + 1;
     economy.addGold(20);
     economy.addRuf(3);
     hud.showToast(t('wilderer.toastDuelWon', { n: winStreak }), 4);
     duelActive = false;
+    onWildChange?.();
   };
 
   const ondraEntry = interact.register({

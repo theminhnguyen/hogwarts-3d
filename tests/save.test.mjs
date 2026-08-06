@@ -38,7 +38,7 @@ function fullSave() {
     gold: 250,
     ruf: 15,
     seenDeath: 1,
-    wild: { aktivCamp: 2, befreit: 3, geerntet: 4 },
+    wild: { aktivCamp: 2, befreit: 3, geerntet: 4, duellSiege: 5 },
     mounts: { hippo: 1, thestral: 1, einhorn: 1, sattel: 1 },
     dunkel: { buch: 1, pfad: 'dunkel', male: 2 },
     heim: {

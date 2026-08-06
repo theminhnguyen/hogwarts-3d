@@ -119,15 +119,26 @@ const ALMANAC = [
     status: (s) => (s.quests.feroSammler ? 'fertig' : 'offen'),
     hint: (s) => (s.quests.feroSammler ? { key: 'almanac.fero.done' } : { key: 'almanac.fero.todo' }),
   },
+  // Bugfix (2026-08-06, Nutzerbericht "Duell/Wilderer-Lager gemacht, aber im
+  // Almanach steht's nicht als erledigt"): beide status()-Funktionen gaben
+  // bisher IMMER 'offen' zurück — nie 'fertig', egal wie oft man das jeweils
+  // tut. duell.hint() nahm nicht mal `s` entgegen, konnte sich also gar
+  // nicht ändern (wild.duellSiege war bis eben nirgends im Save verankert,
+  // siehe wilderer.js onDuelistDefeated). "Fertig" bedeutet hier wie bei
+  // fliegen/hippogreif/einhorn "System mind. einmal genutzt", NICHT "alle
+  // Lager für immer befreit" — die Lager respawnen bewusst (siehe
+  // wilderer.js activateCamp/deactivateCamp), ein Enddatum gibt es nicht.
   {
     id: 'wilderer', icon: '🏕️', nameKey: 'almanac.wilderer.name',
-    status: () => 'offen',
+    status: (s) => ((s.wild.befreit || 0) > 0 ? 'fertig' : 'offen'),
     hint: (s) => ({ key: 'almanac.wilderer.hint', vars: { n: s.wild.befreit || 0 } }),
   },
   {
     id: 'duell', icon: '⚔️', nameKey: 'almanac.duell.name',
-    status: () => 'offen',
-    hint: () => ({ key: 'almanac.duell.hint' }),
+    status: (s) => ((s.wild.duellSiege || 0) > 0 ? 'fertig' : 'offen'),
+    hint: (s) => ((s.wild.duellSiege || 0) > 0
+      ? { key: 'almanac.duell.done', vars: { n: s.wild.duellSiege } }
+      : { key: 'almanac.duell.hint' }),
   },
   {
     id: 'regionen', icon: '🌋', nameKey: 'almanac.regionen.name',
