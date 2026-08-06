@@ -537,7 +537,14 @@ export function buildWater(center = LAKE, colors = {}) {
   });
 
   const mesh = new THREE.Mesh(geo, mat);
-  mesh.position.set(LAKE.x, WATER_LEVEL, LAKE.z);
+  // Bugfix (2026-08-06, Nutzerbericht "am Schwarzwasser kein Wasser sichtbar
+  // + unsichtbarer Angreifer"): hier stand fest LAKE.x/LAKE.z statt
+  // center.x/center.z — die Schwarzwasser-Wasserfläche wurde dadurch am
+  // Hauptsee gerendert statt an ihrer eigenen Position. player.js prüft
+  // Schwimmen/Tauchen rein über die Geländehöhe (unabhängig vom Wasser-
+  // Mesh), daher lösten Grindylohs/Schlund dort trotzdem korrekt aus — nur
+  // eben ohne sichtbares Wasser drumherum ("unsichtbarer Angreifer").
+  mesh.position.set(center.x, WATER_LEVEL, center.z);
   mesh.renderOrder = 1;
   return { mesh, uniforms };
 }
