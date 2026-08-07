@@ -42,7 +42,7 @@ import { buildDark } from './dark.js';
 import { buildCompanion } from './companion.js';
 import { buildHallows } from './hallows.js';
 import { buildAnimagus, FORM_ORDER } from './animagus.js';
-import { buildMarauderMap } from './marauders-map.js';
+import { buildMarauderMap, landmarkTrackerInfo } from './marauders-map.js';
 import { buildTutorial } from './tutorial.js';
 import { t, getLang, cycleLang, applyStaticI18n } from './i18n.js';
 import { createRegionManager } from './regions.js';
@@ -909,7 +909,7 @@ function performReset() {
   save.ruf = 0;
   hud.setGold(0);
   save.seenDeath = 0;
-  Object.assign(save.wild, { aktivCamp: -1, befreit: 0, geerntet: 0 });
+  Object.assign(save.wild, { aktivCamp: -1, befreit: 0, geerntet: 0, duellSiege: 0 });
   Object.assign(save.mounts, { hippo: 0, thestral: 0, einhorn: 0, sattel: 0 });
   Object.assign(save.dunkel, { buch: 0, pfad: 'hell', male: 0 });
   save.heim.kate = 0;
@@ -1415,7 +1415,19 @@ function frame(dt) {
 
     hud.setClock(sky.clockText);
     hud.setHeading(player.heading);
-    hud.setTracker(broom.getTrackerInfo(player) || home.getSplitterTracker(player) || collectibles.nearest(player.pos), player.heading);
+    // Nutzerwunsch (2026-08-06): Quest im J-Menü anklickbar -> Kompass führt
+    // hin (marauders.trackedLandmarkId, siehe marauders-map.js). Bewusst
+    // NACH Besenrennen/Sternsplitter (die sind kurz & kontextgebunden, sollen
+    // eine manuelle Quest-Auswahl nicht verdrängen) und VOR dem Schnatz-
+    // Standardkompass — der bleibt dadurch unverändert der Fallback, sobald
+    // kein Quest-Ziel (mehr) gewählt ist.
+    hud.setTracker(
+      broom.getTrackerInfo(player)
+      || home.getSplitterTracker(player)
+      || (marauders.trackedLandmarkId ? landmarkTrackerInfo(marauders.trackedLandmarkId, player.pos) : null)
+      || collectibles.nearest(player.pos),
+      player.heading,
+    );
     hud.setSpell(wand.activeSpell, { ...spells.cooldowns, mal: dark.malCooldown });
     hud.setHearts(health.hearts, health.effectiveMaxHearts);
     const troll = creatures.troll;

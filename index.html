@@ -432,6 +432,18 @@
   #mm-primary-desc { margin-bottom: 18px; color: rgba(232,223,200,0.8); }
   #mm-secondary-list { margin: 0; padding-left: 18px; color: rgba(232,223,200,0.75); font-size: 13px; }
   #mm-secondary-list li { margin-bottom: 6px; }
+  /* Nutzerwunsch (2026-08-06): Kompass-Knopf neben Zielen mit fester
+     Position — nur bei Zielen mit landmarkId vorhanden (marauders-map.js
+     trackButton()), NPC-gebundene Nebenquests haben keinen. */
+  .mm-track-btn {
+    display: inline-flex; align-items: center; margin-left: 8px;
+    font-family: inherit; font-size: 11px; letter-spacing: 0.5px; cursor: pointer;
+    padding: 2px 9px; border-radius: 10px; vertical-align: middle;
+    background: rgba(255,217,122,0.12); color: rgba(255,217,122,0.9);
+    border: 1px solid rgba(255,217,122,0.3);
+  }
+  .mm-track-btn:hover { background: rgba(255,217,122,0.22); }
+  .mm-track-btn.mm-track-active { background: #ffd97a; color: #1a1408; }
   #mm-next-hint { font-size: 13px; color: rgba(232,223,200,0.75); font-style: italic; }
   #mm-legend { font-size: 13px; margin-bottom: 18px; }
   #mm-legend div { display: flex; align-items: center; gap: 8px; margin-bottom: 5px; }

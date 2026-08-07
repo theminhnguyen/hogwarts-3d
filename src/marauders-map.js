@@ -178,6 +178,19 @@ const ALMANAC = [
   },
 ];
 
+// Nutzerwunsch (2026-08-06): "Quest anklicken -> Kompasspfeil führt hin".
+// Liefert {dist,angle} im selben Format wie collectibles.js' nearest()
+// (main.js reiht es in dieselbe hud.setTracker()-Kette ein) — nur für
+// Quests/Hinweise mit fester landmarkId nutzbar, nicht für NPC-gebundene
+// Nebenquests (Katze/Kräuter), die haben keine feste Weltposition.
+export function landmarkTrackerInfo(landmarkId, playerPos) {
+  if (!landmarkId || !playerPos) return null;
+  const lm = LANDMARKS.find((l) => l.id === landmarkId);
+  if (!lm) return null;
+  const dx = lm.x - playerPos.x, dz = lm.z - playerPos.z;
+  return { dist: Math.hypot(dx, dz), angle: Math.atan2(dx, -dz) };
+}
+
 // Skalierung fürs CSS-Panel: Weltkoordinaten auf 0..100%. WORLD_BOUND aus
 // terrain.js (die unpassierbare Bergkette) ist die sichere obere Grenze für
 // jede Landmarken-Koordinate — hier als Zahl gespiegelt, nicht importiert
@@ -201,6 +214,11 @@ export function buildMarauderMap(hud, save) {
   let isOpen = false;
   let lastPos = null;
   const dotById = {};
+  // Nutzerwunsch (2026-08-06): manuell gewähltes Verfolgungsziel — bewusst
+  // reiner Session-Zustand (nicht im Save), wie besenLage/following & Co an
+  // anderer Stelle: eine "wohin will ich gerade" Auswahl ist keine
+  // Fortschritts-Info, muss also auch keinen Reload überleben.
+  let trackedLandmarkId = null;
 
   const playerDot = document.createElement('div');
   playerDot.className = 'mm-player-dot';
@@ -217,6 +235,29 @@ export function buildMarauderMap(hud, save) {
     return list.map((m) => t(m.key, m.vars)).join(', ');
   }
 
+  // Nutzerwunsch (2026-08-06): kleiner Kompass-Knopf neben jedem Ziel MIT
+  // fester landmarkId (NPC-gebundene Nebenquests wie Katze/Kräuter haben
+  // keine — dafür gibt's dann konsequent keinen Knopf, kein Pfeil-auf-nichts).
+  // Erneutes Klicken auf das schon aktive Ziel schaltet die Verfolgung
+  // wieder aus (zurück zum Standard-Kompass, siehe main.js-Prioritätskette).
+  function trackButton(landmarkId) {
+    const active = trackedLandmarkId === landmarkId;
+    const btn = document.createElement('button');
+    btn.type = 'button';
+    btn.className = active ? 'mm-track-btn mm-track-active' : 'mm-track-btn';
+    btn.textContent = active ? t('mm.trackActive') : t('mm.trackBtn');
+    btn.onclick = () => {
+      trackedLandmarkId = active ? null : landmarkId;
+      const lm = LANDMARKS.find((l) => l.id === landmarkId);
+      hud.showToast(
+        trackedLandmarkId ? t('mm.toastTracking', { name: t(lm.nameKey) }) : t('mm.toastTrackingOff'),
+        2.5,
+      );
+      close_();
+    };
+    return btn;
+  }
+
   // Nicht entdeckte Landmarken bekommen KEINEN Punkt (Plan B2: "keine
   // Spoilerkarte") — Punkte werden erst beim ersten Entdecken angelegt und
   // danach nie wieder entfernt (Entdeckung ist dauerhaft).
@@ -227,11 +268,13 @@ export function buildMarauderMap(hud, save) {
       ? { missing: joinMissing(progress.primary.descVars.missing) }
       : progress.primary.descVars;
     primaryDesc.textContent = t(progress.primary.descKey, descVars);
+    if (progress.primary.landmarkId) primaryDesc.appendChild(trackButton(progress.primary.landmarkId));
 
     secondaryList.replaceChildren();
     for (const s of progress.secondary) {
       const li = document.createElement('li');
       li.textContent = `${t(s.titleKey)} — ${t(s.descKey, s.descVars)}`;
+      if (s.landmarkId) li.appendChild(trackButton(s.landmarkId));
       secondaryList.appendChild(li);
     }
     nextHintEl.textContent = t(progress.nextHintKey);
@@ -327,6 +370,7 @@ export function buildMarauderMap(hud, save) {
 
   return {
     get isOpen() { return isOpen; },
+    get trackedLandmarkId() { return trackedLandmarkId; },
     open: open_,
     close: close_,
     toggle() { if (isOpen) close_(); else open_(); },
@@ -349,6 +393,18 @@ export function buildMarauderMap(hud, save) {
           if (dx * dx + dz * dz <= lm.radius * lm.radius) {
             save.map.discovered.push(lm.id);
             hud?.showToast(t('mm.discovered', { name: t(lm.nameKey) }), 3);
+          }
+        }
+        // Nutzerwunsch (2026-08-06): Verfolgung bei Ankunft automatisch
+        // beenden — sonst bliebe der Kompass für immer auf ein längst
+        // erreichtes Ziel stehen und würde main.js' Standard-Fallback
+        // (nächster Schnatz) dauerhaft verdrängen.
+        if (trackedLandmarkId) {
+          const lm = LANDMARKS.find((l) => l.id === trackedLandmarkId);
+          const dx = lm ? playerPos.x - lm.x : 0, dz = lm ? playerPos.z - lm.z : 0;
+          if (!lm || dx * dx + dz * dz < 16) {
+            trackedLandmarkId = null;
+            if (lm) hud?.showToast(t('mm.toastTrackArrived'), 2.5);
           }
         }
       }
