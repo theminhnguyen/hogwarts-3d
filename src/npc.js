@@ -1037,6 +1037,15 @@ export function buildNpcs(scene, glowTex, hud, audio, fx, health, interact, deps
       x: lk.x, z: lk.z, r: 1.6,
       get prompt() { return quests.kraeuterDone ? t('npc.leuchtkraut.promptKessel') : t('npc.leuchtkraut.prompt'); },
       enabled: false,
+      // Solange der Kräuter-Auftrag noch nicht bei Barnaby gestartet wurde,
+      // steht das Kraut trotzdem sichtbar da (Pflanze bleibt unangetastet)
+      // — nur DANN ist das Locked-Feedback nötig. Nach Start bzw. nach
+      // kraeuterDone ist entweder `enabled` normal aktiv oder die Pflanze
+      // durchs Pflücken bereits unsichtbar (kein Hinweis nötig).
+      get lockedPrompt() {
+        if (quests.kraeuterDone || quests.kraeuterStarted) return null;
+        return t('npc.leuchtkraut.lockedPrompt');
+      },
       onInteract: () => {
         // Nach Q2: freies Nachwachsen, füllt den Braukessel-Vorrat statt des
         // Quest-Zählers (der ist bei kraeuterDone bereits fertig).
@@ -1068,6 +1077,14 @@ export function buildNpcs(scene, glowTex, hud, audio, fx, health, interact, deps
     get z() { return cat.group.position.z; },
     r: 2, enabled: false,
     get prompt() { return t('npc.cat.promptTalk'); },
+    // Nur solange die Katzen-Quest noch gar nicht begonnen hat (quests.katze
+    // === 0) ist die Sperre nicht selbsterklärend — sitzt die Katze bereits
+    // fest am Spieler dran (catFollowing) oder ist die Quest längst
+    // abgeschlossen (katze >= 2), braucht es keinen Hinweis mehr.
+    get lockedPrompt() {
+      if (quests.katze !== 0) return null;
+      return t('npc.cat.lockedPrompt');
+    },
     onInteract: () => {
       if (quests.katze !== 1 || catFollowing) return;
       catFollowing = true;

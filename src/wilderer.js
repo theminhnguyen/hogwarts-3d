@@ -599,6 +599,16 @@ export function buildWilderer(scene, glowTex, hud, audio, fx, health, interact, 
   const leaderChestEntry = interact.register({
     x: LEADER_POS.x, z: LEADER_POS.z + 1.8, r: 2, enabled: false,
     get prompt() { return t('wilderer.promptSearchChest'); },
+    // Das Versteck bleibt sichtbar (leaderChestGroup.visible), sobald es
+    // einmal erschienen ist — enabled schaltet aber zusätzlich nach
+    // Tageslicht/Entdeckung ab. Ohne Hinweis wäre das reines Rätselraten
+    // ("warum reagiert die Truhe nicht mehr?").
+    get lockedPrompt() {
+      if (!leaderSpawned || leaderResolved) return null;
+      if (leaderBusted) return t('wilderer.leaderChest.lockedPromptBusted');
+      if (prevNightGlow < DAWN_LOW) return t('wilderer.leaderChest.lockedPromptDaylight');
+      return null;
+    },
     onInteract: () => {
       if (!leaderSpawned || leaderResolved || leaderBusted) return;
       if (leaderGuard.sees(currentPlayer, true)) {
@@ -669,6 +679,14 @@ export function buildWilderer(scene, glowTex, hud, audio, fx, health, interact, 
       x: site.cagePos.x, z: site.cagePos.z, r: 2.2, enabled: false,
       get prompt() {
         return t(dunkel.pfad === 'dunkel' ? 'wilderer.promptHarvest' : 'wilderer.promptFreeCage');
+      },
+      // Die Lager-Kulisse (site.group) wird beim Aktivieren sofort sichtbar,
+      // der Käfig aber bleibt bewacht, bis alle 3 Wilderer weg sind — genau
+      // die Lücke, die B1 schließen soll. Andere (inaktive) Lager sind über
+      // site.group.visible=false unsichtbar, dafür kein Hinweis nötig.
+      get lockedPrompt() {
+        if (i !== activeCampIdx || campResolved) return null;
+        return t('wilderer.cage.lockedPrompt');
       },
       onInteract: () => {
         if (i !== activeCampIdx || campResolved) return;
