@@ -61,6 +61,21 @@ function fullSave() {
   };
 }
 
+// Sammelt alle Objekt-Pfade rekursiv ("wild.duellSiege" statt nur "wild") —
+// Arrays zählen als Blattwert, nicht als weiter aufzuschlüsselnde Struktur
+// (z. B. tutorial.seen: [] hat keine "Unter-Schlüssel").
+function collectPaths(obj, prefix = '') {
+  const paths = new Set();
+  if (obj && typeof obj === 'object' && !Array.isArray(obj)) {
+    for (const key of Object.keys(obj)) {
+      const path = prefix ? `${prefix}.${key}` : key;
+      paths.add(path);
+      for (const sub of collectPaths(obj[key], path)) paths.add(sub);
+    }
+  }
+  return paths;
+}
+
 test('normalizeSave bewahrt alle Felder eines vollständigen aktuellen Saves', () => {
   const result = normalizeSave(fullSave());
   assert.deepEqual(result, fullSave());
@@ -296,4 +311,17 @@ test('parseImport: nicht-string Input ergibt sauberen Fehler', () => {
 
 test('DEFAULT_SAVE ist über normalizeSave() idempotent', () => {
   assert.deepEqual(normalizeSave(DEFAULT_SAVE), DEFAULT_SAVE);
+});
+
+// Qualitätsplan A4: die duellSiege-Bugklasse ("neues Feld im Save, aber
+// nicht überall verankert") generisch abfangen — schlägt fehl, sobald ein
+// Feld nur in DEFAULT_SAVE ODER nur im normalizeSave({})-Ergebnis auftaucht,
+// egal auf welcher Verschachtelungsebene.
+test('DEFAULT_SAVE und normalizeSave({}) haben rekursiv identische Schlüsselmengen (Reset-Vollständigkeit)', () => {
+  const defaultPaths = collectPaths(DEFAULT_SAVE);
+  const normalizedPaths = collectPaths(normalizeSave({}));
+  const onlyDefault = [...defaultPaths].filter((p) => !normalizedPaths.has(p)).sort();
+  const onlyNormalized = [...normalizedPaths].filter((p) => !defaultPaths.has(p)).sort();
+  assert.deepEqual(onlyDefault, [], `Felder nur in DEFAULT_SAVE (normalizeSave({}) verliert sie): ${onlyDefault.join(', ')}`);
+  assert.deepEqual(onlyNormalized, [], `Felder nur in normalizeSave({}) (fehlen in DEFAULT_SAVE): ${onlyNormalized.join(', ')}`);
 });
