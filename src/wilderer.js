@@ -736,6 +736,11 @@ export function buildWilderer(scene, glowTex, hud, audio, fx, health, interact, 
 
   let duelActive = false;
   let duelStartT = -1; // 3-2-1-Ansage
+  // Reiner Session-Zustand, bewusst NICHT im Save: skaliert nur die
+  // Gegner-Geschwindigkeit innerhalb der aktuellen Sitzung als Schwierig-
+  // keits-Rampe (siehe duelist.speedMul unten). Der PERSISTENTE Lebenszeit-
+  // Sieg-Zähler ist wild.duellSiege (system.onDuelistDefeated) — winStreak
+  // darf nach jedem Neuladen bei 0 anfangen, das ist Absicht.
   let winStreak = 0;
   let ondraGreeted = false;
 

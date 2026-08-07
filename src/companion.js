@@ -130,6 +130,10 @@ export function buildCompanion(scene, glowTex, hud, audio, fx, interact, economy
   });
 
   // ---------- Rufen & Wegschicken ----------
+  // Reiner Session-Zustand (nicht im Save, kein normalizeSave-Feld nötig):
+  // restore() setzt following bei jedem Laden/Reset explizit auf false
+  // zurück (Muster: catFollowing in npc.js) — der Begleiter startet nach
+  // einem Neuladen immer "zuhause", das ist Absicht, kein Bug.
   let following = false;
 
   function activeGroup(id) {

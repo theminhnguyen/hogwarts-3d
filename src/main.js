@@ -1050,6 +1050,10 @@ importFileInput.addEventListener('change', () => {
     }
     askConfirm(t('main.confirm.import'), () => {
       backupCurrentSave();
+      // Qualitätsplan C5 verifiziert: schreibt NUR in localStorage, spiegelt
+      // nicht ins live `save`-Objekt zurück (anders als persist() oben) —
+      // hier unkritisch, weil der Reload direkt danach `save` komplett neu
+      // aus localStorage lädt, bevor irgendetwas den alten Stand liest.
       writeSave(result.data);
       hud.showToast(t('main.toast.importDone'));
       setTimeout(() => window.location.reload(), 900);
@@ -1068,6 +1072,8 @@ btnRestoreBackup.addEventListener('click', () => {
     return;
   }
   askConfirm(t('main.confirm.restoreBackup'), () => {
+    // Qualitätsplan C5: gleiche Begründung wie beim Import oben — Reload
+    // direkt danach lädt `save` frisch, kein Divergenz-Fenster.
     writeSave(parsed);
     hud.showToast(t('main.toast.backupRestored'));
     setTimeout(() => window.location.reload(), 900);
