@@ -57,7 +57,7 @@ export const LANDMARKS = [
 // zurück) und damit doch ein echtes Achievement ist.
 // `earned` liest ausschließlich bereits bestehende save.*-Felder, kein
 // neues Speicherformat nötig.
-const TITLES = [
+export const TITLES = [
   { id: 'hauspokal', icon: '🏆', nameKey: 'title.hauspokal.name', descKey: 'title.hauspokal.desc', earned: (s) => s.pz?.hauspokal === 1 },
   { id: 'seelenwaechter', icon: '🏮', nameKey: 'title.seelenwaechter.name', descKey: 'title.seelenwaechter.desc', earned: (s) => s.moor.laterne === 1 },
   { id: 'meisterDesTodes', icon: '☠️', nameKey: 'title.meisterDesTodes.name', descKey: 'title.meisterDesTodes.desc', earned: (s) => s.hallows.stab === 1 && s.hallows.umhang === 1 && s.hallows.stein === 1 },
@@ -86,7 +86,7 @@ const TITLES = [
 // eigenes Speicherfeld nötig — liest ausschließlich vorhandene save.*-Werte,
 // exakt wie TITLES. `hint(save)` liefert seit i18n-Etappe 2 {key,vars} statt
 // eines fertigen Strings — render() übersetzt.
-const ALMANAC = [
+export const ALMANAC = [
   {
     id: 'fliegen', icon: '🧹', nameKey: 'almanac.fliegen.name',
     status: (s) => (s.besen ? 'fertig' : 'offen'),
