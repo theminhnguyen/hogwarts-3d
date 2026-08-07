@@ -377,8 +377,12 @@ export function buildMarauderMap(hud, save) {
     // Reset-Handler: save.map.discovered wird dort geleert (Object.assign),
     // aber bereits angelegte Punkt-DOM-Elemente bleiben ohne diesen Aufruf
     // stehen (render() legt Punkte nur an, entfernt sie sonst nie).
+    // Bugfix (Qualitätsplan D4, beim vollen Durchlauf-Test gefunden):
+    // trackedLandmarkId überlebte einen Reset bisher unverändert — der
+    // Kompass zeigte danach weiter auf ein Ziel aus dem gelöschten Save.
     restore() {
       for (const id in dotById) { dotById[id].dot.remove(); delete dotById[id]; }
+      trackedLandmarkId = null;
       if (isOpen) render(resolveProgress(save));
     },
     // Jeden Frame aufgerufen (auch bei geschlossener Karte): Entdeckung

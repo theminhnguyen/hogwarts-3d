@@ -348,8 +348,15 @@ gleichnamigen Region) sowie der Feenlichttrank, macht insgesamt 9 Rezepte.
 ## Entwicklung
 
 - Lokaler Server: `node dev-server.mjs` → http://localhost:8123
-- Tests (Save-Logik + Objective Resolver, ohne neue Abhängigkeit):
-  `npm test` (führt `node --test` aus)
+- Tests (ohne neue Abhängigkeit): `npm test` (führt `node --test` aus) —
+  69 Tests über 7 Dateien: Save-Logik (Normalisierung, Migration,
+  Export/Import, rekursive Reset-Vollständigkeit), Objective Resolver,
+  Herz-Upgrade, DE/EN-Übersetzungsparität, Interakt-Registry, Karten-
+  Datenlogik (Almanach/Titel), gespiegelte Konstanten
+
+  Three.js-gekoppelte Module (Szenenaufbau) werden nicht importiert,
+  sondern bei Bedarf als Text geparst — `three` ist kein npm-Paket,
+  ein direkter Import würde unter `node --test` fehlschlagen.
 
 ## Technik
 

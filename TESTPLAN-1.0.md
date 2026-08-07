@@ -175,5 +175,17 @@ http://localhost:8123 öffnen, sofern nicht anders angegeben.
 
 ## Automatisierte Tests
 
-- [ ] `npm test` läuft vollständig grün (Save-Normalisierung, Export/Import,
-      Objective Resolver).
+- [ ] `npm test` läuft vollständig grün — 69 Tests über 7 Dateien
+      (Qualitätsplan-Stand):
+      - `save.test.mjs`: Save-Normalisierung, Migration, Export/Import,
+        rekursive Reset-Vollständigkeit (DEFAULT_SAVE vs. normalizeSave({})).
+      - `health.test.mjs`: Herz-Upgrade.
+      - `progress.test.mjs`: Objective Resolver.
+      - `i18n.test.mjs`: DE/EN-Schlüsselparität, Platzhalter-Konsistenz,
+        Umlaut-Heuristik für vergessene Übersetzungen.
+      - `interact.test.mjs`: Interakt-Registry (lockedPrompt-Verhalten,
+        Reichweiten-Priorität, live Getter für bewegliche NPCs).
+      - `marauders-map.test.mjs`: Karten-Datenlogik (ALMANAC/TITLES erreichen
+        'fertig', landmarkTrackerInfo(), progress.js-Landmarken existieren).
+      - `mirrored-constants.test.mjs`: SCHNATZ_/ARTIFACT_/LICHTER_/
+        KRAEUTER_TOTAL aus progress.js gegen ihre echten Quellen geprüft.
