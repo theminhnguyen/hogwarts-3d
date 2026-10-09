@@ -103,7 +103,7 @@ function buildMushroomRing(root, glowTex) {
 
 // ---------- Belohnungstruhe (Muster aschenklamm.js/frostzinnen.js buildChest,
 // hier hellere Birkenholz-Färbung statt dunklem Kistenholz). ----------
-function buildChest(pos) {
+function buildChest(pos, glowTex) {
   const group = new THREE.Group();
   group.position.set(pos.x, pos.y, pos.z);
   const bodyMat = new THREE.MeshLambertMaterial({ color: 0xc9b896, flatShading: true });
@@ -120,7 +120,7 @@ function buildChest(pos) {
   lid.castShadow = true;
   lidPivot.add(lid);
   const glow = new THREE.Sprite(new THREE.SpriteMaterial({
-    color: 0xf0d8ff, transparent: true, opacity: 0, blending: THREE.AdditiveBlending, depthWrite: false,
+    map: glowTex, color: 0xf0d8ff, transparent: true, opacity: 0, blending: THREE.AdditiveBlending, depthWrite: false,
   }));
   glow.position.set(0, 0.6, 0);
   glow.scale.setScalar(0.1);
@@ -181,7 +181,7 @@ export function buildSilberhain(root, deps) {
 
   const tree = buildSilberbaum(root, glowTex);
   const mushrooms = buildMushroomRing(root, glowTex);
-  const chest = buildChest({ x: CHEST_POS.x, y: terrainHeight(CHEST_POS.x, CHEST_POS.z), z: CHEST_POS.z });
+  const chest = buildChest({ x: CHEST_POS.x, y: terrainHeight(CHEST_POS.x, CHEST_POS.z), z: CHEST_POS.z }, glowTex);
   root.add(chest.group);
 
   let puzzleT = 0;

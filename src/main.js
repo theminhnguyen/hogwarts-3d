@@ -217,7 +217,7 @@ const buildSteps = [
   ['Gelände', () => { scene.add(buildTerrain()); }],
   ['See', () => { water = buildWater(); scene.add(water.mesh); }],
   ['Schloss', () => { castle = buildCastle(scene); castle.setGlowTexture(glowTex); }],
-  ['Bootshaus, Hütte & Feld', () => { structures = buildStructures(scene); }],
+  ['Bootshaus, Hütte & Feld', () => { structures = buildStructures(scene, glowTex); }],
   ['Wälder & Wiesen', () => {
     const nature = buildNature(scene);
     natureSwayMaterials = nature.swayMaterials;
@@ -476,7 +476,7 @@ const buildSteps = [
   }],
   ['Mount', () => {
     mount = buildMount(scene, camera, glowTex, hud, audio, fx, health, interact, player, {
-      hippos: fauna.hippos, mounts: save.mounts, feroState: npc.fero.feroState, save,
+      hippos: fauna.hippos, mounts: save.mounts, feroState: npc.fero.feroState, save, furTex: fauna.furTex,
     });
     mount.restore(save.mounts);
     mount.onMountChange = () => { persist(); refreshStatusLines(); };
@@ -496,7 +496,7 @@ const buildSteps = [
   ['Begleiter', () => {
     companion = buildCompanion(scene, glowTex, hud, audio, fx, interact, economy, player, npc, {
       begleiter: save.begleiter, heim: save.heim, home, feroState: npc.fero.feroState,
-      creatures, wilderer, collectibles,
+      creatures, wilderer, collectibles, furTex: fauna.furTex,
     });
     companion.setNightGlowGetter(() => sky.state.nightGlow);
     // Wie mount.js: "gezähmt/gefunden" (begleiter.frei) bleibt gespeichert,

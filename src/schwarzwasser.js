@@ -41,7 +41,7 @@ function clamp01(t) { return t < 0 ? 0 : t > 1 ? 1 : t; }
 function rand(min, max) { return min + Math.random() * (max - min); }
 
 // ---------- Leuchtturm: Turm + Laterne (Leuchtfeuer erst nach der Quest an) ----------
-function buildLighthouse(root) {
+function buildLighthouse(root, glowTex) {
   const y = terrainHeight(LIGHTHOUSE.x, LIGHTHOUSE.z);
   const stoneMat = new THREE.MeshLambertMaterial({ color: 0xa8a09a, flatShading: true });
   const stripeMat = new THREE.MeshLambertMaterial({ color: 0xc23a3a, flatShading: true });
@@ -67,7 +67,7 @@ function buildLighthouse(root) {
   group.add(roof);
 
   const beaconMat = new THREE.SpriteMaterial({
-    color: 0xfff2c0, transparent: true, opacity: 0, blending: THREE.AdditiveBlending, depthWrite: false,
+    map: glowTex, color: 0xfff2c0, transparent: true, opacity: 0, blending: THREE.AdditiveBlending, depthWrite: false,
   });
   const beacon = new THREE.Sprite(beaconMat);
   beacon.scale.setScalar(1.6);
@@ -142,7 +142,7 @@ function buildLevers(root, glowTex) {
 
 // ---------- Tresor (Muster aschenklamm.js/frostzinnen.js buildChest, hier
 // nassgrün-messing statt Holz/Birke). ----------
-function buildChest(pos) {
+function buildChest(pos, glowTex) {
   const group = new THREE.Group();
   group.position.set(pos.x, pos.y, pos.z);
   const bodyMat = new THREE.MeshLambertMaterial({ color: 0x3a4a42, flatShading: true });
@@ -157,7 +157,7 @@ function buildChest(pos) {
   lid.position.set(0, 0.14, 0.275);
   lidPivot.add(lid);
   const glow = new THREE.Sprite(new THREE.SpriteMaterial({
-    color: 0x8ad8c8, transparent: true, opacity: 0, blending: THREE.AdditiveBlending, depthWrite: false,
+    map: glowTex, color: 0x8ad8c8, transparent: true, opacity: 0, blending: THREE.AdditiveBlending, depthWrite: false,
   }));
   glow.position.set(0, 0.6, 0);
   glow.scale.setScalar(0.1);
@@ -398,9 +398,9 @@ export function buildSchwarzwasser(root, deps) {
   const water = buildWater(SCHWARZWASSER, { deep: 0x0a1418, shallow: 0x162a2e });
   root.add(water.mesh);
   buildRuin(root);
-  const lighthouse = buildLighthouse(root);
+  const lighthouse = buildLighthouse(root, glowTex);
   const levers = buildLevers(root, glowTex);
-  const chest = buildChest(CHEST_POS);
+  const chest = buildChest(CHEST_POS, glowTex);
   root.add(chest.group);
 
   const grindylows = GRINDYLOW_SPOTS.map((spot) => new Grindylow(system, spot));

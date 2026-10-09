@@ -64,8 +64,8 @@ function buildPinivaModel() {
 }
 
 export function buildCompanion(scene, glowTex, hud, audio, fx, interact, economy, player, npc, deps) {
-  // deps = { begleiter, heim, home, feroState, creatures, wilderer, collectibles }
-  const { begleiter, heim, home, feroState, creatures, wilderer, collectibles } = deps;
+  // deps = { begleiter, heim, home, feroState, creatures, wilderer, collectibles, furTex }
+  const { begleiter, heim, home, feroState, creatures, wilderer, collectibles, furTex } = deps;
   let currentPlayer = player;
   let onChange = null;
 
@@ -103,7 +103,7 @@ export function buildCompanion(scene, glowTex, hud, audio, fx, interact, economy
   });
 
   // ---------- Grabbel: Modell + Loch + Freischalt-Interakt (5 Gold) ----------
-  const grabbel = buildNifflerModel();
+  const grabbel = buildNifflerModel(furTex);
   const gY = terrainHeight(GRABBEL_POS.x, GRABBEL_POS.z);
   grabbel.group.position.set(GRABBEL_POS.x, gY, GRABBEL_POS.z);
   grabbel.t = 0;

@@ -107,7 +107,7 @@ function buildGiantParts(glowTex) {
   return { bodyMesh, darkMat, iceMat, mistMat, eyeMat };
 }
 
-function buildChest(pos) {
+function buildChest(pos, glowTex) {
   const group = new THREE.Group();
   group.position.set(pos.x, pos.y, pos.z);
   const bodyMat = new THREE.MeshLambertMaterial({ color: 0x4a3826, flatShading: true });
@@ -124,7 +124,7 @@ function buildChest(pos) {
   lid.castShadow = true;
   lidPivot.add(lid);
   const glow = new THREE.Sprite(new THREE.SpriteMaterial({
-    color: 0x9fe0ff, transparent: true, opacity: 0, blending: THREE.AdditiveBlending, depthWrite: false,
+    map: glowTex, color: 0x9fe0ff, transparent: true, opacity: 0, blending: THREE.AdditiveBlending, depthWrite: false,
   }));
   glow.position.set(0, 0.6, 0);
   glow.scale.setScalar(0.1);
@@ -195,7 +195,7 @@ class Rimefell {
       this.legs.push({ hip: chain.joints[0], phase: s > 0 ? 0 : Math.PI });
     }
 
-    this.chest = buildChest({ x: LAIR.x + 2.4, y: terrainHeight(LAIR.x + 2.4, LAIR.z), z: LAIR.z });
+    this.chest = buildChest({ x: LAIR.x + 2.4, y: terrainHeight(LAIR.x + 2.4, LAIR.z), z: LAIR.z }, system.glowTex);
     system.scene.add(this.chest.group);
   }
 

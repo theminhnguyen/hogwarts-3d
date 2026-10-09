@@ -161,12 +161,12 @@ function buildThestralRiderView() {
 }
 
 export function buildMount(scene, camera, glowTex, hud, audio, fx, health, interact, player, deps) {
-  // deps = { hippos, mounts, feroState, save } — hippos: fauna.js-Instanzen
+  // deps = { hippos, mounts, feroState, save, furTex } — hippos: fauna.js-Instanzen
   // (direkte Referenz, wie überall in S3-S6), mounts/feroState dieselbe
   // Muster-Wiederverwendung. save: die WHOLE save-Referenz (wie economy.js
   // sie für gold/ruf hält) — seenDeath ist ein reiner Skalar, keine Sub-
   // Objekt-Referenz reicht dafür, siehe S4-Lehre "Save-Referenz-Fragilität".
-  const { hippos, mounts, feroState, save } = deps;
+  const { hippos, mounts, feroState, save, furTex } = deps;
 
   let currentPlayer = player;
   let onMountChange = null;
@@ -320,7 +320,7 @@ export function buildMount(scene, camera, glowTex, hud, audio, fx, health, inter
   }
 
   // ---------- Rufen & Reiten (beide Arten teilen sich dieselbe Maschine) ----------
-  const hippoPet = buildWildHippoModel();
+  const hippoPet = buildWildHippoModel(furTex);
   const thestralPet = buildThestralModel();
   const hippoRiderView = buildHippoRiderView();
   const thestralRiderView = buildThestralRiderView();

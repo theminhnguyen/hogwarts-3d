@@ -997,6 +997,10 @@ export function buildFauna(scene, fx, audio, treeSpots, onGlitter, health) {
 
   return {
     deer, rabbits, foxes, nifflers, bowtruckles, hippos,
+    // Geteilte Fell-Textur auch für die zahmen Doppelgänger (gerufener
+    // Hippogreif in mount.js, Begleiter Grabbel in companion.js) — die bauen
+    // dasselbe Modell nach und sahen ohne sie ungefellt/anders aus.
+    furTex,
     // Für die Akromantula-Kopplung (creatures.js): jagdbare Beute in
     // Reichweite der Spinnen-Leine — Füchse UND Hasen (K1: Niffler/
     // Bowtruckle bleiben absichtlich draußen, nie in dieser Liste).

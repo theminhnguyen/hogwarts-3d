@@ -176,7 +176,7 @@ function buildDragonParts(glowTex) {
 }
 
 // ---------- Truhe (Muster: Troll-Truhe aus creatures.js) ----------
-function buildChest(pos) {
+function buildChest(pos, glowTex) {
   const group = new THREE.Group();
   group.position.set(pos.x, pos.y, pos.z);
   const bodyMat = new THREE.MeshLambertMaterial({ color: 0x4a3826, flatShading: true });
@@ -193,7 +193,7 @@ function buildChest(pos) {
   lid.castShadow = true;
   lidPivot.add(lid);
   const glowMat = new THREE.SpriteMaterial({
-    map: null, color: 0xffb060, transparent: true, opacity: 0,
+    map: glowTex, color: 0xffb060, transparent: true, opacity: 0,
     blending: THREE.AdditiveBlending, depthWrite: false,
   });
   const glow = new THREE.Sprite(glowMat);
@@ -255,7 +255,7 @@ class Dragon {
     this.vulnGlow.position.set(0, 0, 0);
     this.group.add(this.vulnGlow);
 
-    this.chest = buildChest({ x: NEST.x + 2.2, y: terrainHeight(NEST.x + 2.2, NEST.z), z: NEST.z });
+    this.chest = buildChest({ x: NEST.x + 2.2, y: terrainHeight(NEST.x + 2.2, NEST.z), z: NEST.z }, system.glowTex);
     system.scene.add(this.chest.group);
   }
 

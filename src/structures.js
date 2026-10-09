@@ -17,7 +17,7 @@ const WINDOW_WARM = 0xffd98c;
 const GOLD = 0xd8b02f;
 const IRON = 0x3a3a42;
 
-export function buildStructures(scene) {
+export function buildStructures(scene, glowTex) {
   const mats = getMaterials();
   const bx = {
     s: new GeoBatch(), r: new GeoBatch(), w: new GeoBatch(),
@@ -174,8 +174,13 @@ export function buildStructures(scene) {
       }
     }
     // 3 Leuchtkräuter (Pickup erst in W5 — hier nur Deko + Positionen)
+    // Bugfix (Perf-/Polish-Runde 2026-10-09): ohne `map` zeichnet ein Sprite
+    // ein hartes Quadrat — das Kraut war ein flaches grünes Viereck statt
+    // eines Leuchtens. Mit der weichen Glow-Textur wirkt die sichtbare Fläche
+    // kleiner, daher die größere Grundskala in update() (0.55 statt 0.3).
     const lkMat = new THREE.SpriteMaterial({
-      color: 0x5cffa0, transparent: true, opacity: 0.85, depthWrite: false,
+      map: glowTex, color: 0x5cffa0, transparent: true, opacity: 0.85,
+      blending: THREE.AdditiveBlending, depthWrite: false,
     });
     const lkSpots = [
       { x: hx - hw * 0.28, z: hz - 0.5 + 0.3 },
@@ -186,7 +191,7 @@ export function buildStructures(scene) {
       const y = hy + 1.15;
       const s = new THREE.Sprite(lkMat.clone());
       s.position.set(spot.x, y, spot.z);
-      s.scale.setScalar(0.3);
+      s.scale.setScalar(0.55);
       scene.add(s);
       leuchtkraeuter.push({ x: spot.x, y, z: spot.z, sprite: s });
     }
@@ -309,7 +314,7 @@ export function buildStructures(scene) {
         p.mesh.rotation.x = Math.sin(time * 1.1 + p.phase * 1.3) * 0.08;
       }
       for (const l of leuchtkraeuter) {
-        const s = 0.3 + Math.sin(time * 2 + l.x) * 0.04;
+        const s = 0.55 + Math.sin(time * 2 + l.x) * 0.07;
         l.sprite.scale.setScalar(s);
         l.sprite.material.opacity = 0.7 + Math.sin(time * 2.4 + l.z) * 0.15;
       }
