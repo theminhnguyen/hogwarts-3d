@@ -121,11 +121,27 @@ const lightPool = createLightPool(scene);
 // jeweiligen Build-Step auf, ohne main.js sonst anfassen zu müssen. Aktuell
 // (E0) noch ohne registrierten Content — reines Fundament, siehe
 // TESTPLAN-1.0.md/Browser-Verifikation für den Wake/Sleep-Nachweis.
-const regionManager = createRegionManager(scene);
+const regionManager = createRegionManager(scene, {
+  // Perf-Runde 2026-10-09: Regionen werden ~60 m vor dem Aufwachen versteckt
+  // gebaut; ihre neuen Materialien in der Zeit im Hintergrund übersetzen
+  // (KHR_parallel_shader_compile), statt beim ersten sichtbaren Bild.
+  onPrepared: (root) => precompile(root),
+});
 // PLAN-EPISCHE-WELT.md (E3): Regions-Atmosphäre-Fundament, ebenfalls noch
 // ohne registrierte echte Zonen — die neuen Regionen (E4+) registrieren
 // sich hier mit ihrer jeweiligen Himmelsfärbung/Nebel/Ambient-Sound.
 const atmosphere = createAtmosphereSystem();
+
+// Shader im Hintergrund vorab übersetzen. compile() erfasst auch unsichtbare
+// Objekte (traverse statt traverseVisible) — genau richtig für noch
+// schlafende Regionen. Schlägt es fehl, kompiliert three.js wie bisher beim
+// ersten Rendern; deshalb nur eine Warnung, kein Abbruch.
+function precompile(root) {
+  if (!renderer.compileAsync) return Promise.resolve();
+  return renderer.compileAsync(root, camera, scene).catch((err) => {
+    console.warn('Shader-Vorkompilierung übersprungen:', err);
+  });
+}
 
 window.addEventListener('resize', () => {
   camera.aspect = window.innerWidth / window.innerHeight;
@@ -633,6 +649,9 @@ async function buildWorld() {
       loadingBar.style.width = `${((i + 1) / buildSteps.length) * 100}%`;
     }
     refreshStatusLines();
+    // Perf-Runde 2026-10-09: alle Shader der fertigen Welt noch hinter dem
+    // Ladebalken übersetzen, nicht beim ersten Bild hinter dem Menü.
+    await precompile(scene);
     await new Promise(r => setTimeout(r, 0));
     menuLoading.classList.add('hidden');
     menuMain.classList.remove('hidden');

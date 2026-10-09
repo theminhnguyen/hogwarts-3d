@@ -18,22 +18,37 @@ function distXZ(a, b) {
   return Math.hypot(a.x - b.x, a.z - b.z);
 }
 
-export function createRegionManager(scene) {
+// Perf-Runde 2026-10-09: Regionen werden schon so viele Meter VOR dem
+// Aufwachen gebaut — versteckt und schlafend. main.js lässt in dieser Zeit
+// über `onPrepared` die Shader der neuen Materialien im Hintergrund
+// übersetzen, damit beim eigentlichen Aufwachen (wakeRadius) nichts mehr
+// kompiliert werden muss. Ein gebauter, schlafender Bereich ist kein neuer
+// Zustand: genau so sieht jede Region aus, nachdem man sie wieder verlassen hat.
+export const PREPARE_MARGIN = 60;
+
+// opts.onPrepared(root): wird einmal pro Region direkt nach dem (versteckten)
+// Bau aufgerufen.
+export function createRegionManager(scene, opts = {}) {
   const regions = [];
+
+  function build(region) {
+    // Erstkontakt: einmalig synchron bauen (analog zu den buildSteps in
+    // main.js). Teure Regionen (E4+, Bosse) können intern selbst über
+    // mehrere Frames einblenden — das Register/Wake-Protokoll hier
+    // erzwingt keine Ein-Frame-Fertigstellung. Unsichtbar VOR build(),
+    // damit beim Vorbereiten nichts aufblitzt.
+    region.root = new THREE.Group();
+    region.root.name = `region-${region.key}`;
+    region.root.visible = false;
+    scene.add(region.root);
+    region.handle = region.build(region.root, region.deps) || {};
+    region.built = true;
+    opts.onPrepared?.(region.root);
+  }
 
   function setAwake(region, awake) {
     if (awake === region.awake) return;
-    if (awake && !region.built) {
-      // Erstkontakt: einmalig synchron bauen (analog zu den buildSteps in
-      // main.js). Teure Regionen (E4+, Bosse) können intern selbst über
-      // mehrere Frames einblenden — das Register/Wake-Protokoll hier
-      // erzwingt keine Ein-Frame-Fertigstellung.
-      region.root = new THREE.Group();
-      region.root.name = `region-${region.key}`;
-      scene.add(region.root);
-      region.handle = region.build(region.root, region.deps) || {};
-      region.built = true;
-    }
+    if (awake && !region.built) build(region);
     region.awake = awake;
     if (region.root) region.root.visible = awake;
     region.handle?.setAwake?.(awake);
@@ -41,17 +56,22 @@ export function createRegionManager(scene) {
 
   function updateOne(region, dt, player) {
     const d = distXZ(player.pos, region.center);
+    if (!region.built && d < region.prepareRadius) build(region);
     if (!region.awake && d < region.wakeRadius) setAwake(region, true);
     else if (region.awake && d > region.sleepRadius) setAwake(region, false);
     if (region.awake) region.handle?.update?.(dt, player);
   }
 
-  function register({ key, center, wakeRadius, sleepRadius, build, deps }) {
+  function register({ key, center, wakeRadius, sleepRadius, prepareRadius, build, deps }) {
     if (!(sleepRadius > wakeRadius)) {
       throw new Error(`regions.register("${key}"): sleepRadius (${sleepRadius}) muss > wakeRadius (${wakeRadius}) sein — sonst keine Hysterese gegen Flackern am Rand.`);
     }
+    const prep = prepareRadius ?? wakeRadius + PREPARE_MARGIN;
+    if (!(prep >= wakeRadius)) {
+      throw new Error(`regions.register("${key}"): prepareRadius (${prep}) muss >= wakeRadius (${wakeRadius}) sein.`);
+    }
     const region = {
-      key, center, wakeRadius, sleepRadius, build, deps: deps || {},
+      key, center, wakeRadius, sleepRadius, prepareRadius: prep, build, deps: deps || {},
       built: false, awake: false, root: null, handle: null,
     };
     regions.push(region);
@@ -62,7 +82,8 @@ export function createRegionManager(scene) {
       get meshes() { return region.handle?.meshes || []; },
       // E4+: echte Regionen (Bosse, Ziel-Registry-Objekte) müssen von main.js
       // erreichbar sein (Spruch-Zielliste, Bossbar, Trank-Effekte) — null vor
-      // dem ersten Wecken, danach das von build() zurückgegebene Objekt.
+      // dem ersten (versteckten) Bau, danach das von build() zurückgegebene
+      // Objekt. Gebaut heißt NICHT wach — wer "aktiv" braucht, prüft .awake.
       get handle() { return region.handle; },
       setAwake: (v) => setAwake(region, v),
       update: (dt, player) => updateOne(region, dt, player),
