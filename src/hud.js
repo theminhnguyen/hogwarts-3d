@@ -228,7 +228,9 @@ export class Hud {
     for (const id in this.spellChips) {
       const chip = this.spellChips[id];
       chip.classList.toggle('active', id === activeId);
-      const cd = cooldowns ? cooldowns[id] : 0;
+      // Sprüche ohne Eintrag (z. B. die dunklen, eigene Abklingzeit-Logik) → 0
+      // statt undefined, sonst stünde "NaN" in --cd.
+      const cd = (cooldowns && cooldowns[id]) || 0;
       const frac = Math.max(0, Math.min(1, cd / (this._spellMax[id] || 1)));
       this._css(chip, '--cd', frac.toFixed(3));
     }

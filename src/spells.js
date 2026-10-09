@@ -138,7 +138,9 @@ export class SpellSystem {
     }
     this._nextBolt = 0;
 
-    // Licht-Pool: max. 3 gleichzeitige Zauber-Lichter (Performance-Budget)
+    // Max. 3 gleichzeitige Zauber-Lichter (Ringpuffer). Auf echte Lichter
+    // verteilt sie — wie alle anderen Lichtquellen — der globale Licht-Pool
+    // (light-pool.js); Lichter direkt bei der Kamera bekommen dort sofort Vorrang.
     this.lights = [];
     for (let i = 0; i < LIGHT_POOL_SIZE; i++) {
       const l = new PoolPointLight(0xffffff, 0, 10, 2);

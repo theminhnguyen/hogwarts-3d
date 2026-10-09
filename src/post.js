@@ -412,6 +412,15 @@ export class PostFX {
     this.renderer.render(this.quadScene, this.quadCam);
   }
 
+  // Wohin render() die Szene selbst zeichnet: im Composer-Pfad in rtScene,
+  // sonst direkt auf den Bildschirm (null). Perf-Runde 2026-10-09: main.js'
+  // Shader-Vorkompilierung braucht genau dieses Ziel — three.js übersetzt pro
+  // Ziel eine eigene Shader-Variante (Farbraum/Tonemapping), eine für den
+  // Bildschirm vorbereitete hilft beim Zeichnen in rtScene nicht.
+  get sceneTarget() {
+    return this.quality === 'schnell' || this.degraded ? null : this.rtScene;
+  }
+
   // sunDir (optional, G4): Weltrichtung ZUR Sonne. Wird auf den Bildschirm
   // projiziert, um den Ursprung der Lichtschächte zu bestimmen. Fehlt sie,
   // bleiben Godrays einfach aus.

@@ -137,9 +137,28 @@ const atmosphere = createAtmosphereSystem();
 // Objekte (traverse statt traverseVisible) — genau richtig für noch
 // schlafende Regionen. Schlägt es fehl, kompiliert three.js wie bisher beim
 // ersten Rendern; deshalb nur eine Warnung, kein Abbruch.
+// Zeitlimit: three.js' compileAsync() fragt ohne Obergrenze per setTimeout
+// ab, bis jeder Shader "fertig" meldet, und kennt keinen Fehlerweg. Meldet
+// einer nie fertig (Treiber-Eigenheit, verlorener WebGL-Kontext), bliebe der
+// Ladebildschirm sonst für immer stehen — buildWorld() wartet darauf.
+const PRECOMPILE_TIMEOUT_MS = 5000;
 function precompile(root) {
   if (!renderer.compileAsync) return Promise.resolve();
-  return renderer.compileAsync(root, camera, scene).catch((err) => {
+  let compiling;
+  // Dasselbe Ziel wie beim echten Zeichnen binden (post.sceneTarget): three.js
+  // legt die Shader-Variante beim synchronen Teil von compileAsync() fest.
+  const prevTarget = renderer.getRenderTarget();
+  renderer.setRenderTarget(post.sceneTarget);
+  try {
+    compiling = renderer.compileAsync(root, camera, scene);
+  } catch (err) {
+    console.warn('Shader-Vorkompilierung übersprungen:', err);
+    return Promise.resolve();
+  } finally {
+    renderer.setRenderTarget(prevTarget);
+  }
+  const timeout = new Promise((r) => setTimeout(r, PRECOMPILE_TIMEOUT_MS));
+  return Promise.race([compiling, timeout]).catch((err) => {
     console.warn('Shader-Vorkompilierung übersprungen:', err);
   });
 }

@@ -212,7 +212,7 @@ export function buildKate(scene, glowTex) {
   batches.wood.addRaw(door, WOOD_COL);
 
   // Kamin (Westwand) — S7: nur bei heim.kate=1 aktiv, gleiches Muster wie
-  // village.js-Gasthaus (EIN Glow-Sprite + EIN PointLight).
+  // village.js-Gasthaus (EIN Glow-Sprite + EIN Punktlicht).
   const kaminPos = { x: kx - halfW + 0.5, y: ky, z: kz + 1.6 };
   batches.wall.add(new THREE.BoxGeometry(1.0, 1.4, 0.8), STONE_COL, kaminPos.x, kaminPos.y + 0.7, kaminPos.z);
   const kaminGlowMat = new THREE.SpriteMaterial({
