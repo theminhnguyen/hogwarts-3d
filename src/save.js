@@ -9,7 +9,7 @@
 // eigentliche Versionierung läuft über SAVE_VERSION im `v`-Feld des
 // gespeicherten Objekts, nicht über den Schlüsselnamen.
 export const SAVE_KEY = 'hogwarts3d-save-v1';
-export const SAVE_VERSION = 12; // v5 (S1-S12) + v6 (Sonnet-5-Polish) + v7 (E4: Aschenklamm/Siegel) + v8 (E5: Frostzinnen/Eisblitz) + v9 (E6: Silberhain/Einhorn) + v10 (E7: Schwarzwasser/Tiefenperle) + v11 (E10: Vier-Siegel-Finale) + v12 (PLAN-DER-DUNKLE-LORD: Schattenfeste/Endboss)
+export const SAVE_VERSION = 13; // v5 (S1-S12) + v6 (Sonnet-5-Polish) + v7 (E4: Aschenklamm/Siegel) + v8 (E5: Frostzinnen/Eisblitz) + v9 (E6: Silberhain/Einhorn) + v10 (E7: Schwarzwasser/Tiefenperle) + v11 (E10: Vier-Siegel-Finale) + v12 (PLAN-DER-DUNKLE-LORD: Schattenfeste/Endboss) + v13 (Perf-Runde: Bildraten-Begrenzung)
 export const EXPORT_FORMAT = 'hogwarts3d-save';
 export const MAX_IMPORT_BYTES = 250_000;
 
@@ -26,6 +26,8 @@ export const DEFAULT_SAVE = {
   music: false,
   peaceful: false,
   grafik: 'schoen',
+  // v13 (Perf-Runde 2026-10-09): 60 = auf 60 Bilder/s begrenzt, 0 = unbegrenzt.
+  maxFps: 60,
   t: undefined,
   gold: 0,
   ruf: 0,
@@ -132,6 +134,9 @@ export function normalizeSave(value) {
     // Umgebungslicht, Normal-Maps, SSAO und Godrays. Unbekannte Werte fallen
     // wie bisher auf 'schoen' zurück (alte Saves kennen 'episch' nicht).
     grafik: (raw.grafik === 'schnell' || raw.grafik === 'episch') ? raw.grafik : 'schoen',
+    // v13: nur 60 (Standard, schont Akku/Lüfter auf 120-Hz-Bildschirmen) oder
+    // 0 (unbegrenzt). Alles andere — inkl. alter Saves ohne das Feld — wird 60.
+    maxFps: raw.maxFps === 0 ? 0 : 60,
     t: typeof raw.t === 'number' ? raw.t : undefined,
     gold: num(raw.gold, 0),
     ruf: num(raw.ruf, 0),

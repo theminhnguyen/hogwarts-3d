@@ -4,6 +4,7 @@
 
 import * as THREE from 'three';
 import { PoolPointLight, createLightPool } from './light-pool.js';
+import { createFramePacer } from './frame-pacer.js';
 import { buildTerrain, buildWater, ASCHENKLAMM, FROSTZINNEN, SILBERHAIN, SCHWARZWASSER, SCHATTENFESTE } from './terrain.js';
 import { SkySystem } from './sky.js';
 import { buildCastle } from './castle.js';
@@ -713,6 +714,7 @@ function persist() {
     t: sky ? sky.timeOfDay : undefined,
     peaceful: creatures ? creatures.peaceful : (save.peaceful === true),
     grafik: post.quality,
+    maxFps: save.maxFps,
     // v5-Felder (S1): noch ohne eigenes Live-System (kommt erst S3-S11),
     // daher unverändert durchgereicht — AUSSER seenDeath (K7/Abschnitt 2):
     // ein Troll-Sieg zählt als miterlebter Tod, sobald er diese Session
@@ -839,6 +841,17 @@ btnGrafik.addEventListener('click', () => {
   }
 });
 
+// Perf-Runde 2026-10-09: Bildrate max. 60 (Standard) oder unbegrenzt.
+const FPS_KEY = { 60: 'fps.60', 0: 'fps.max' };
+const btnFps = document.getElementById('btn-fps');
+function relabelFps() { btnFps.textContent = t('menu.btnFps', { state: t(FPS_KEY[save.maxFps]) }); }
+relabelFps();
+btnFps.addEventListener('click', () => {
+  save.maxFps = save.maxFps === 60 ? 0 : 60;
+  relabelFps();
+  persist();
+});
+
 // S11: Formwahl NUR fürs Ritual/Taste V — hat unabhängig von animagus.gelernt
 // immer einen Wert (Default 'rabe' aus dem Save-Schema), damit man die Form
 // schon vor dem Ritual vorwählen kann.
@@ -868,6 +881,7 @@ btnLang.addEventListener('click', () => {
   relabelMusic();
   relabelPeaceful();
   relabelGrafik();
+  relabelFps();
   relabelAnimagusForm();
   persist();
 });
@@ -1237,15 +1251,28 @@ function pushAll(target, source) {
   for (let i = 0; i < source.length; i++) target.push(source[i]);
 }
 
-function tick() {
+// Bildraten-Begrenzung (Perf-Runde 2026-10-09, Logik in frame-pacer.js):
+// im Spiel save.maxFps (Standard 60, Menü-Knopf "Bildrate"); hinter dem Menü
+// steht die Welt still (frame() läuft nicht), da reichen wenige Bilder für
+// Größenänderungen.
+const MENU_FPS = 15;
+const pacer = createFramePacer();
+
+// `now` fehlt beim allerersten, direkten tick()-Aufruf (kein rAF-Zeitstempel).
+function tick(now = performance.now()) {
   requestAnimationFrame(tick);
   if (!player) return; // Welt noch im Aufbau
+  if (!pacer.shouldRender(now, playing ? save.maxFps : MENU_FPS)) return;
 
   const dt = Math.min(clock.getDelta(), 0.05);
-  const rawFps = dt > 0 ? 1 / dt : 60;
-  fpsEMA += (rawFps - fpsEMA) * 0.05;
-
-  if (playing) frame(dt);
+  if (playing) {
+    // Nur echte Spielbilder in die fps-Messung — die bewusst gedrosselten
+    // Menübilder würden sonst die automatische Qualitätsabsenkung (post.js
+    // unter 42/50/52 fps, Auflösung in frame()) fälschlich auslösen.
+    const rawFps = dt > 0 ? 1 / dt : 60;
+    fpsEMA += (rawFps - fpsEMA) * 0.05;
+    frame(dt);
+  }
 
   renderFrame(dt);
 }

@@ -34,6 +34,7 @@ function fullSave() {
     music: true,
     peaceful: true,
     grafik: 'schnell',
+    maxFps: 0,
     t: 12.3,
     gold: 250,
     ruf: 15,
@@ -249,6 +250,16 @@ test('normalizeSave akzeptiert alle drei Grafik-Stufen (episch seit 2026-07-31)'
   // Alte Saves ohne das Feld und Müllwerte landen weiterhin auf 'schoen'
   assert.equal(normalizeSave({}).grafik, 'schoen');
   assert.equal(normalizeSave({ grafik: 'ultra' }).grafik, 'schoen');
+});
+
+test('normalizeSave: maxFps (v13) — 60 als Standard, 0 = unbegrenzt bleibt erhalten, alles andere wird 60', () => {
+  assert.equal(normalizeSave({}).maxFps, 60);
+  assert.equal(normalizeSave({ collected: ['a'], grafik: 'episch' }).maxFps, 60); // alter Save ohne Feld
+  assert.equal(normalizeSave({ maxFps: 0 }).maxFps, 0);
+  assert.equal(normalizeSave({ maxFps: 60 }).maxFps, 60);
+  for (const bad of [30, 120, -1, '0', 'max', null, true]) {
+    assert.equal(normalizeSave({ maxFps: bad }).maxFps, 60, `maxFps=${JSON.stringify(bad)}`);
+  }
 });
 
 test('loadSave/writeSave: Roundtrip über einen Fake-Storage bewahrt Fortschritt', () => {
