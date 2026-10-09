@@ -1246,6 +1246,13 @@ let qualityTimer = 0;
 // geleert (length=0) und neu befüllt — keine Zwischen-Arrays mehr.
 const spellTargets = [];
 const meleeTargets = [];
+// Perf-Runde 2026-10-09: gleiche GC-Disziplin für die HUD-Zeilen unten —
+// Boss-Zustände als feste Mengen statt pro Bild neu gebauter Array-Literale,
+// Abklingzeiten in EIN wiederverwendetes Objekt statt pro Bild { ...spread }.
+const TROLL_BOSS_STATES = new Set(['aggro', 'telegraph', 'slam']);
+const DRAGON_BOSS_STATES = new Set(['flying', 'telegraph', 'firebreath', 'staggered']);
+const GIANT_BOSS_STATES = new Set(['aggro', 'telegraph', 'stagger']);
+const hudCooldowns = {};
 function pushAll(target, source) {
   if (!source) return;
   for (let i = 0; i < source.length; i++) target.push(source[i]);
@@ -1493,10 +1500,12 @@ function frame(dt) {
       || collectibles.nearest(player.pos),
       player.heading,
     );
-    hud.setSpell(wand.activeSpell, { ...spells.cooldowns, mal: dark.malCooldown });
+    Object.assign(hudCooldowns, spells.cooldowns);
+    hudCooldowns.mal = dark.malCooldown;
+    hud.setSpell(wand.activeSpell, hudCooldowns);
     hud.setHearts(health.hearts, health.effectiveMaxHearts);
     const troll = creatures.troll;
-    const trollBoss = ['aggro', 'telegraph', 'slam'].includes(troll.state) ? troll.hp / troll.maxHp : null;
+    const trollBoss = TROLL_BOSS_STATES.has(troll.state) ? troll.hp / troll.maxHp : null;
     // E4: gleiche Bossbar wie beim Troll, mitgenutzt (zeitlich nie
     // überlappend — beide Regionen liegen weit auseinander).
     // `.awake` ist Pflicht: eine schlafende Region friert den letzten
@@ -1505,12 +1514,12 @@ function frame(dt) {
     // diesen Guard bliebe seine Bossbar quer über die halbe Karte sichtbar,
     // auch 400 m entfernt.
     const dragon = aschenklammRegion.awake ? aschenklammRegion.handle?.dragon : null;
-    const dragonBoss = dragon && ['flying', 'telegraph', 'firebreath', 'staggered'].includes(dragon.state)
+    const dragonBoss = dragon && DRAGON_BOSS_STATES.has(dragon.state)
       ? dragon.hp / dragon.maxHp : null;
     // E5: gleiche Bossbar, dritter möglicher Nutzer — alle drei Regionen
     // liegen weit auseinander, nie gleichzeitig aktiv.
     const giant = frostzinnenRegion.awake ? frostzinnenRegion.handle?.giant : null;
-    const giantBoss = giant && ['aggro', 'telegraph', 'stagger'].includes(giant.state)
+    const giantBoss = giant && GIANT_BOSS_STATES.has(giant.state)
       ? giant.hp / giant.maxHp : null;
     // V3: Dunkler Lord — bossFrac() liefert je nach Phase Schild-Treffer- oder
     // Dementoren-Fortschritt (kein hp/maxHp wie die anderen drei, siehe
