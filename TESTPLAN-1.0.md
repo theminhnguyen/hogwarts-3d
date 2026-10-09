@@ -173,10 +173,31 @@ http://localhost:8123 öffnen, sofern nicht anders angegeben.
 - [ ] Performance: Turm außen, Arena (auch während Phase 2 mit 5 Dementoren)
       und Turmspitze im Flug bleiben bei ≥55 fps.
 
+## 10. Performance (Perf-Runde 2026-10-09)
+
+Echte Bildraten nur auf dem eigenen Rechner im Vollbild beurteilen — im
+versteckten Vorschau-Tab sind fps-Werte wertlos.
+
+- [ ] Mit `F` die fps-Anzeige einblenden: am Startpunkt Richtung Schloss
+      stabil ~60 (Standard „Bildrate: max. 60"), auch nachts im Schlosshof.
+- [ ] Jede der fünf Regionen (Aschenklamm, Frostzinnen, Silberhain,
+      Schwarzwasser, Schattenfeste) zum ersten Mal betreten — auch per Besen
+      im Flug: kein Standbild, kein spürbarer Ruckler.
+- [ ] „Bildrate" auf „unbegrenzt" stellen: auf einem 120-Hz-Bildschirm
+      steigt die fps-Anzeige über 60; zurück auf „max. 60" fällt sie wieder.
+      Einstellung übersteht Neuladen und „Fortschritt zurücksetzen".
+- [ ] Nachts im Schlosshof und im Großen Saal: Fensterlichter, Laternen und
+      Hallenleuchter beleuchten Wände/Boden wie gewohnt; beim Laufen ploppt
+      kein Licht hart an oder aus.
+- [ ] Zauber wirken und Lumos an/aus: das Licht am Zauberstab und an den
+      Geschossen erscheint sofort, ohne Verzögerung.
+- [ ] Die 3 Leuchtkräuter im Gewächshaus leuchten als weiche grüne Kugeln
+      (kein flaches Quadrat); Truhen der Regionen blitzen beim Öffnen weich auf.
+
 ## Automatisierte Tests
 
-- [ ] `npm test` läuft vollständig grün — 69 Tests über 7 Dateien
-      (Qualitätsplan-Stand):
+- [ ] `npm test` läuft vollständig grün — 87 Tests über 9 Dateien
+      (Stand Perf-Runde 2026-10-09):
       - `save.test.mjs`: Save-Normalisierung, Migration, Export/Import,
         rekursive Reset-Vollständigkeit (DEFAULT_SAVE vs. normalizeSave({})).
       - `health.test.mjs`: Herz-Upgrade.
@@ -189,3 +210,7 @@ http://localhost:8123 öffnen, sofern nicht anders angegeben.
         'fertig', landmarkTrackerInfo(), progress.js-Landmarken existieren).
       - `mirrored-constants.test.mjs`: SCHNATZ_/ARTIFACT_/LICHTER_/
         KRAEUTER_TOTAL aus progress.js gegen ihre echten Quellen geprüft.
+      - `light-pool.test.mjs`: Auswahl der 8 echten Lichter (Wichtigkeit,
+        Ein-/Ausblenden, Hysterese, Vorrang für Lichter bei der Kamera).
+      - `frame-pacer.test.mjs`: Bildraten-Begrenzung auf 60/120/144 Hz,
+        Menü-Takt, kein Nachhol-Schwall nach Tab-Wechsel.

@@ -158,6 +158,10 @@ eine lokale Sicherung an, bevor sie den aktuellen Stand ersetzen.
   > Hinweis: „Episch" ist die anspruchsvollste Stufe und für aktuelle Rechner
   > gedacht. Ruckelt es, einfach zurück auf „Schön" schalten — die ist
   > unverändert geblieben.
+- ⏱️ **Bildrate** (Menü-Button): Standard „max. 60" — auf 120-Hz-Bildschirmen
+  (z. B. MacBook Pro) rechnet das Spiel sonst doppelt so viele Bilder, mit
+  entsprechend mehr Wärme und Akkuverbrauch. „unbegrenzt" nutzt die volle
+  Bildwiederholrate. Hinter dem Menü wird ohnehin nur sparsam gezeichnet.
 - 🏘️ Dorf **Eulenbrück** mit Gasthaus „Zum Singenden Kessel" (begehbar,
   Kamin heilt alle 60 Sekunden), Brunnen, Laternen und Marktständen — dazu
   eine Dampfeisenbahn mit echtem Fahrplan (4 Minuten Umlauf, 2 Tunnel
@@ -349,10 +353,11 @@ gleichnamigen Region) sowie der Feenlichttrank, macht insgesamt 9 Rezepte.
 
 - Lokaler Server: `node dev-server.mjs` → http://localhost:8123
 - Tests (ohne neue Abhängigkeit): `npm test` (führt `node --test` aus) —
-  69 Tests über 7 Dateien: Save-Logik (Normalisierung, Migration,
+  87 Tests über 9 Dateien: Save-Logik (Normalisierung, Migration,
   Export/Import, rekursive Reset-Vollständigkeit), Objective Resolver,
   Herz-Upgrade, DE/EN-Übersetzungsparität, Interakt-Registry, Karten-
-  Datenlogik (Almanach/Titel), gespiegelte Konstanten
+  Datenlogik (Almanach/Titel), gespiegelte Konstanten, Licht-Pool-Auswahl,
+  Bildraten-Begrenzung
 
   Three.js-gekoppelte Module (Szenenaufbau) werden nicht importiert,
   sondern bei Bedarf als Text geparst — `three` ist kein npm-Paket,
@@ -368,5 +373,13 @@ gleichnamigen Region) sowie der Feenlichttrank, macht insgesamt 9 Rezepte.
 - Eigene Kollisions-/Blocker-Registry, Objekt-Pools für Zauber-Projektile,
   Partikel und Kreaturen, generisches Ziel-Registry-System als Bindeglied
   zwischen Zaubern und Rätseln
+- Licht-Pool (`src/light-pool.js`): alle ~56 Lichtquellen der Welt teilen
+  sich 8 echte Punktlichter, die jedes Bild auf die wichtigsten verteilt
+  werden — konstante Lichteranzahl, dadurch ~3–4× weniger Grafikarbeit und
+  kein Shader-Neuübersetzen (früher bis zu 2,6 s Standbild) beim Betreten
+  einer Region
+- Shader werden beim Laden und ~60 m vor jeder Region im Hintergrund
+  vorab übersetzt (`renderer.compileAsync`), Regionen dafür versteckt
+  vorgebaut
 
 Erstellt mit [Claude Code](https://claude.com/claude-code).
