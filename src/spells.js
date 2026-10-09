@@ -5,6 +5,7 @@
 // registriert sich hier, spells.js bleibt dumm/generisch.
 
 import * as THREE from 'three';
+import { PoolPointLight } from './light-pool.js';
 import { pointBlocked, addCircleBlocker, platformGround } from './geo.js';
 import { terrainHeight, WATER_LEVEL, LAKE } from './terrain.js';
 import { SPELLS, SPELL_ORDER, SPELL_ORDER_BASE } from './wand.js';
@@ -140,7 +141,7 @@ export class SpellSystem {
     // Licht-Pool: max. 3 gleichzeitige Zauber-Lichter (Performance-Budget)
     this.lights = [];
     for (let i = 0; i < LIGHT_POOL_SIZE; i++) {
-      const l = new THREE.PointLight(0xffffff, 0, 10, 2);
+      const l = new PoolPointLight(0xffffff, 0, 10, 2);
       scene.add(l);
       this.lights.push({ light: l, life: 0 });
     }

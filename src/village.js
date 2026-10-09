@@ -3,6 +3,7 @@
 // Bahnhof + Gleis + Zug leben in train.js (eigene Datei).
 
 import * as THREE from 'three';
+import { PoolPointLight } from './light-pool.js';
 import { GeoBatch, addBoxBlocker, addCircleBlocker } from './geo.js';
 import { terrainHeight, DORF } from './terrain.js';
 import { mulberry32 } from './noise.js';
@@ -173,7 +174,7 @@ export function buildVillage(scene, glowTex, hud, audio, health, fx) {
   kaminGlow.position.set(kaminPos.x + 0.35, kaminPos.y + 0.55, kaminPos.z);
   kaminGlow.scale.set(0.9, 1.1, 1);
   scene.add(kaminGlow);
-  const kaminLight = new THREE.PointLight(0xff9a3c, 6, 8, 2);
+  const kaminLight = new PoolPointLight(0xff9a3c, 6, 8, 2);
   kaminLight.position.set(kaminPos.x + 0.5, kaminPos.y + 0.7, kaminPos.z);
   scene.add(kaminLight);
 

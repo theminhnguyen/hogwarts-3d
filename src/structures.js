@@ -2,6 +2,7 @@
 // Quidditch-Feld, Steinkreis — mit Stein-/Holz-/Dach-Texturen.
 
 import * as THREE from 'three';
+import { PoolPointLight } from './light-pool.js';
 import { GeoBatch, addBoxBlocker, addCircleBlocker, addPlatform } from './geo.js';
 import { terrainHeight, BOATHOUSE, HAGRID, QUIDDITCH, STONES, WATER_LEVEL } from './terrain.js';
 import { mulberry32 } from './noise.js';
@@ -61,7 +62,7 @@ export function buildStructures(scene, glowTex) {
     bx.d.add(new THREE.CylinderGeometry(0.09, 0.14, 2.6, 6), IRON, lx, WATER_LEVEL + 2.4, z + 2.6);
     bx.wb.add(new THREE.BoxGeometry(0.4, 0.45, 0.4), WINDOW_WARM, lx, WATER_LEVEL + 3.85, z + 2.6);
     flames.push([lx, WATER_LEVEL + 3.9, z + 2.6]);
-    const l = new THREE.PointLight(0xffb066, 0, 22, 1.8);
+    const l = new PoolPointLight(0xffb066, 0, 22, 1.8);
     l.position.set(lx, WATER_LEVEL + 4, z + 2.6);
     scene.add(l); nightLights.push(l);
     // Ruderboot
@@ -82,7 +83,7 @@ export function buildStructures(scene, glowTex) {
     bx.wb.add(new THREE.PlaneGeometry(1.1, 1.1), WINDOW_WARM, x, gy + 2.2, z - 5.68, Math.PI);
     bx.wb.add(new THREE.PlaneGeometry(1.1, 1.1), WINDOW_WARM, x, gy + 2.2, z + 5.68, 0);
     flames.push([x - 6.1, gy + 2.8, z]);
-    const l = new THREE.PointLight(0xffa860, 0, 18, 1.8);
+    const l = new PoolPointLight(0xffa860, 0, 18, 1.8);
     l.position.set(x - 6.5, gy + 3, z);
     scene.add(l); nightLights.push(l);
     for (let i = 0; i < 9; i++) {

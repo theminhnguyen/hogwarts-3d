@@ -3,6 +3,7 @@
 // automatischer Qualitätsanpassung (Render-Auflösung nach FPS).
 
 import * as THREE from 'three';
+import { PoolPointLight, createLightPool } from './light-pool.js';
 import { buildTerrain, buildWater, ASCHENKLAMM, FROSTZINNEN, SILBERHAIN, SCHWARZWASSER, SCHATTENFESTE } from './terrain.js';
 import { SkySystem } from './sky.js';
 import { buildCastle } from './castle.js';
@@ -108,6 +109,11 @@ const camera = new THREE.PerspectiveCamera(74, window.innerWidth / window.innerH
 // Die Kamera muss Teil des Szenegraphs sein, sonst rendert three.js ihre
 // Kinder (den Zauberstab) nicht mit (renderer.render traversiert nur scene).
 scene.add(camera);
+// Perf-Runde 2026-10-09: feste Zahl echter Punktlichter, auf die alle
+// PoolPointLight-Quellen jedes Bild verteilt werden (siehe light-pool.js).
+// Muss vor dem ersten Render existieren, damit die Shader gleich mit der
+// endgültigen Lichteranzahl kompiliert werden.
+const lightPool = createLightPool(scene);
 
 // PLAN-EPISCHE-WELT.md (E0d/E0e): Region-Streaming-Fundament. Braucht nur
 // `scene`, deshalb schon hier erzeugt statt als eigener Build-Step — spätere
@@ -166,7 +172,7 @@ let pumpkinFirstFound = false;
 
 function buildPumpkinGlows() {
   for (const p of structures.pumpkins) {
-    const light = new THREE.PointLight(0xffa438, 0, 6, 2);
+    const light = new PoolPointLight(0xffa438, 0, 6, 2);
     light.position.set(p.x, p.y + 0.3, p.z);
     scene.add(light);
     const glow = new THREE.Sprite(new THREE.SpriteMaterial({
@@ -1222,6 +1228,13 @@ function tick() {
 
   if (playing) frame(dt);
 
+  renderFrame(dt);
+}
+
+// Ein Bild zeichnen: erst den Licht-Pool auf den aktuellen Kamerastand
+// bringen, dann rendern (vom Render-Loop und von __game.step() genutzt).
+function renderFrame(dt) {
+  lightPool.update(camera, dt);
   post.render(sky.state.nightGlow, fpsEMA, sky.state.sunDir);
 }
 
@@ -1532,8 +1545,9 @@ buildWorld().then(() => {
     // Für automatisierte Tests: n Frames direkt simulieren (ohne rAF)
     step: (n = 60, dt = 1 / 60) => {
       for (let i = 0; i < n; i++) frame(dt);
-      post.render(sky.state.nightGlow, fpsEMA, sky.state.sunDir);
+      renderFrame(n * dt);
     },
+    lightPool,
     // Sofort in eine Richtung schauen und zaubern (Kamera-Rotation synchron
     // vor dem Cast aktualisieren, sonst nutzt getWorldDirection() die
     // Rotation vom letzten Frame)

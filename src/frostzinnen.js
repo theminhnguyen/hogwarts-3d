@@ -18,6 +18,7 @@
 // Kollisions-Sperrring — Eis ist fest begehbar, nur eine Deko-Fläche auf
 // normaler Gehhöhe.
 import * as THREE from 'three';
+import { PoolPointLight } from './light-pool.js';
 import { GeoBatch, addBoxBlocker, addCircleBlocker } from './geo.js';
 import { terrainHeight, FROSTZINNEN } from './terrain.js';
 import { attachRimLight, buildLimbChain } from './model.js';
@@ -448,7 +449,7 @@ function buildDecor(root, glowTex) {
     rune.position.set(spot.x, y + 0.85, spot.z);
     rune.scale.set(1.4, 1.9, 1);
     root.add(rune);
-    const light = new THREE.PointLight(0x9fe0ff, 0, 7, 2);
+    const light = new PoolPointLight(0x9fe0ff, 0, 7, 2);
     light.position.copy(rune.position);
     root.add(light);
     runeBraziers.push({ x: spot.x, y: y + 0.7, z: spot.z, rune, light, lit: false });
@@ -472,7 +473,7 @@ function buildDecor(root, glowTex) {
   altarGlow.scale.setScalar(1.3);
   altarGlow.position.copy(altarCrystal.position);
   root.add(altarGlow);
-  const altarLight = new THREE.PointLight(0x9fe0ff, 4, 8, 2);
+  const altarLight = new PoolPointLight(0x9fe0ff, 4, 8, 2);
   altarLight.position.copy(altarCrystal.position);
   root.add(altarLight);
 

@@ -7,6 +7,7 @@
 // zähmbare Einhorn selbst lebt in unicorn.js — eigene Region, gleiches
 // Zentrum, siehe dortiger Kopf-Kommentar zur Begründung.
 import * as THREE from 'three';
+import { PoolPointLight } from './light-pool.js';
 import { GeoBatch } from './geo.js';
 import { terrainHeight, SILBERHAIN } from './terrain.js';
 import { buildFigure, animateFigure } from './npc.js';
@@ -62,7 +63,7 @@ function buildSilberbaum(root, glowTex) {
   glow.scale.setScalar(6);
   glow.position.set(TREE.x, y + 7.2, TREE.z);
   root.add(glow);
-  const light = new THREE.PointLight(0xe8d8ff, 3, 20, 2);
+  const light = new PoolPointLight(0xe8d8ff, 3, 20, 2);
   light.position.set(TREE.x, y + 6, TREE.z);
   root.add(light);
 
@@ -91,7 +92,7 @@ function buildMushroomRing(root, glowTex) {
     glow.scale.setScalar(0.1);
     glow.position.set(x, y + s * 0.95, z);
     root.add(glow);
-    const light = new THREE.PointLight(0xf0c8ff, 0, 5, 2);
+    const light = new PoolPointLight(0xf0c8ff, 0, 5, 2);
     light.position.copy(glow.position);
     root.add(light);
     mushrooms.push({ x, y: y + s * 0.9, z, glow, light, lit: false });

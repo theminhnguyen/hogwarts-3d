@@ -4,6 +4,7 @@
 // Ausbau) ergänzt Seelenlichter, Tor-Öffnung, Truhe und Laterne-Effekte.
 
 import * as THREE from 'three';
+import { PoolPointLight } from './light-pool.js';
 import { GeoBatch, addCircleBlocker, addBoxBlocker, tint } from './geo.js';
 import { terrainHeight, MOOR } from './terrain.js';
 import { smoothstep, mulberry32, lerp } from './noise.js';
@@ -166,7 +167,7 @@ export function buildMoor(scene, glowTex, hud, audio, fx) {
   torch.scale.set(1.1, 1.5, 1);
   torch.visible = false;
   scene.add(torch);
-  const torchLight = new THREE.PointLight(0xff9a3c, 0, 9, 2);
+  const torchLight = new PoolPointLight(0xff9a3c, 0, 9, 2);
   torchLight.position.copy(torch.position);
   scene.add(torchLight);
 

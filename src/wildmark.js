@@ -5,6 +5,7 @@
 // (Einrichtung + Kauf-Quest folgen in S7).
 
 import * as THREE from 'three';
+import { PoolPointLight } from './light-pool.js';
 import { terrainHeight, FAHLHOLZ, HUEGELGRAB, KATE } from './terrain.js';
 import { GeoBatch, addBoxBlocker, addCircleBlocker, tint } from './geo.js';
 import { mulberry32 } from './noise.js';
@@ -222,7 +223,7 @@ export function buildKate(scene, glowTex) {
   kaminGlow.position.set(kaminPos.x + 0.35, kaminPos.y + 0.55, kaminPos.z);
   kaminGlow.scale.set(0.9, 1.1, 1);
   scene.add(kaminGlow);
-  const kaminLight = new THREE.PointLight(0xff9a3c, 0, 8, 2);
+  const kaminLight = new PoolPointLight(0xff9a3c, 0, 8, 2);
   kaminLight.position.set(kaminPos.x + 0.5, kaminPos.y + 0.7, kaminPos.z);
   scene.add(kaminLight);
 

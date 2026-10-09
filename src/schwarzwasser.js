@@ -9,6 +9,7 @@
 // Alaric am Ufer, Quest an den gelösten Tresor gekoppelt (Muster: Selas
 // Quest in silberhain.js — ein Gespräch NACH der Leistung reicht).
 import * as THREE from 'three';
+import { PoolPointLight } from './light-pool.js';
 import { GeoBatch } from './geo.js';
 import { terrainHeight, SCHWARZWASSER, buildWater } from './terrain.js';
 import { buildFigure, animateFigure } from './npc.js';
@@ -73,7 +74,7 @@ function buildLighthouse(root, glowTex) {
   beacon.scale.setScalar(1.6);
   beacon.position.set(0, 11.8, 0);
   group.add(beacon);
-  const beaconLight = new THREE.PointLight(0xfff2c0, 0, 60, 2);
+  const beaconLight = new PoolPointLight(0xfff2c0, 0, 60, 2);
   beaconLight.position.set(0, 11.8, 0);
   group.add(beaconLight);
 
@@ -130,7 +131,7 @@ function buildLevers(root, glowTex) {
     glow.scale.setScalar(0.5);
     glow.position.set(spot.x, spot.y + 0.2, spot.z);
     root.add(glow);
-    const light = new THREE.PointLight(0x6ad8c8, 0, 4, 2);
+    const light = new PoolPointLight(0x6ad8c8, 0, 4, 2);
     light.position.copy(glow.position);
     root.add(light);
     levers.push({ x: spot.x, y: spot.y, z: spot.z, armPivot, glow, light, lit: false });

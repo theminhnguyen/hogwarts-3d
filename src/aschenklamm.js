@@ -22,6 +22,7 @@
 // (~399/391,72/74, Abstand zu C ≈36-38m). Ankunft vom Kate-Pfad liegt bei C
 // selbst, die Route führt von dort nach Norden am See vorbei zum Tor.
 import * as THREE from 'three';
+import { PoolPointLight } from './light-pool.js';
 import { GeoBatch, addBoxBlocker, addCircleBlocker } from './geo.js';
 import { terrainHeight, ASCHENKLAMM } from './terrain.js';
 import { attachRimLight } from './model.js';
@@ -519,7 +520,7 @@ function buildDecor(root, glowTex) {
     rune.position.set(spot.x, y + 0.85, spot.z);
     rune.scale.set(1.4, 1.9, 1);
     root.add(rune);
-    const light = new THREE.PointLight(0xff7a30, 0, 7, 2);
+    const light = new PoolPointLight(0xff7a30, 0, 7, 2);
     light.position.copy(rune.position);
     root.add(light);
     runeBraziers.push({ x: spot.x, y: y + 0.7, z: spot.z, rune, light, lit: false });
@@ -569,7 +570,7 @@ function buildDecor(root, glowTex) {
   const lavaMesh = new THREE.Mesh(lavaGeo, lavaMat);
   lavaMesh.position.set(LAVA.x, lavaY, LAVA.z);
   root.add(lavaMesh);
-  const lavaGlow = new THREE.PointLight(0xff5a20, 6, LAVA.r * 2.4, 2);
+  const lavaGlow = new PoolPointLight(0xff5a20, 6, LAVA.r * 2.4, 2);
   lavaGlow.position.set(LAVA.x, lavaY + 1.5, LAVA.z);
   root.add(lavaGlow);
   addCircleBlocker(LAVA.x, LAVA.z, LAVA.r + 0.6, lavaY - 1, lavaY + 2.5);

@@ -6,6 +6,7 @@
 // Sternsplitter in der Wildmark liegen, verschwinden im Morgengrauen.
 
 import * as THREE from 'three';
+import { PoolPointLight } from './light-pool.js';
 import { terrainHeight } from './terrain.js';
 import { t } from './i18n.js';
 
@@ -252,6 +253,14 @@ export function buildHome(scene, camera, glowTex, hud, audio, fx, health, intera
     blending: THREE.AdditiveBlending, depthWrite: false,
   });
   const splitters = [null, null]; // { sprite, x, z, entry } | null
+  // Zwei FESTE Lichter statt pro Meteornacht neu erzeugter — der Licht-Pool
+  // (light-pool.js) führt ein Register aller Lichtquellen, das sonst bei
+  // jeder Meteornacht um zwei verwaiste Einträge gewachsen wäre.
+  const splitterLights = [0, 1].map(() => {
+    const l = new PoolPointLight(0xbfe0ff, 0, 5, 2);
+    scene.add(l);
+    return l;
+  });
   let lastNightGlow = 0;
   let meteorRolledTonight = false;
 
@@ -274,9 +283,9 @@ export function buildHome(scene, camera, glowTex, hud, audio, fx, health, intera
       sprite.position.set(spot.x, spot.y + 0.6, spot.z);
       sprite.scale.setScalar(0.5);
       scene.add(sprite);
-      const light = new THREE.PointLight(0xbfe0ff, 3, 5, 2);
+      const light = splitterLights[i];
       light.position.copy(sprite.position);
-      scene.add(light);
+      light.intensity = 3;
       splitters[i] = { sprite, light, x: spot.x, z: spot.z };
     }
     // Sternschnuppen-Streifen: ein paar hohe, schnell verblassende Bursts
@@ -292,7 +301,7 @@ export function buildHome(scene, camera, glowTex, hud, audio, fx, health, intera
       const s = splitters[i];
       if (!s) continue;
       scene.remove(s.sprite);
-      scene.remove(s.light);
+      s.light.intensity = 0;
       splitters[i] = null;
     }
   }
@@ -303,7 +312,7 @@ export function buildHome(scene, camera, glowTex, hud, audio, fx, health, intera
     const dx = s.x - player.pos.x, dz = s.z - player.pos.z;
     if (dx * dx + dz * dz > SPLITTER_RANGE * SPLITTER_RANGE) return;
     scene.remove(s.sprite);
-    scene.remove(s.light);
+    s.light.intensity = 0;
     splitters[i] = null;
     heim.zutaten.stern += 1;
     audio.chime?.();

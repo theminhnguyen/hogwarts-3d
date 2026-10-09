@@ -6,6 +6,7 @@
 // Duellant (Fechtmeisterin Ondra, 10-16 Uhr, Einsatz/Gewinn in Gold).
 
 import * as THREE from 'three';
+import { PoolPointLight } from './light-pool.js';
 import { GeoBatch, addCircleBlocker, addBoxBlocker, pointBlocked } from './geo.js';
 import { terrainHeight, FAHLHOLZ } from './terrain.js';
 import { getMaterials } from './materials.js';
@@ -499,7 +500,7 @@ function buildCampSite(scene, glowTex, spot) {
   fireGlow.position.set(0, 0.5, 0);
   fireGlow.scale.set(1.0, 1.2, 1);
   group.add(fireGlow);
-  const fireLight = new THREE.PointLight(0xff9a3c, 5, 9, 2);
+  const fireLight = new PoolPointLight(0xff9a3c, 5, 9, 2);
   fireLight.position.set(0, 0.6, 0);
   group.add(fireLight);
 

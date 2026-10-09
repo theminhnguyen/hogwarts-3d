@@ -8,6 +8,7 @@
 // Zielzustand setzen (restore()) — für Save-Reload und den Reset-Button.
 
 import * as THREE from 'three';
+import { PoolPointLight } from './light-pool.js';
 import { GeoBatch, addBoxBlocker, platformGround } from './geo.js';
 import { terrainHeight, STONES } from './terrain.js';
 import { getMaterials } from './materials.js';
@@ -129,7 +130,7 @@ export class PuzzleSystem {
       flame.userData.phase = Math.random() * Math.PI * 2;
       this.scene.add(flame);
 
-      const light = new THREE.PointLight(0xff9a3c, 0, 9, 2);
+      const light = new PoolPointLight(0xff9a3c, 0, 9, 2);
       light.position.set(spot.x, y + 1.2, spot.z);
       this.scene.add(light);
 
@@ -164,7 +165,7 @@ export class PuzzleSystem {
     this.grottoTorch.scale.set(1.1, 1.5, 1);
     this.grottoTorch.visible = false;
     this.scene.add(this.grottoTorch);
-    this.grottoLight = new THREE.PointLight(0xff9a3c, 0, 8, 2);
+    this.grottoLight = new PoolPointLight(0xff9a3c, 0, 8, 2);
     this.grottoLight.position.copy(this.grottoTorch.position);
     this.scene.add(this.grottoLight);
 
@@ -282,7 +283,7 @@ export class PuzzleSystem {
       glow.scale.set(1.9, 1.9, 1);
       glow.position.set(spot.x, y + 0.18, spot.z);
       this.scene.add(glow);
-      const light = new THREE.PointLight(0xb08cff, 0, 5, 2);
+      const light = new PoolPointLight(0xb08cff, 0, 5, 2);
       light.position.set(spot.x, y + 0.5, spot.z);
       this.scene.add(light);
       this.plates.push({ x: spot.x, z: spot.z, y, glow, light, active: false });

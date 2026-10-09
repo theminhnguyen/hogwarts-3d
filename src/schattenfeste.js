@@ -12,6 +12,7 @@
 // pulsierender Schleier, der sichtbar verschwindet, sobald das Gate erfüllt
 // ist.
 import * as THREE from 'three';
+import { PoolPointLight } from './light-pool.js';
 import { terrainHeight, SCHATTENFESTE } from './terrain.js';
 import { GeoBatch, addBoxBlocker } from './geo.js';
 import { getMaterials } from './materials.js';
@@ -99,7 +100,7 @@ function buildWard(root, glowTex) {
   sprite.scale.set(GATE_WIDTH + 1.5, 4.4, 1);
   sprite.position.set(GATE_POS.x, y + 2.1, GATE_POS.z);
   root.add(sprite);
-  const light = new THREE.PointLight(0x8a2fd1, 3, 12, 2);
+  const light = new PoolPointLight(0x8a2fd1, 3, 12, 2);
   light.position.set(GATE_POS.x, y + 2.1, GATE_POS.z);
   root.add(light);
   const blocker = addBoxBlocker(GATE_POS.x - GATE_WIDTH / 2, GATE_POS.x + GATE_WIDTH / 2, y - 1, y + 3.5, GATE_POS.z - 0.5, GATE_POS.z + 0.5);

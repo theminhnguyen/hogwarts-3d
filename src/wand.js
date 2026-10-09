@@ -4,6 +4,7 @@
 // Grundpose — nie die Basis überschreiben, immer Basis + Offset rechnen.
 
 import * as THREE from 'three';
+import { PoolPointLight } from './light-pool.js';
 import { GeoBatch } from './geo.js';
 import { t } from './i18n.js';
 
@@ -119,7 +120,7 @@ export class WandSystem {
 
     // Spitzen-Licht: 0 im Idle, blitzt beim Cast auf, klingt in 0.25s ab.
     // Lumos-Dauerglühen wird in Phase 4 hier angeschlossen (Migration).
-    this.tipLight = new THREE.PointLight(SPELLS.stupor.color, 0, 6, 2.0);
+    this.tipLight = new PoolPointLight(SPELLS.stupor.color, 0, 6, 2.0);
     this.tip.add(this.tipLight);
   }
 

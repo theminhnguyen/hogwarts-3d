@@ -10,6 +10,7 @@
 // RegionManager nötig (immer nah am Schloss, also ohnehin "immer wach" im
 // Kernradius, exakt wie Willow/Wilderer/Hallows aus früheren Meilensteinen).
 import * as THREE from 'three';
+import { PoolPointLight } from './light-pool.js';
 import { terrainHeight } from './terrain.js';
 import { GeoBatch } from './geo.js';
 import { getMaterials } from './materials.js';
@@ -53,7 +54,7 @@ export function buildFinale(scene, glowTex, hud, audio, fx, economy, interact, d
   portal.scale.set(4.2, 4.2, 1);
   portal.position.y = 1.4;
   group.add(portal);
-  const portalLight = new THREE.PointLight(0x9a6bff, 0, 11, 2);
+  const portalLight = new PoolPointLight(0x9a6bff, 0, 11, 2);
   portalLight.position.y = 1.4;
   group.add(portalLight);
 

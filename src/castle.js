@@ -4,6 +4,7 @@
 // Stein/Dach/Holz mit Welt-Textur-Projektion, Deko & Fenster separat.
 
 import * as THREE from 'three';
+import { PoolPointLight } from './light-pool.js';
 import { GeoBatch, addBoxBlocker, addCircleBlocker, addPlatform } from './geo.js';
 import { PLATEAU, terrainHeight } from './terrain.js';
 import { mulberry32 } from './noise.js';
@@ -191,7 +192,7 @@ export function buildCastle(scene) {
   }
   flames.push([-4.6, GY + 4.5, 47.2], [4.6, GY + 4.5, 47.2]);
   {
-    const l = new THREE.PointLight(0xffb066, 0, 26, 1.8);
+    const l = new PoolPointLight(0xffb066, 0, 26, 1.8);
     l.position.set(0, GY + 5, 46);
     scene.add(l); nightLights.push(l);
   }
@@ -279,7 +280,7 @@ export function buildCastle(scene) {
       flames.push([x0 + TH + 0.4, GY + 5.5, fz], [x1 - TH - 0.4, GY + 5.5, fz]);
     }
     for (const lz of [-10, 4, 18]) {
-      const l = new THREE.PointLight(0xffc274, 26, 48, 1.6);
+      const l = new PoolPointLight(0xffc274, 26, 48, 1.6);
       l.position.set(-32, GY + 7.5, lz);
       scene.add(l);
     }
@@ -405,7 +406,7 @@ export function buildCastle(scene) {
       addCircleBlocker(lx, lz, 0.35, GY, GY + 3.5);
       flames.push([lx, GY + 3.9, lz]);
     }
-    const l = new THREE.PointLight(0xffb066, 0, 44, 1.8);
+    const l = new PoolPointLight(0xffb066, 0, 44, 1.8);
     l.position.set(0, GY + 6, 12);
     scene.add(l); nightLights.push(l);
     for (const [bxx, bz, ry] of [[-8, 12, Math.PI / 2], [8, 12, -Math.PI / 2]]) {

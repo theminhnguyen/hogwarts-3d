@@ -9,6 +9,7 @@
 // (alle 3 besessen+ausgerüstet) bündelt Bonus-Effekte in mount.js/dementor.js.
 
 import * as THREE from 'three';
+import { PoolPointLight } from './light-pool.js';
 import { terrainHeight, LAKE, HUEGELGRAB } from './terrain.js';
 import { buildGhostParts, Ghost } from './creatures.js';
 import { t } from './i18n.js';
@@ -362,7 +363,7 @@ export function buildHallows(scene, glowTex, hud, audio, fx, health, interact, h
   stoneGlow.scale.setScalar(1.6);
   stoneGlow.position.copy(stoneMesh.position);
   scene.add(stoneGlow);
-  const stoneLight = new THREE.PointLight(0x9fc8ff, 4, 8, 2);
+  const stoneLight = new PoolPointLight(0x9fc8ff, 4, 8, 2);
   stoneLight.position.copy(stoneMesh.position);
   scene.add(stoneLight);
   let stoneT = 0;
