@@ -49,6 +49,33 @@ export class Hud {
     this._dialogLines = [];
     this._dialogIdx = 0;
     this._dialogOnClose = null;
+    this._dom = new WeakMap();
+  }
+
+  // Perf-Runde 2026-10-09: main.js ruft die meisten Setter JEDES Bild auf,
+  // die Werte ändern sich aber selten (Uhr, Kompass, Herzen, Vignetten …).
+  // Jeder DOM-Schreibzugriff kostet den Browser Arbeit (Stil neu berechnen,
+  // bei Text auch Layout) — selbst wenn derselbe Wert erneut geschrieben
+  // wird. Diese Helfer schreiben nur bei echter Änderung.
+  // WICHTIG: ein Element-Merkmal, das hierüber läuft, darf nirgends sonst
+  // direkt beschrieben werden, sonst veraltet der Zwischenspeicher.
+  _last(node) {
+    let c = this._dom.get(node);
+    if (!c) { c = {}; this._dom.set(node, c); }
+    return c;
+  }
+  _text(node, text) {
+    const c = this._last(node);
+    if (c.text === text) return;
+    c.text = text;
+    node.textContent = text;
+  }
+  _css(node, prop, value) {
+    const c = this._last(node);
+    if (c[prop] === value) return;
+    c[prop] = value;
+    if (prop.startsWith('--')) node.style.setProperty(prop, value);
+    else node.style[prop] = value;
   }
 
   setActive(on) { this.hud.classList.toggle('active', on); }
@@ -63,7 +90,7 @@ export class Hud {
     }
     this._heartEls.forEach((h, i) => {
       const frac = Math.max(0, Math.min(1, current - i));
-      h.style.setProperty('--fill', frac.toFixed(2));
+      this._css(h, '--fill', frac.toFixed(2));
     });
   }
 
@@ -77,7 +104,7 @@ export class Hud {
   }
 
   // Weißblende beim Tod (0 = unsichtbar, 1 = voll deckend)
-  setWhiteout(frac) { this.whiteout.style.opacity = frac; }
+  setWhiteout(frac) { this._css(this.whiteout, 'opacity', String(frac)); }
 
   // Blitz-Aufhellung im Sturm (weather.js)
   flashLightning() {
@@ -96,50 +123,50 @@ export class Hud {
   }
 
   // Kälte-Aura nahe Schattengeistern (0..1, blauer Rand-Schleier)
-  setCold(frac) { this.vignette.style.setProperty('--cold', frac.toFixed(3)); }
+  setCold(frac) { this._css(this.vignette, '--cold', frac.toFixed(3)); }
 
   // Trübung/Entsättigung im Nebelmoor (0..1, wächst zum Zentrum hin)
-  setMoor(frac) { this.vignette.style.setProperty('--moor', frac.toFixed(3)); }
+  setMoor(frac) { this._css(this.vignette, '--moor', frac.toFixed(3)); }
 
   // Dementor-Frost-Aura (0..1). Ab 0.7 blendet zusätzlich eine leichte
   // Gesamt-Abdunklung ein (--frost-dark, 0..1 über den Bereich 0.7..1).
   setFrost(frac) {
-    this.vignette.style.setProperty('--frost', frac.toFixed(3));
-    this.vignette.style.setProperty('--frost-dark', Math.max(0, (frac - 0.7) / 0.3).toFixed(3));
+    this._css(this.vignette, '--frost', frac.toFixed(3));
+    this._css(this.vignette, '--frost-dark', Math.max(0, (frac - 0.7) / 0.3).toFixed(3));
   }
 
   // S10 Tauchen: blaugrüne Trübung + dunklere Ränder (Muster --frost/--frost-dark)
-  setUnderwater(frac) { this.vignette.style.setProperty('--underwater', frac.toFixed(3)); }
+  setUnderwater(frac) { this._css(this.vignette, '--underwater', frac.toFixed(3)); }
 
   // S11 Animagus-Wolf: Nachtsicht hellt die Nacht-Vignette grünlich auf
   // (mix-blend-mode:screen in index.html, siehe --nightvision).
-  setNightVision(frac) { this.vignette.style.setProperty('--nightvision', frac.toFixed(3)); }
+  setNightVision(frac) { this._css(this.vignette, '--nightvision', frac.toFixed(3)); }
 
   // V5 (PLAN-DER-DUNKLE-LORD.md): tiefviolette Vignette, pulsiert im Takt
   // der jeweiligen Kampfphase (voldemort.js liefert den Wert über
   // lord.vignetteFrac) — Muster --frost/--cold/--moor.
-  setLord(frac) { this.vignette.style.setProperty('--lord', frac.toFixed(3)); }
+  setLord(frac) { this._css(this.vignette, '--lord', frac.toFixed(3)); }
 
   // S10 Luftanzeige — nur sichtbar, solange geschwommen wird (main.js steuert
   // das via player.swimming). frac<0.25 färbt den Balken warnend rot-orange.
   setAirGauge(visible, frac) {
     this.airgauge.classList.toggle('visible', visible);
     if (!visible) return;
-    this.airgauge.style.setProperty('--air-fill', frac.toFixed(3));
+    this._css(this.airgauge, '--air-fill', frac.toFixed(3));
     this.airgauge.classList.toggle('low', frac < 0.25);
   }
 
-  setCounter(n, total) { this.counter.textContent = `✦ ${n} / ${total}`; }
+  setCounter(n, total) { this._text(this.counter, `✦ ${n} / ${total}`); }
 
   setArtifacts(n, total) {
-    this.artifacts.textContent = `🏆 ${n} / ${total}`;
+    this._text(this.artifacts, `🏆 ${n} / ${total}`);
     if (!this._artifactsShown && n > 0) { this._artifactsShown = true; this.artifacts.style.display = 'block'; }
   }
 
   // Dezent: erscheint erst beim ersten Gold (Niffler-Glitzer, S2), bleibt
   // danach dauerhaft sichtbar — wie die Artefakt-Zeile.
   setGold(n) {
-    this.gold.textContent = `💰 ${n}`;
+    this._text(this.gold, `💰 ${n}`);
     if (!this._goldShown && n > 0) { this._goldShown = true; this.gold.style.display = 'block'; }
   }
 
@@ -147,35 +174,35 @@ export class Hud {
   setTameRing(frac) {
     if (frac === null) { this.tameRing.classList.remove('visible'); return; }
     this.tameRing.classList.add('visible');
-    this.tameRing.style.setProperty('--tame', Math.max(0, Math.min(1, frac)).toFixed(3));
+    this._css(this.tameRing, '--tame', Math.max(0, Math.min(1, frac)).toFixed(3));
   }
 
   // total=null blendet die Zeile aus (kein Grund, sie gerade zu zeigen)
   setSoulLights(n, total) {
-    if (total === null) { this.soullights.style.display = 'none'; return; }
-    this.soullights.style.display = 'block';
-    this.soullights.textContent = `🏮 ${n} / ${total}`;
+    if (total === null) { this._css(this.soullights, 'display', 'none'); return; }
+    this._css(this.soullights, 'display', 'block');
+    this._text(this.soullights, `🏮 ${n} / ${total}`);
   }
 
   // Ersetzt den Seelenlichter-Zähler dauerhaft durch ein statisches Icon,
   // sobald die Silberne Seelenlaterne geborgen ist.
   showLanternIcon() {
-    this.soullights.style.display = 'none';
-    this.lanternIcon.style.display = 'block';
+    this._css(this.soullights, 'display', 'none');
+    this._css(this.lanternIcon, 'display', 'block');
   }
 
   // text=null blendet die Zeile aus (kein aktives Rätsel gerade)
   setPuzzleStatus(text) {
-    if (text === null) { this.puzzleStatus.style.display = 'none'; return; }
-    this.puzzleStatus.textContent = text;
-    this.puzzleStatus.style.display = 'block';
+    if (text === null) { this._css(this.puzzleStatus, 'display', 'none'); return; }
+    this._text(this.puzzleStatus, text);
+    this._css(this.puzzleStatus, 'display', 'block');
   }
 
   // frac=null blendet die Bossbar aus (nur während Troll-Aggro sichtbar)
   setBoss(frac) {
-    if (frac === null) { this.bossbar.style.display = 'none'; return; }
-    this.bossbar.style.display = 'block';
-    this.bossbarFill.style.setProperty('--boss-fill', Math.max(0, Math.min(1, frac)).toFixed(3));
+    if (frac === null) { this._css(this.bossbar, 'display', 'none'); return; }
+    this._css(this.bossbar, 'display', 'block');
+    this._css(this.bossbarFill, '--boss-fill', Math.max(0, Math.min(1, frac)).toFixed(3));
   }
 
   // Baut die 4 Spruch-Chips einmalig auf (Reihenfolge = Anzeigereihenfolge)
@@ -203,24 +230,25 @@ export class Hud {
       chip.classList.toggle('active', id === activeId);
       const cd = cooldowns ? cooldowns[id] : 0;
       const frac = Math.max(0, Math.min(1, cd / (this._spellMax[id] || 1)));
-      chip.style.setProperty('--cd', frac.toFixed(3));
+      this._css(chip, '--cd', frac.toFixed(3));
     }
   }
 
   // Pfeil zeigt relativ zur Blickrichtung auf den nächsten Schnatz
   setTracker(info, heading) {
-    if (!info) { this.tracker.style.display = 'none'; return; }
-    this.tracker.style.display = 'flex';
+    if (!info) { this._css(this.tracker, 'display', 'none'); return; }
+    this._css(this.tracker, 'display', 'flex');
     const rel = info.angle - heading;
-    this.trackerArrow.style.transform = `rotate(${rel - Math.PI / 2}rad)`;
-    this.trackerDist.textContent = `${Math.round(info.dist)} m`;
+    // auf ~0,6° gerundet: im Stand schreibt der Pfeil dann gar nicht mehr
+    this._css(this.trackerArrow, 'transform', `rotate(${(rel - Math.PI / 2).toFixed(2)}rad)`);
+    this._text(this.trackerDist, `${Math.round(info.dist)} m`);
   }
 
-  setClock(text) { this.clock.textContent = text; }
+  setClock(text) { this._text(this.clock, text); }
 
   setHeading(rad) {
     const idx = Math.round(rad / (Math.PI / 4)) % 8;
-    this.compass.textContent = t('hud.compass.' + SECTOR_KEYS[idx]);
+    this._text(this.compass, t('hud.compass.' + SECTOR_KEYS[idx]));
   }
 
   toggleFps() {
@@ -231,19 +259,19 @@ export class Hud {
 
   setFps(fps, pixelRatio) {
     if (this._fpsVisible) {
-      this.fps.textContent = `${fps.toFixed(0)} FPS · Auflösung ×${pixelRatio.toFixed(2)}`;
+      this._text(this.fps, `${fps.toFixed(0)} FPS · Auflösung ×${pixelRatio.toFixed(2)}`);
     }
   }
 
   showHint(text) {
-    this.hint.textContent = text;
+    this._text(this.hint, text);
     this.hint.classList.add('visible');
   }
 
   hideHint() { this.hint.classList.remove('visible'); }
 
   showInteractPrompt(text, locked = false) {
-    this.interactPrompt.textContent = text;
+    this._text(this.interactPrompt, text);
     this.interactPrompt.classList.toggle('locked', locked);
     this.interactPrompt.classList.add('visible');
   }
